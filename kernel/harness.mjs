@@ -27,7 +27,7 @@
 //                                             per round before EVAL — T0 is per scope and proves
 //                                             nothing about whether the whole compiles or starts.
 //   reduce   ingest · hill · ship ·            Single writer. Shared state has exactly one author.
-//            board · graph
+//            board
 //   gate                                      An answer file with a source, not a vibe.
 //   probe    resume · t0 · digest ·           Queries over run state (`resume` also closes a run).
 //            leg · eval · owner ·
@@ -87,7 +87,7 @@ export const ROUTES = {
   },
   reduce: {
     ingest: "./reduce/ingest.mjs", hill: "./reduce/hill.mjs",
-    ship: "./reduce/ship.mjs", board: "./reduce/board.mjs", graph: "./reduce/graph.mjs",
+    ship: "./reduce/ship.mjs", board: "./reduce/board.mjs",
   },
   probe: {
     resume: "./probe/resume.mjs", t0: "./probe/t0.mjs",

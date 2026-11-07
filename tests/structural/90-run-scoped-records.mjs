@@ -73,15 +73,10 @@ export async function run(ctx) {
     const otherRun = citationProblem(ws, "f", cite("alpha"), { round: 1 });
     if (otherRun && /an artifact of run /.test(otherRun)) ok("a citation of a prior run's artifact is refused, naming the run");
     else fail(`a prior run's artifact was accepted as this run's evidence: ${otherRun}`);
-    // The other readers of that same run-1 verdict, asked from run 2: the T0 probe, the run subgraph, the hill.
+    // The other readers of that same run-1 verdict, asked from run 2: the T0 probe and the hill.
     const t0 = kernel("probe", "t0", "--slug", "f", "--scope", "alpha", "--round", "1");
     if (t0.status === 1 && /"green":false/.test(t0.stdout)) ok("probe t0 over run 1's green verdict answers run 2 with not-green");
     else fail(`probe t0 read run 1's verdict as run 2's: exit ${t0.status} ${t0.stdout.slice(0, 120)}`);
-    kernel("reduce", "graph", "--slug", "f");
-    const { runSubgraph } = await import(join(ROOT, "kernel/reduce/graph.mjs"));
-    const sub = runSubgraph(ws, "f");
-    if (sub.run === RUN2 && Object.keys(sub.green_scopes_by_round).length === 0) ok("`--subgraph run` names run 2 and carries none of run 1's greens");
-    else fail(`the run subgraph aggregated across runs: run=${sub.run} greens=${JSON.stringify(sub.green_scopes_by_round)}`);
     const hill = kernel("reduce", "hill", "--slug", "f");
     const hrow = (() => { try { return JSON.parse(hill.stdout).find((r) => r.scope_id === "alpha"); } catch { return null; } })();
     if (hrow && hrow.phase !== "DOWNHILL_EXECUTION" && hrow.phase !== "FINISHED") ok(`reduce hill derives run 2's alpha from run 2's evidence (${hrow.phase}), not from run 1's green`);

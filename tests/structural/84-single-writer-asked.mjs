@@ -52,31 +52,6 @@ export async function run(ctx) {
     if (byOrder2.status === 0 && open2.status === 0) ok("after `reduce ingest`, the same order reads applied and the run has no open leg (both exit 0)");
     else fail(`after ingest the probes still report an open leg: order=${byOrder2.status} open=${open2.status} ${open2.stdout.slice(0, 200)}`);
 
-    // --- the graph: a Leg node, an INGESTED edge, and the one-hop question ------------------------
-    // A second order whose result lands and is never applied — the shape the live run had.
-    const compiled2 = kernel("compile", "--slug", "f", "--operation", "plan", "--payload", JSON.stringify({ step: "wire" }));
-    if (compiled2.status !== 0) { fail(`could not compile a second order: ${compiled2.stderr.slice(0, 200)}`); return; }
-    const wireId = JSON.parse(readFileSync(join(ws, ".shapeup/f/orders/plan-wire.json"), "utf8")).order_id;
-    writeFileSync(join(ws, ".shapeup/f/results/plan-wire.json"), JSON.stringify({ schema_version: 1, order_id: wireId, worker: "building", status: "done" }));
-
-    const { project, appendGraph, runSubgraph, WORK_NODES, EDGES } = await import(join(ROOT, "kernel/reduce/graph.mjs"));
-    if (WORK_NODES.includes("Leg") && EDGES.includes("INGESTED")) ok("the graph vocabulary declares the Leg node and the INGESTED edge");
-    else fail(`the graph vocabulary lacks Leg/INGESTED: ${WORK_NODES.join(",")} / ${EDGES.join(",")}`);
-    const { nodes, edges } = project(ws, "f");
-    const legNode = nodes.find((n) => n.t === "Leg" && n.order_id === orderId);
-    const ingestedEdge = edges.find((e) => e.t === "INGESTED" && e.from === `result:${orderId}` && e.to === `leg:${orderId}`);
-    if (legNode && ingestedEdge) ok("the projection emits a Leg node for the applied order and an INGESTED edge from its Result");
-    else fail(`no Leg node / INGESTED edge for ${orderId}: nodes=${nodes.filter((n) => n.t === "Leg").length} edges=${edges.filter((e) => e.t === "INGESTED").length}`);
-    const wireEdge = edges.find((e) => e.t === "INGESTED" && e.from === `result:${wireId}`);
-    if (!wireEdge) ok("the projection emits NO INGESTED edge for the result nothing applied — the absence is the fact");
-    else fail("an INGESTED edge was emitted for a result with no leg row");
-
-    appendGraph(ws, "f");
-    const sub = runSubgraph(ws, "f");
-    if (Array.isArray(sub.unapplied_results) && sub.unapplied_results.length === 1 && sub.unapplied_results[0] === wireId) {
-      ok("`--subgraph run` names the one result the single writer never applied (unapplied_results)");
-    } else fail(`unapplied_results is wrong: ${JSON.stringify(sub.unapplied_results)} (expected [${wireId}])`);
-
     // --- the export: a leg table ---------------------------------------------------------------
     const { TABLES } = await import(join(ROOT, "kernel/report/facts.mjs"));
     if (TABLES.includes("leg")) ok("TABLES declares the leg table");

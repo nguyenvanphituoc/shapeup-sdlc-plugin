@@ -165,7 +165,7 @@ export const resultsDir = (cwd, slug) => join(localRoot(cwd, slug), "results");
  *
  * IT HAS ITS OWN DIRECTORY, and that is not tidiness. A receipt filed as a sibling of the order it
  * answers (`orders/orient.receipt.json`) would land inside a directory three readers enumerate —
- * `probe resume`, `reduce graph` and `report export` all `readdirSync` `orders/` — where it survives
+ * `probe resume` and `report export` both `readdirSync` `orders/` — where it survives
  * today only because each of them happens to filter `.json`. `orient.receipt.json` passes that
  * filter and becomes a bogus `Order` node in the run graph. A separate directory means no future
  * reader has to know this file exists.

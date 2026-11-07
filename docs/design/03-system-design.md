@@ -424,10 +424,10 @@ summary without noticing*: re-dispatching an already-ingested order, miscounting
 (breaking the inner circuit breaker), or "remembering" a hill phase instead of re-deriving it.
 
 The answer is a **query, not a reflex**. After a compaction, or in a fresh session over an open
-run, the loop re-derives where the run stands from artifacts (`probe next --restart` is the first call of a fresh session; this is the same query as one bounded graph read):
+run, the loop re-derives where the run stands from artifacts (`probe next --restart` is the first call of a fresh session):
 
 ```bash
-node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" reduce graph --slug <slug> --subgraph run
+node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" probe next --slug <slug> --restart
 ```
 
 Two supporting derivations answer narrower questions from the same files: `harness probe resume`

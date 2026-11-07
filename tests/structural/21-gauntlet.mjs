@@ -110,24 +110,12 @@ export async function run(ctx) {
         else fail(`G1: --require ${phase} failed over an artifact that is on disk — the phase would be re-dispatched`);
       }
 
-      // (b) the round's own resume: scope A is green in the graph, so the round skips it; scope B
-      //     is not, so it is still work. One bounded query answers for every scope.
-      const graph = kernel(ROOT, ["reduce", "graph", "--slug", SLUG, "--cwd", ws, "--subgraph", "run"], ws);
-      let sub = null;
-      try { sub = JSON.parse(graph.stdout); } catch { /* asserted below */ }
-      const greenR1 = sub?.green_scopes_by_round?.["1"] || [];
-      if (greenR1.includes("sc-a") && !greenR1.includes("sc-b")) {
-        ok("G1: the round resumes with sc-a green and sc-b outstanding — the killed round re-attempts only what it must");
-      } else {
-        fail(`G1: the graph reports round 1 green scopes as ${JSON.stringify(greenR1)} — a relaunch would either re-build finished work or skip unfinished work`);
-      }
-
-      // (c) and the per-scope probe agrees with the graph. Two readings that can disagree about
-      //     "is this scope done" is the defect class, not a safeguard against it.
+      // (b) the round's own resume: scope A is green, so the round skips it; scope B is not, so it is
+      //     still work. The per-scope probe answers for each.
       const a = kernel(ROOT, ["probe", "t0", "--slug", SLUG, "--cwd", ws, "--scope", "sc-a", "--round", "1"], ws);
       const b = kernel(ROOT, ["probe", "t0", "--slug", SLUG, "--cwd", ws, "--scope", "sc-b", "--round", "1"], ws);
-      if (a.status === 0 && b.status === 1) ok("G1: probe t0 and the graph agree on which scope is green (exit 0 vs 1)");
-      else fail(`G1: probe t0 disagrees with the graph — sc-a exit ${a.status} (want 0), sc-b exit ${b.status} (want 1)`);
+      if (a.status === 0 && b.status === 1) ok("G1: probe t0 answers which scope is green (exit 0 vs 1)");
+      else fail(`G1: probe t0 answers wrongly — sc-a exit ${a.status} (want 0), sc-b exit ${b.status} (want 1)`);
     } finally {
       rmSync(ws, { recursive: true, force: true });
     }
@@ -181,12 +169,6 @@ export async function run(ctx) {
       const staleTasks = IDS.filter((id) => !/status:\s*done/.test(readFileSync(join(tasks, `${id}.md`), "utf8")));
       if (staleTasks.length === 0) ok("G3: every task file records its own completion");
       else fail(`G3: ${staleTasks.join(", ")} did not reach status done`);
-
-      // The graph is a projection, so it must agree with what the reducer wrote.
-      kernel(ROOT, ["reduce", "graph", "--slug", SLUG, "--cwd", ws], ws);
-      const sub = JSON.parse(kernel(ROOT, ["reduce", "graph", "--slug", SLUG, "--cwd", ws, "--subgraph", "run"], ws).stdout);
-      if (sub.pending_orders.length === 0) ok("G3: the graph reports no pending orders — board, results and graph agree after the fan-out");
-      else fail(`G3: the graph still reports ${sub.pending_orders.join(", ")} pending after every result was ingested`);
 
       // The lock releases. A reducer that crashed holding it would wedge every later one.
       if (!existsSync(join(ws, ".shapeup", SLUG, ".ingest.lock"))) ok("G3: the ingest lock is released, not leaked");

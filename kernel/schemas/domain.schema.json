@@ -8,49 +8,6 @@
       "WorkOrder": "work-order.schema.json",
       "WorkResult": "work-result.schema.json"
     },
-    "projection": {
-      "description": "How `kernel/reduce/graph.mjs`'s node vocabulary maps onto this catalog. The projection uses short names on purpose — a graph is read by hand — so the mapping is declared rather than inferred. A `type` of null is a KNOWN GAP: the projection emits that node and this schema has never typed it. The structural suite asserts this map is TOTAL against the node types the projection actually emits, so a new node type cannot appear without either a type or an explicit gap.",
-      "nodes": {
-        "Run": {
-          "type": null,
-          "gap": "the run receipt's own record — emitted by reduce graph, never typed here"
-        },
-        "Order": {
-          "type": "WorkOrder",
-          "external": true
-        },
-        "Result": {
-          "type": "WorkResult",
-          "external": true
-        },
-        "Verdict": {
-          "type": "Verdict"
-        },
-        "Trial": {
-          "type": "TrialRow"
-        },
-        "GateDecision": {
-          "type": null,
-          "gap": "a gate decision row — emitted by reduce graph, never typed here"
-        },
-        "Leg": {
-          "type": null,
-          "gap": "a leg-completion row (reduce ingest's record that a result was applied) — emitted by reduce graph, never typed here"
-        },
-        "Scope": {
-          "type": "ScopeContract"
-        },
-        "UseCase": {
-          "type": "UseCase"
-        },
-        "Requirement": {
-          "type": "RequirementClause"
-        },
-        "Seam": {
-          "type": "Seam"
-        }
-      }
-    },
     "relationships": [
       {
         "from": "WorkOrder",
@@ -285,7 +242,7 @@
         "to": "Seam",
         "cardinality": "1:N",
         "via": "wiring-map entries[].wiring_seam",
-        "note": "projected by reduce graph as UseCase -DEPENDS_ON-> Seam. NOTE: the projection reads `row.seam`/`row.entry_point` while WiringEntry declares `wiring_seam`/`entry_call_site` — see harness-defects"
+        "note": "a use case depends on the seam its engine attaches through: the `wiring_seam` cell of its wiring-map row"
       },
       {
         "from": "RoundBuildVerdict",
@@ -682,7 +639,7 @@
       "x-tier": "SHARED",
       "x-location": "shapeup/<slug>/spec/usecases/UC-*.md",
       "x-writer": "the loop's plan activity, spec substep (a reconcile pass MAY append, never renumber)",
-      "x-readers": "the plan activity (scopes: use_cases[]; wire: wiring-map entries), spec-evaluator (the grading criterion), harness verify spec (SCOPE-ANCHOR + UC-ANCHOR), harness reduce graph",
+      "x-readers": "the plan activity (scopes: use_cases[]; wire: wiring-map entries), spec-evaluator (the grading criterion), harness verify spec (SCOPE-ANCHOR + UC-ANCHOR)",
       "type": "object",
       "required": [
         "id"
@@ -1812,8 +1769,8 @@
       }
     },
     "Seam": {
-      "description": "How one use case's engine attaches to the entry point — the `wiring_seam` value of a WiringEntry, promoted to a first-class node by `reduce graph` so a verdict can be traced back through the seam to the objective. Not a file: it exists only as a cell in the committed wiring map and as a node in the derived run graph.",
-      "x-tier": "EMBEDDED (a WiringEntry.wiring_seam value; promoted to a node by reduce graph)",
+      "description": "How one use case's engine attaches to the entry point — the `wiring_seam` value of a WiringEntry, Not a file: it exists only as a cell in the committed wiring map.",
+      "x-tier": "EMBEDDED (a WiringEntry.wiring_seam value)",
       "x-writer": "the loop's plan activity, wire substep, inside wiring-map.md",
       "type": "object",
       "properties": {

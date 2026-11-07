@@ -27,7 +27,6 @@ const RUN_TRACE = [
   ["breadboard.md", "kernel"],
   ["legs.jsonl", "kernel"],
   ["gates.jsonl", "kernel"],
-  ["graph.jsonl", "kernel"],
   ["receipts/dispatch.jsonl", "kernel"],
   ["orders/other-r1-a1.json", "kernel"],
   ["t0/verdicts/r1-a1-t1.json", "kernel"],

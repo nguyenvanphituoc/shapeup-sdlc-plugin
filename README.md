@@ -263,7 +263,7 @@ the layer that carries it, and the three layers here fail differently:
 |---|---|---|
 | `gate-l2` (EVAL over an unfinished board) | The GATE L2 (Round Close) block, which names `green_scopes` and `hammer_proposals` | It was advisory either way; now the same facts reach the human who answers the gate rather than a warning line above it. |
 | `gate-deadline` (deny builds past the wall clock) | `harness verify budget --strict`, checked at every round boundary | **A real coverage change, stated rather than hidden:** the round loop stops the run from opening ANOTHER round, but no longer interrupts a single build leg that runs long. `attempt_budget` bounds that leg by attempts instead. |
-| `session-rehydrate` + `compact-snapshot` | `harness reduce graph --slug <slug> --subgraph run` | A hook fired at two moments the platform chose; a command answers whenever the question is asked, including the moments a hook never saw. |
+| `session-rehydrate` + `compact-snapshot` | `harness probe next --restart` on a fresh session's first call | A hook fired at two moments the platform chose; a command answers whenever the question is asked, including the moments a hook never saw. |
 | `anti-rationalization` (claims the facts contradict) | The ship report's census, derived from the board and the T0 artifacts | The facts are in an artifact a teammate finds on `git pull`, not in a transcript nobody re-reads. |
 | `slop-cleaner` (TODO/`console.log` leftovers) | The ship report's **Leftovers** section | Same scan, same added-lines-only rule; it lands somewhere checkable. |
 

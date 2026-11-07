@@ -191,13 +191,13 @@ export function deriveHill(cwd, slug) {
   // phase" would quietly turn a derived value into a high-water mark, which is a different defect
   // wearing this one's clothes. The condition is the narrowest one that is positively provable:
   // the RUN is not there — its receipt, the record every run's first act writes. The condition used
-  // to be the local root's existence, and any single file satisfies that: `reduce graph` creates
-  // `graph.jsonl` under it as a side effect, so a committed-only checkout that ran graph and then
-  // hill had its FINISHED shards flattened to UPHILL_UNKNOWN, exit 0, no warning. A backstop whose
-  // condition another command satisfies is a backstop only in the order nobody varied.
+  // to be the local root's existence, and any single file satisfies that: a command that created one
+  // file under it left a committed-only checkout's FINISHED shards flattened to UPHILL_UNKNOWN on the
+  // next derive, exit 0, no warning. A backstop whose condition another command satisfies is a
+  // backstop only in the order nobody varied.
   // -------------------------------------------------------------------------------------------
   // Evidence the derivation actually needs: the run's receipt, or the T0 verdicts it reads. A
-  // `graph.jsonl` alone is neither.
+  // stray file under the local root is neither.
   if (!existsSync(receipt(cwd, slug)) && !existsSync(verdictsDir(cwd, slug))) {
     return scopes.map((s) => ({
       scope_id: s.scope_id,

@@ -137,38 +137,6 @@ export async function run(ctx) {
   }
 
   // --- (b) DETERMINISTIC: the run graph keeps two scopes' trials apart --------------------------
-  // The consequence that made the ordinal race matter. A trial node keyed by the ordinal alone
-  // collapses every scope's Nth trial onto one node, and the graph is read back into a Map — so the
-  // last writer wins and a scope's whole execution record disappears without an error.
-  {
-    const ws = mkdtempSync(join(tmpdir(), "struct-par-b-"));
-    try {
-      plant(ws);
-      w(ws, `.shapeup/${SLUG}/t0/trials.jsonl`, [
-        { schema_version: 1, trial: 1, round: 1, attempt: 1, scope_id: "SC-A", status: "kept", artifact: "t0/verdicts/r1-a1-t1.json", baseline_trial: null },
-        { schema_version: 1, trial: 1, round: 1, attempt: 1, scope_id: "SC-B", status: "kept", artifact: "t0/verdicts/r1-a1-t2.json", baseline_trial: null },
-        { schema_version: 1, trial: 2, round: 1, attempt: 2, scope_id: "SC-A", status: "kept", artifact: "t0/verdicts/r1-a2-t1.json", baseline_trial: 1 },
-      ].map((r) => JSON.stringify(r)).join("\n") + "\n");
-
-      const { appendGraph, readGraph } = await import(`file://${join(ROOT, "kernel/reduce/graph.mjs")}`);
-      appendGraph(ws, SLUG);
-      const g = readGraph(ws, SLUG);
-      const trialNodes = [...g.nodes.values()].filter((n) => n.t === "Trial");
-      if (trialNodes.length === 3) ok("three trial rows over two scopes project to three distinct graph nodes");
-      else fail(`3 trial rows projected to ${trialNodes.length} node(s) — scopes sharing an ordinal collapse onto one node and an execution record is lost`);
-
-      const scopes = new Set(trialNodes.map((n) => n.scope_id));
-      if (scopes.size === 2) ok(`both scopes survive the projection (${[...scopes].sort().join(", ")})`);
-      else fail(`the graph kept trials for scope(s) [${[...scopes]}] — a scope's execution record vanished`);
-
-      // The parent link must resolve, and must resolve WITHIN its scope.
-      const sup = [...g.edges.keys()].filter((k) => k.includes("|SUPERSEDES|"));
-      const dangling = sup.filter((k) => !g.nodes.has(k.split("|")[2]));
-      if (sup.length === 1 && dangling.length === 0) ok("the SUPERSEDES edge resolves to a real node in the same scope");
-      else fail(`SUPERSEDES edges=${sup.length}, dangling=${dangling.length} — the ratchet lineage points at a node that is not there`);
-    } finally { rmSync(ws, { recursive: true, force: true }); }
-  }
-
   // --- (c) RACING: four `verify t0` at once, and the trial identity has to stay unique ----------
   {
     const ws = mkdtempSync(join(tmpdir(), "struct-par-c-"));

@@ -65,10 +65,6 @@ const MODULE_FILES = [
   // the property is cross-cutting — five separate writers must stamp the same key, and the failure
   // mode is the one this repo keeps hitting: stamp four of them and nothing errors.
   "19-run-records.mjs",
-  // 20-run-graph.mjs: the run graph. Its own module because the properties that make a read model
-  // trustworthy — derived, idempotent, backfilled by the same path that maintains it — are
-  // cross-cutting, and each is lost silently: a graph that has drifted still answers every query.
-  "20-run-graph.mjs",
   // 21-gauntlet.mjs: the probes this codebase's comments used to describe. A narrated probe proves
   // something about a tree that no longer exists and goes on reading as evidence anyway; these run.
   // Four of the six are here — the two that need a live model run are named in tests/README.md with
@@ -138,12 +134,11 @@ const MODULE_FILES = [
   // drives the contract's spec anchor at all — every prior fixture carried `tasks:` as inert filler,
   // and the tier rule that forbids it (TIER-DIRECTION) only ever walked wikilinks inside spec/.
   "34-scope-anchor.mjs",
-  // 35-domain-catalog.mjs: the three expressions of the domain model — the $defs type catalog, the
-  // x-erd relationship catalog, and the node vocabulary reduce graph actually emits — checked
-  // against each other, plus the tier rule asserted at the catalog level. Its own module because
-  // nothing compared any pair of them, and all three had drifted apart unnoticed.
+  // 35-domain-catalog.mjs: the three expressions of the domain model — the $defs type catalog and the
+  // x-erd relationship catalog checked against each other, plus the tier rule asserted at the
+  // catalog level. Its own module because nothing compared them and they had drifted apart.
   "35-domain-catalog.mjs",
-  // 36-wiring-map.mjs: the wiring map parses and reduce graph reads the fields it produces. Its own
+  // 36-wiring-map.mjs: the wiring map parses in both layouts. Its own
   // module because three independent name mismatches (layout, contract field, cell names) each
   // yielded an empty domain half in silence — 9 of 9 committed maps parsed to zero entries while
   // reporting readable, and trace-lint certified 0/0 engines reach the entry point.

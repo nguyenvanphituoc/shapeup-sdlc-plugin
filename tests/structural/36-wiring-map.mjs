@@ -68,7 +68,7 @@ export async function run(ctx) {
   const { ROOT, ok, fail, section } = ctx;
 
   // =============================================================================
-  section("79. The wiring map parses, and reduce graph reads the fields it produces");
+  section("79. The wiring map parses, in both layouts, to one object");
   // =============================================================================
 
   const C = await import(join(ROOT, "kernel/lib/contract.mjs"));
@@ -120,30 +120,5 @@ export async function run(ctx) {
         `unreadableReason=${JSON.stringify(C.unreadableReason(c))} — "I could not read your table" must never ` +
         "arrive as \"you declared no entries\", which is the whole defect class this contract format exists to close.");
     }
-  }
-
-  // --- (d) end to end: the projection actually emits the domain edge -----------------------------
-  {
-    const box = mkdtempSync(join(tmpdir(), "struct-wiring-"));
-    try {
-      w(box, `shapeup/${SLUG}/wiring-map.md`, legacy());       // the shape on disk today
-      w(box, `shapeup/${SLUG}/project-profile.md`, [FM, "# Profile", ""].join("\n"));
-      w(box, `shapeup/${SLUG}/spec/usecases/UC-01.md`, "---\nid: UC-01\n---\n\n# UC-01\n\n## Steps\n1. go\n");
-      w(box, `shapeup/${SLUG}/spec/domain-model.md`, "# Domain model\n");
-
-      const { execFileSync } = await import("node:child_process");
-      execFileSync(process.execPath, [join(ROOT, "kernel/harness.mjs"), "reduce", "graph", "--slug", SLUG, "--cwd", box], { stdio: "pipe" });
-      const rows = readFileSync(join(box, `.shapeup/${SLUG}/graph.jsonl`), "utf8").trim().split("\n").map((l) => JSON.parse(l));
-
-      const seams = rows.filter((r) => r.t === "Seam");
-      const edges = rows.filter((r) => r.t === "DEPENDS_ON" && String(r.to).startsWith("seam:"));
-      if (seams.length === 1 && edges.length === 1 && String(edges[0].from).endsWith(":UC-01")) {
-        ok("reduce graph projects a Seam node and a UseCase→Seam edge from a committed wiring map");
-      } else {
-        fail(`the projection emitted ${seams.length} Seam node(s) and ${edges.length} UseCase→Seam edge(s), expected 1 and 1. ` +
-          "Three separate name mismatches each produce exactly this result — the contract field (`entries` vs " +
-          "`wiring`), the cell names (`wiring_seam` vs `seam`), and the layout — and none of them can fail loudly.");
-      }
-    } finally { rmSync(box, { recursive: true, force: true }); }
   }
 }

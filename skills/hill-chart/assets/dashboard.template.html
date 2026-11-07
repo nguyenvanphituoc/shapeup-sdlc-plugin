@@ -413,10 +413,8 @@
   <div class="portfolio-head">
     <h2>Your pitches, at a glance</h2>
     <p>One card per pitch that has reached kickoff — projected from its committed hill shards
-      (<code>shapeup/&lt;slug&gt;/hill/*.yml</code>) and, while the local run trace survives, its run graph
-      (<code>.shapeup/&lt;slug&gt;/graph.jsonl</code>). A pitch still in Shaping or at the Betting Table has no
-      run yet, so it won't appear here. One whose local trace was cleaned up after shipping still
-      appears — marked Archived — from its hill shards alone.</p>
+      (<code>shapeup/&lt;slug&gt;/hill/*.yml</code>). A pitch still in Shaping or at the Betting Table has no
+      run yet, so it won't appear here.</p>
   </div>
   <div class="filter-row" id="filter-row">
     <div id="health-chips" style="display:contents"></div>
@@ -706,7 +704,8 @@
     var gateNames = gates.map(function (g) { return g.attrs.gate; });
     var builtScopes = scopeStatus.filter(function (s) { return s.status != null; });
     var allGreen = builtScopes.length > 0 && builtScopes.every(function (s) { return s.status === 'green'; });
-    var phase = !hasLocal ? 'Archived'
+    var hillDone = scopeStatus.length > 0 && scopeStatus.every(function (s) { return s.hillPhase === 'FINISHED'; });
+    var phase = !hasLocal ? (hillDone ? 'Finished' : 'On the hill')
       : gateNames.indexOf('L4') !== -1 ? 'Shipped'
       : (verdicts.length && allGreen) ? 'Building · Round complete'
       : verdicts.length ? 'Building · Verify'
@@ -718,7 +717,7 @@
     var anyRed = scopeStatus.some(function (s) { return s.status === 'red'; });
     var anyInFlight = scopeStatus.some(function (s) { return s.status === 'building' || s.status === 'queued'; });
     var anyStuckUnknown = hasLocal && scopeStatus.some(function (s) { return s.status != null && s.hillPhase === 'UPHILL_UNKNOWN'; });
-    var health = !hasLocal ? 'archived'
+    var health = !hasLocal ? (hillDone ? 'archived' : 'progress')
       : (anyRed || model.dangling > 0 || anyStuckUnknown) ? 'attention'
       : anyInFlight ? 'progress'
       : (builtScopes.length && allGreen) ? 'on-track' : 'progress';
@@ -788,14 +787,14 @@
   // ============================================================================================
   // Portfolio screen
   // ============================================================================================
-  var HEALTH_LABEL = { 'on-track': 'On track', progress: 'In progress', attention: 'Needs attention', archived: 'Archived' };
+  var HEALTH_LABEL = { 'on-track': 'On track', progress: 'In progress', attention: 'Needs attention', archived: 'Finished' };
   var HEALTH_COLOR_VAR = { 'on-track': '--good', progress: '--warn', attention: '--bad', archived: '--pending' };
 
   function renderFilterRow() {
     var row = document.getElementById('health-chips');
     var counts = { all: pitches.size, 'on-track': 0, progress: 0, attention: 0, archived: 0 };
     pitches.forEach(function (p) { counts[p.health]++; });
-    var defs = [['all', 'All'], ['on-track', 'On track'], ['progress', 'In progress'], ['attention', 'Needs attention'], ['archived', 'Archived']];
+    var defs = [['all', 'All'], ['on-track', 'On track'], ['progress', 'In progress'], ['attention', 'Needs attention'], ['archived', 'Finished']];
     row.innerHTML = '';
     defs.forEach(function (d) {
       var btn = document.createElement('button');
@@ -931,7 +930,7 @@
     html += '</div></div></div>';
 
     if (!pitch.hasLocal) {
-      html += '<div class="section"><div class="archived-note"><span>📦</span><span><b>Archived.</b> This pitch\'s local run trace (<code>.shapeup/' + pitch.slug + '/</code>) isn\'t present — likely cleaned up after shipping. The Hill Chart above still reflects its committed <code>hill/*.yml</code> shards, but current-round health, the scope board, round history and the raw graph all need the local trace and aren\'t available.</span></div></div>';
+      html += '<div class="section"><div class="archived-note"><span>📦</span><span><b>Hill shards only.</b> The Hill Chart above reflects this pitch\'s committed <code>hill/*.yml</code> shards — the one position the harness derives mechanically. Round history and the scope board are read from the run\'s own files (<code>.shapeup/' + pitch.slug + '/</code>), not rendered here.</span></div></div>';
       body.innerHTML = html;
       return;
     }

@@ -1,6 +1,6 @@
 ---
 name: hill-chart
-description: "Use this skill whenever the user wants to see how their Shape Up build(s) are progressing — a Hill Chart, a build dashboard, or a portfolio view across pitches. Triggers on: \"show me the hill chart\", \"how's my build doing\", \"how are my pitches doing\", \"visualize my pitches\", \"render the dashboard\", \"what's the status of my runs\", \"build portfolio\", or any request to see a Shape Up run's progress visually rather than read as prose. Renders a self-contained HTML dashboard: a portfolio card per pitch, and per-pitch detail with a mechanical Hill Chart, an attention list, a scope board, round history, and the full run graph one click deeper."
+description: "Use this skill whenever the user wants to see how their Shape Up build(s) are progressing — a Hill Chart, a build dashboard, or a portfolio view across pitches. Triggers on: \"show me the hill chart\", \"how's my build doing\", \"how are my pitches doing\", \"visualize my pitches\", \"render the dashboard\", \"what's the status of my runs\", \"build portfolio\", or any request to see a Shape Up run's progress visually rather than read as prose. Renders a self-contained HTML dashboard from the committed hill shards: a portfolio card per pitch and, per pitch, the mechanical Hill Chart."
 ---
 
 # Hill Chart
@@ -15,15 +15,10 @@ exactly like `shapeup` is. There is nothing to declare in
 
 ## What you read
 
-Two tiers, per project (`kernel/lib/paths.mjs`'s `sharedRoot`/`localRoot`):
-
-- **COMMITTED** — `shapeup/<slug>/hill/<scope-id>.yml`, one file per scope, two fields
-  (`scope_id:`, `phase:`), a 4-value enum: `UPHILL_UNKNOWN → UPHILL_SOLVED →
-  DOWNHILL_EXECUTION → FINISHED`. Written by `harness reduce hill`. Survives even after a
-  project's local run trace is cleaned up post-ship.
-- **LOCAL** — `.shapeup/<slug>/graph.jsonl`, the run graph (see `kernel/reduce/graph.mjs`).
-  Written by `harness reduce graph`. Supplies everything else: current-round verdict health,
-  gates, orders, rounds, dangling references.
+One tier: the **committed** hill shards — `shapeup/<slug>/hill/<scope-id>.yml`, one file per
+scope, two fields (`scope_id:`, `phase:`), a 4-value enum: `UPHILL_UNKNOWN → UPHILL_SOLVED →
+DOWNHILL_EXECUTION → FINISHED`. Written by `harness reduce hill`, which the loop runs at each round
+and at the ship step. They survive after a project's local run trace is cleaned up post-ship.
 
 ## Discovery
 
@@ -44,7 +39,6 @@ For every slug where `hasLocal` is true, freshen before reading:
 
 ```bash
 node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" reduce hill --slug <slug>
-node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" reduce graph --slug <slug>
 ```
 
 **For a committed-only slug (`hasCommitted && !hasLocal`), NEVER call `reduce hill`.**
@@ -56,8 +50,7 @@ declines to write anything and reports every scope as underived (`derived: false
 committed shards survive a call made in error. Treat that as a backstop, not a licence — an
 underived report is not a refresh, and rendering it as one would show a pitch's true `FINISHED`
 as freshly confirmed when nothing confirmed it. Read `shapeup/<slug>/hill/*.yml` for those slugs
-exactly as committed, and render them with the archived state the template already implements
-(see below). Same reasoning applies to `reduce graph` — there is no local trace to append from.
+exactly as committed.
 
 ## Reading the hill shards
 
@@ -83,10 +76,10 @@ text description; read it, fill in real data, and write the result.
    ```js
    {
      slug: "<slug>",
-     hasLocal: <bool>,
+     hasLocal: false,
      hasCommitted: <bool>,
      hill: [ { scope_id: "...", phase: "..." }, ... ],   // parsed from the *.yml shards, [] if none
-     graphJsonl: "<the raw text of .shapeup/<slug>/graph.jsonl, or '' when hasLocal is false>"
+     graphJsonl: ""
    }
    ```
 
@@ -132,13 +125,12 @@ already self-contained and theme-aware, so this is a strictly additive step. The
 above is the one guaranteed path in any host; treat the Artifact publish as a bonus, never the
 only way the user gets the result.
 
-## Why the Hill Chart and the scope board are not redundant
+## What the Hill Chart does and does not say
 
 `hill.mjs`'s `hasGreen` is set by *any* T0-green verdict a scope has *ever* produced, and never
 resets. A scope can therefore sit at `DOWNHILL_EXECUTION` on the Hill Chart while its *current*
-attempt is red. The Hill Chart answers "how much uncertainty has been burned down, ever"; the
-scope board and round matrix answer "is the current attempt green, right now." The template
-renders both for exactly this reason — do not "simplify" one away later.
+attempt is red. The chart answers "how much uncertainty has been burned down, ever", not "is the
+current attempt green, right now" — that is read from the run's own board and T0 artifacts.
 
 ## Invocation
 

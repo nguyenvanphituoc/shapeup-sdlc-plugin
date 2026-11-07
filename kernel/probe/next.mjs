@@ -634,7 +634,7 @@ export function deriveNext(cwd, slug, { restart = false } = {}) {
         }
         return gateStep("L3", {
           round, verdict, ctx: { round, verdict, build_gate: buildGate },
-          pre: [{ command: K(`reduce graph --slug ${slug}`), advisory: true }, { command: K(`reduce hill --slug ${slug}`), advisory: true }],
+          pre: [{ command: K(`reduce hill --slug ${slug}`), advisory: true }],
         });
       }
     }

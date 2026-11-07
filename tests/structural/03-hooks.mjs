@@ -509,16 +509,6 @@ export async function run(ctx) {
     if (printed.status === 0 && cli?.slug === "demo" && cli?.next_step && cli?.board?.done === 1) ok("`probe resume --slug` prints the same facts");
     else fail(`probe resume --slug did not print the facts: exit ${printed.status} ${printed.stdout.slice(0, 120)}`);
 
-    // REHYDRATION IS A COMMAND NOW, not two hooks. `session-rehydrate` injected this snapshot as
-    // additionalContext on SessionStart and `compact-snapshot` froze it before compaction; both are
-    // gone, because the same answer is one query a relaunch already makes — and a query the
-    // orchestrator can run at any point, not only at the two moments a hook happened to fire.
-    const rGraph = spawnSync("node", [join(ROOT, "kernel/harness.mjs"), "reduce", "graph", "--slug", "demo", "--cwd", d, "--subgraph", "run"],
-      { encoding: "utf8" });
-    let sub = null;
-    try { sub = JSON.parse(rGraph.stdout); } catch { /* asserted below */ }
-    if (rGraph.status === 0 && sub && typeof sub.orders === "number") ok("`reduce graph --subgraph run` answers the rehydration question the retired hooks used to carry");
-    else fail(`the graph query does not answer for a mid-run tree: exit ${rGraph.status}, ${String(rGraph.stdout).slice(0, 120)}`);
     rmSync(d, { recursive: true, force: true });
   }
 
