@@ -1,0 +1,17 @@
+{
+  "slug": "personal-site",
+  "runId": "personal-site-20261107T181400Z-47ca59a5",
+  "autoLevel": "unattended",
+  "answers": "ci",
+  "models": {
+    "exec": "sonnet",
+    "eval": "sonnet",
+    "qa": "sonnet"
+  },
+  "budgets": {
+    "maxRounds": 3,
+    "attemptBudget": 5
+  },
+  "pluginRoot": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.plugin-under-test/plugin-s2",
+  "startedAt": "2026-11-07T18:14:00.418Z"
+}

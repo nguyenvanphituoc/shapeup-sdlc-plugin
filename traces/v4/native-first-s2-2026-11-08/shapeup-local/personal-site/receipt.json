@@ -1,0 +1,45 @@
+{
+  "receipt_version": 1,
+  "type": "harness-run-receipt",
+  "slug": "personal-site",
+  "run_id": "personal-site-20261107T181400Z-47ca59a5",
+  "started_at": "2026-11-07T18:14:00.418Z",
+  "intake_sha256": "2c9c8afbf9cd49d2c7f3cb009e307f0988c79ed2703d65a8ae514fd1c0c50baf",
+  "intake_chars": 2358,
+  "intake_lines": 48,
+  "intake_source": "pitch.gate.md",
+  "breadboard": null,
+  "started": true,
+  "plugin": {
+    "name": "shapeup-sdlc-plugin",
+    "version": "4.0.0",
+    "root": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.plugin-under-test/plugin-s2"
+  },
+  "config": {
+    "auto_level": "unattended",
+    "lens": "standard",
+    "eval_dimensions": "auto",
+    "max_rounds": 3,
+    "attempt_budget": 5,
+    "spec_folder": "shapeup/personal-site/spec/",
+    "gate_answers": "ci",
+    "fit": {
+      "lane": "full",
+      "confidence": "clear",
+      "reasons": [
+        "✗ tree has 400 source file(s) (tiny needs 1–10)",
+        "✗ intake is 2358 chars (tiny needs ≤1500)",
+        "✓ intake names ~0 deliverable(s) (tiny needs ≤2)",
+        "✓ no breadth signals"
+      ],
+      "signals": {
+        "tree_source_files": 400,
+        "intake_chars": 2358,
+        "deliverable_mentions": 0,
+        "breadth_signals": 0
+      },
+      "calibration": "advisory — thresholds are coarse and `full` is the default; the PO may override with --lane"
+    },
+    "wall_clock_budget_s": null
+  }
+}

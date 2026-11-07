@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "order_id": "personal-site/evaluate-r1",
+  "worker": "spec-evaluator",
+  "status": "done",
+  "verdict": {
+    "overall": "PASS",
+    "report_path": ".shapeup/personal-site/evaluation/EVAL-FEATURE-personal-site.md",
+    "t0_citations": [
+      { "scope_id": "build-site", "path": ".shapeup/personal-site/t0/verdicts/r1-a1-t1.json", "sha256": "e916e323673f8341fc6afed279c7fb8039fdee69af59e86f85deb26318b255a2" }
+    ],
+    "criteria": [
+      { "criterion": "UC-BuildSite steps 1-6 (resolve paths, load, validate, render in fixed order, write, exit 0)", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "build.mjs:3-4,19-31,35-86,88-100; node --test exit 0, 14/14 (own run); T0 r1-a1-t1 green", "traces_to": ["REQ-1", "REQ-2", "REQ-4", "REQ-5", "REQ-6", "REQ-7", "REQ-8", "REQ-9", "REQ-10", "REQ-14"] },
+      { "criterion": "Error Cases CONTENT_MISSING / CONTENT_INVALID_JSON / NAME_MISSING: one stderr line, exit 1, nothing written", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "build.mjs:8-12,19-30,88-98; TS-ERR-* and TS-REQ-name-missing pass in own node --test run", "traces_to": ["REQ-18", "REQ-19"] },
+      { "criterion": "Scope Done-when: named command `npm test` (node --test) exits 0 over build.test.mjs", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "own run of `node --test` (the package.json test script): tests 14, pass 14, fail 0; build gate r1-t1 green", "traces_to": ["REQ-21"] },
+      { "criterion": "Non-Go: no Markdown, no multiple pages, no serving mode", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "TS-NOGO-01..03 pass; build.mjs writes only index.html and exits", "traces_to": ["REQ-2"] },
+      { "criterion": "tdd-surface: build.test.mjs drives build.mjs as a process over temp content files and asserts on the generated HTML", "dimension": "tdd-surface", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "build.test.mjs:10-22 spawns process.execPath with CONTENT_FILE/OUT_DIR temp paths; 14 named tests; T0 check_files hash recorded for build.test.mjs", "traces_to": ["REQ-21"] },
+      { "criterion": "completeness: INV-01..INV-08 each hold", "dimension": "completeness", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "TS-INV-01..08 all pass; escaping build.mjs:11-17, no script emitted, deterministic template build.mjs:68-86", "traces_to": ["REQ-3", "REQ-11", "REQ-12", "REQ-13", "REQ-15", "REQ-16", "REQ-17", "REQ-20"] },
+      { "criterion": "TS-INV-01", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "build.test.mjs:38-47 asserts exit 0, sha256 and mtime unchanged; PASS in T0 and own run", "traces_to": ["REQ-13"] },
+      { "criterion": "TS-INV-02", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "build.test.mjs:49-60 asserts no <script, no on*=, no javascript:, escaped text present; PASS", "traces_to": ["REQ-3", "REQ-12"] },
+      { "criterion": "TS-INV-03", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "build.test.mjs:62-66 two OUT_DIRs byte-equal; PASS", "traces_to": ["REQ-20"] },
+      { "criterion": "TS-INV-04", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "build.test.mjs:68-79 one <h1>Ada</h1>, <title>Ada</title>, section order; PASS", "traces_to": ["REQ-5", "REQ-10"] },
+      { "criterion": "TS-INV-05", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "build.test.mjs:81-86 contains &lt;b&gt;Rock &amp; Roll&lt;/b&gt;, no <b>; PASS", "traces_to": ["REQ-17"] },
+      { "criterion": "TS-INV-06", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "build.test.mjs:88-95 url undefined and empty: no href=\"#\", no href=\"\", no <a; PASS", "traces_to": ["REQ-15"] },
+      { "criterion": "TS-INV-07", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "build.test.mjs:97-103 [] and absent projects: sentence present, no ul/ol/li; PASS", "traces_to": ["REQ-16"] },
+      { "criterion": "TS-INV-08", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "medium", "reprobed": false, "evidence": "build.test.mjs:105-111 asserts no package.json dependencies, only node: imports, build exits 0; network-off not literally exercised, but no network module is imported", "traces_to": ["REQ-11"] },
+      { "criterion": "TS-ERR-CONTENT_MISSING", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "build.test.mjs:113-120 exit 1, one line naming file, no index.html; PASS", "traces_to": ["REQ-18"] },
+      { "criterion": "TS-ERR-CONTENT_INVALID_JSON", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "build.test.mjs:122-127 exit 1, one line, no index.html; PASS", "traces_to": ["REQ-18"] },
+      { "criterion": "TS-REQ-name-missing", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "build.test.mjs:129-136 exit 1, one line naming name, no index.html; PASS", "traces_to": ["REQ-19"] },
+      { "criterion": "TS-NOGO-01", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "build.test.mjs:138-142 markdown literal, no strong/em; PASS", "traces_to": [] },
+      { "criterion": "TS-NOGO-02", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "build.test.mjs:144-148 OUT_DIR holds exactly index.html; PASS", "traces_to": ["REQ-2"] },
+      { "criterion": "TS-NOGO-03", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "build.test.mjs:150-154 exits 0 on its own, signal null; PASS", "traces_to": [] }
+    ],
+    "refuted": [],
+    "bugs": []
+  }
+}

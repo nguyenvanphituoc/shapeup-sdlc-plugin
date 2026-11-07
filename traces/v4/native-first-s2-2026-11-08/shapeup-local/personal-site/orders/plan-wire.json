@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "order_id": "personal-site/plan-wire",
+  "kernel": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.plugin-under-test/plugin-s2/kernel/harness.mjs",
+  "run_id": "personal-site-20261107T181400Z-47ca59a5",
+  "compiled_at": "2026-11-07T18:17:47.789Z",
+  "worker": "building",
+  "mode": "standalone",
+  "operation": "plan",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "shapeup/personal-site/wiring-map.md"
+    ],
+    "frozen": [
+      "shapeup/personal-site/spec/domain-model.md",
+      "shapeup/personal-site/spec/usecases/*.md#Steps",
+      "shapeup/personal-site/spec/contracts/**",
+      "shapeup/personal-site/spec/ux-behavior.md",
+      "shapeup/personal-site/scopes/**",
+      ".shapeup/personal-site/intake.md",
+      ".shapeup/personal-site/breadboard.md",
+      "shapeup/personal-site/project-profile.md",
+      ".shapeup/personal-site/orders/**",
+      ".shapeup/personal-site/results/**",
+      ".shapeup/personal-site/receipts/**",
+      ".shapeup/personal-site/legs.jsonl",
+      ".shapeup/personal-site/t0/verdicts/**"
+    ]
+  },
+  "payload": {
+    "step": "wire",
+    "spec_folder": "shapeup/personal-site/spec",
+    "feature": "personal-site",
+    "kb_rules_paths": [
+      "shapeup/knowledge-base/plan.md",
+      "shapeup/knowledge-base/ba-pitch-analyzer.md",
+      "shapeup/knowledge-base/scope-architect.md",
+      "shapeup/knowledge-base/solution-architect.md"
+    ]
+  }
+}

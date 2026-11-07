@@ -1,0 +1,261 @@
+{
+  "schema_version": 1,
+  "order_id": "personal-site/build-site-r1-a1",
+  "kernel": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.plugin-under-test/plugin-s2/kernel/harness.mjs",
+  "run_id": "personal-site-20261107T181400Z-47ca59a5",
+  "compiled_at": "2026-11-07T18:18:30.584Z",
+  "worker": "task-executor",
+  "mode": "orchestrated",
+  "operation": "execute",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "build.mjs",
+      "build.test.mjs",
+      ".shapeup/personal-site/spikes/**"
+    ],
+    "shared": [],
+    "frozen": [
+      ".shapeup/personal-site/**"
+    ],
+    "own": [
+      ".shapeup/personal-site/results/build-site-r1-a1.json",
+      ".shapeup/personal-site/tasks/TASK-*.md",
+      ".shapeup/personal-site/discovery/**",
+      ".shapeup/personal-site/spikes/**"
+    ]
+  },
+  "payload": {
+    "scope_contract": {
+      "scope_id": "build-site",
+      "topology_type": "ICEBERG",
+      "use_cases": [
+        "UC-BuildSite"
+      ],
+      "covers": [
+        "REQ-1",
+        "REQ-2",
+        "REQ-3",
+        "REQ-4",
+        "REQ-5",
+        "REQ-6",
+        "REQ-7",
+        "REQ-8",
+        "REQ-9",
+        "REQ-10",
+        "REQ-11",
+        "REQ-12",
+        "REQ-13",
+        "REQ-14",
+        "REQ-15",
+        "REQ-16",
+        "REQ-17",
+        "REQ-18",
+        "REQ-19",
+        "REQ-20",
+        "REQ-21"
+      ],
+      "depends_on": [],
+      "allowed_file_substrate": [
+        "build.mjs",
+        "build.test.mjs"
+      ],
+      "shared_substrate": [],
+      "affordance_manifest": [],
+      "e2e_verification_fixtures": [
+        "node --test build.test.mjs"
+      ],
+      "hill_phase": "UPHILL_UNKNOWN"
+    },
+    "tasks": [
+      {
+        "id": "TASK-001",
+        "title": "Create the zero-dependency build.mjs that renders content.json to dist/index.html",
+        "status": "ready",
+        "priority": 1,
+        "depends_on": [],
+        "use_case_refs": [
+          "UC-BuildSite"
+        ],
+        "scope_id": "",
+        "body_path": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.shapeup/personal-site/tasks/TASK-001-build-script.md",
+        "acceptance_criteria": [
+          {
+            "text": "`build.mjs` exists at the repo root and imports only `node:` builtins; `package.json` declares no `dependencies` (covers: REQ-1, REQ-11)",
+            "covers": [
+              "REQ-1",
+              "REQ-11"
+            ]
+          },
+          {
+            "text": "`node build.mjs` with a valid `content.json` exits 0 and writes `dist/index.html` (covers: REQ-1, REQ-2)",
+            "covers": [
+              "REQ-1",
+              "REQ-2"
+            ]
+          },
+          {
+            "text": "With `CONTENT_FILE=<tmp>/c.json OUT_DIR=<tmp>/out node build.mjs`, the page is written to `<tmp>/out/index.html` and the repo's `dist/` is untouched (covers: REQ-14)",
+            "covers": [
+              "REQ-14"
+            ]
+          },
+          {
+            "text": "The output has one inline `<style>` element and no `<link rel=\"stylesheet\">` (covers: REQ-3)",
+            "covers": [
+              "REQ-3"
+            ]
+          },
+          {
+            "text": "The output contains no `<script` element, no `on*=` attribute and no `javascript:` URL (covers: REQ-3, REQ-12)",
+            "covers": [
+              "REQ-3",
+              "REQ-12"
+            ]
+          },
+          {
+            "text": "`<title>` is the `name`, and the document has exactly one `<h1>`, whose text is the `name`, with the tagline directly after it (covers: REQ-5, REQ-10)",
+            "covers": [
+              "REQ-5",
+              "REQ-10"
+            ]
+          },
+          {
+            "text": "The rendered order is header, About section, Projects section, Contact section (covers: REQ-6, REQ-9)",
+            "covers": [
+              "REQ-6",
+              "REQ-9"
+            ]
+          },
+          {
+            "text": "Each project renders one card whose title is `<a href=\"<url>\">` when `url` is set, with its summary (covers: REQ-4, REQ-7)",
+            "covers": [
+              "REQ-4",
+              "REQ-7"
+            ]
+          },
+          {
+            "text": "The Contact section contains `<a href=\"mailto:<email>\">` (covers: REQ-8)",
+            "covers": [
+              "REQ-8"
+            ]
+          },
+          {
+            "text": "The content file's bytes and mtime are unchanged after a build (covers: REQ-13)",
+            "covers": [
+              "REQ-13"
+            ]
+          },
+          {
+            "text": "Two builds of the same content produce byte-identical `index.html` (`cmp` exits 0) (covers: REQ-20)",
+            "covers": [
+              "REQ-20"
+            ]
+          },
+          {
+            "text": "A project with no `url` (or an empty one) renders its title as plain text: the output has no `href=\"#\"` and no `href=\"\"` (covers: REQ-15)",
+            "covers": [
+              "REQ-15"
+            ]
+          },
+          {
+            "text": "With `projects: []` or `projects` absent, the Projects section shows \"Projects are coming soon.\" and contains no `<ul>`/`<ol>`/`<li>` (covers: REQ-16)",
+            "covers": [
+              "REQ-16"
+            ]
+          },
+          {
+            "text": "A title `<b>Rock & Roll</b>` appears as `&lt;b&gt;Rock &amp; Roll&lt;/b&gt;`; every content string is escaped, attribute values included (covers: REQ-17)",
+            "covers": [
+              "REQ-17"
+            ]
+          },
+          {
+            "text": "A missing content file → exit 1, exactly one stderr line naming the file, no `index.html` written (covers: REQ-18)",
+            "covers": [
+              "REQ-18"
+            ]
+          },
+          {
+            "text": "A content file containing `{not json` → exit 1, exactly one stderr line, no `index.html` written (covers: REQ-18)",
+            "covers": [
+              "REQ-18"
+            ]
+          },
+          {
+            "text": "Content with no `name` → exit 1, exactly one stderr line naming `name`, no `index.html` written (covers: REQ-19)",
+            "covers": [
+              "REQ-19"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "TASK-002",
+        "title": "Add the node --test suite that drives build.mjs over temporary content files",
+        "status": "ready",
+        "priority": 2,
+        "depends_on": [
+          "TASK-001"
+        ],
+        "use_case_refs": [
+          "UC-BuildSite"
+        ],
+        "scope_id": "",
+        "body_path": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.shapeup/personal-site/tasks/TASK-002-test-suite.md",
+        "acceptance_criteria": [
+          {
+            "text": "`build.test.mjs` exists at the repo root, uses only `node:` builtins, and `npm test` (`node --test`) exits 0 (covers: REQ-21)",
+            "covers": [
+              "REQ-21"
+            ]
+          },
+          {
+            "text": "Every test sets `CONTENT_FILE` and `OUT_DIR` to temporary paths; the repo's `content.json` and `dist/` are never read or written by the suite (covers: REQ-14, REQ-21)",
+            "covers": [
+              "REQ-14",
+              "REQ-21"
+            ]
+          },
+          {
+            "text": "The suite has one named test per Test Surface row (TS-INV-01..08, TS-ERR-CONTENT_MISSING, TS-ERR-CONTENT_INVALID_JSON, TS-REQ-name-missing, TS-NOGO-01..03) (covers: REQ-21)",
+            "covers": [
+              "REQ-21"
+            ]
+          },
+          {
+            "text": "The suite asserts escaping of `<b>Rock & Roll</b>` (covers: REQ-17)",
+            "covers": [
+              "REQ-17"
+            ]
+          },
+          {
+            "text": "The suite asserts the no-url and no-projects edge behaviour (covers: REQ-15, REQ-16)",
+            "covers": [
+              "REQ-15",
+              "REQ-16"
+            ]
+          },
+          {
+            "text": "The suite asserts exit 1, exactly one stderr line and no `index.html` for missing, unparseable and name-less content (covers: REQ-18, REQ-19)",
+            "covers": [
+              "REQ-18",
+              "REQ-19"
+            ]
+          },
+          {
+            "text": "The suite asserts byte-identical output across two builds (covers: REQ-20)",
+            "covers": [
+              "REQ-20"
+            ]
+          }
+        ]
+      }
+    ],
+    "spec_folder": "shapeup/personal-site/spec",
+    "feature": "personal-site",
+    "kb_rules_path": "shapeup/knowledge-base/task-executor.md"
+  }
+}

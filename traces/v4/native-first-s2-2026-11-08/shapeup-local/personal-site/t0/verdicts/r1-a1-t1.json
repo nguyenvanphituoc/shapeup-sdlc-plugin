@@ -1,0 +1,65 @@
+{
+  "schema_version": 2,
+  "round": 1,
+  "attempt": 1,
+  "trial": 1,
+  "at": "2026-11-07T18:19:30.176Z",
+  "run_id": "personal-site-20261107T181400Z-47ca59a5",
+  "scope_id": "build-site",
+  "env": {
+    "schema_version": 1,
+    "host": {
+      "platform": "darwin",
+      "arch": "arm64",
+      "os_release": "27.0.0",
+      "node": "v24.15.0",
+      "hostname_sha256": "fc7b2e355cd153f2742755036cef7a85840bc651258026e69764f044a4fbdbb9"
+    },
+    "cwd": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer",
+    "tree": {
+      "head": "b8a18120b78f8f6be5f13681f4f9b973729cff15",
+      "dirty": true,
+      "branch": "master"
+    },
+    "toolchain": [
+      {
+        "bin": "node",
+        "path": "/Users/liberty/.nvm/versions/node/v24.15.0/bin/node"
+      }
+    ],
+    "lockfiles": [],
+    "caches": null,
+    "env": {
+      "allowlist": [
+        "PATH",
+        "NODE_ENV",
+        "CI",
+        "LANG",
+        "TZ"
+      ],
+      "sha256": "0f97c4e2fc3fe9a0de08427bbf73e4bbb82ecca267a3f75881736f072125fdab"
+    },
+    "env_sha256": "abc1c33a5c231182d2cc85478372a5a2063befe1f3c291aa7554499416ce81f6"
+  },
+  "fixtures": [
+    {
+      "cmd": "node --test build.test.mjs",
+      "exit": 0,
+      "pass": true,
+      "stdout_tail": "✔ TS-INV-01 content file never modified (38.163708ms)\n✔ TS-INV-02 no JavaScript in output (31.153708ms)\n✔ TS-INV-03 byte-identical output (59.679583ms)\n✔ TS-INV-04 one h1 and title (30.237291ms)\n✔ TS-INV-05 escaping (29.781291ms)\n✔ TS-INV-06 no url means no link (60.92075ms)\n✔ TS-INV-07 empty projects (61.29825ms)\n✔ TS-INV-08 no dependencies, no network (32.404416ms)\n✔ TS-ERR-CONTENT_MISSING (30.389ms)\n✔ TS-ERR-CONTENT_INVALID_JSON (33.82375ms)\n✔ TS-REQ-name-missing (31.744792ms)\n✔ TS-NOGO-01 no Markdown (30.388416ms)\n✔ TS-NOGO-02 one file only (32.033542ms)\n✔ TS-NOGO-03 process exits on its own (31.358209ms)\nℹ tests 14\nℹ suites 0\nℹ pass 14\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 590.301375\n"
+    }
+  ],
+  "db_probe": null,
+  "fixtures_green": true,
+  "db_probe_green": true,
+  "overall": "green",
+  "score": {
+    "fixtures_passed": 1,
+    "fixtures_total": 1,
+    "db_probe": null
+  },
+  "discovered_tasks": [],
+  "check_files": {
+    "build.test.mjs": "5e90ee8f01ff6ba82aded55be4d1c4bbd2f9012a8d4dbf9deb9473a36535dc8d"
+  }
+}

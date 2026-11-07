@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "verdict": "ship-now",
+  "cut_list": [
+    "QA-003 — a `javascript:` project url renders as a live link (breaches spec INV-02; pitch REQ-12 says the page has no JavaScript). Cuttable: the only author of content.json is the freelancer themselves, so this is not an injection path, and the page is still strictly better than the PDF baseline. Carry as a raw idea: reject or neutralise non-http(s)/mailto urls.",
+    "QA-001 — a non-string `name` renders as `[object Object]` (pitch bounds only the presence of `name`; spec gap raised at planning)",
+    "QA-002 — a whitespace-only `name` is accepted",
+    "QA-004 — wrong-typed optional fields render garbage",
+    "QA-005 — NUL and newline characters pass through unescaped",
+    "QA-006 — a BOM-prefixed content file is rejected; a failed build leaves the previous dist/index.html in place",
+    "QA-007 — an OUT_DIR that is an existing file crashes with a raw EEXIST stack trace instead of one stderr line"
+  ],
+  "ship_blocking": [],
+  "breaker": null,
+  "baseline": null,
+  "baseline_note": "baseline not first-class — comparison is approximate. Implicit baseline from the pitch problem statement: a portfolio slide deck mailed as a PDF, no web page at all.",
+  "evidence": {
+    "requirements_probe": "21/21 PASS (probe requirements, run personal-site-20261107T181400Z-47ca59a5)",
+    "owner_probe": "build.mjs owned by build-site, 0 unowned paths, 0 not on disk",
+    "attempts_probe": "no hammer proposals; no attempts probe required",
+    "green_scopes": ["build-site"],
+    "qa_findings": 7
+  },
+  "classification": {
+    "must_have_unresolved": [],
+    "nice_to_have": ["QA-001", "QA-002", "QA-003", "QA-004", "QA-005", "QA-006", "QA-007"],
+    "carry_candidates": []
+  }
+}

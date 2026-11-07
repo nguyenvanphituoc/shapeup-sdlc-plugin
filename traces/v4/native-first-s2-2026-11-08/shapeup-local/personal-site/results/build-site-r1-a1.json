@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "order_id": "personal-site/build-site-r1-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-001",
+      "status": "done",
+      "ac_results": [
+        { "ac": "`build.mjs` exists at the repo root and imports only `node:` builtins; `package.json` declares no `dependencies` (covers: REQ-1, REQ-11)", "result": "pass", "evidence": "TS-INV-08 in node --test build.test.mjs; verify t0 r1 a1 green" },
+        { "ac": "`node build.mjs` with a valid `content.json` exits 0 and writes `dist/index.html` (covers: REQ-1, REQ-2)", "result": "pass", "evidence": "TS-INV-01/04 build exit 0 and index.html written (via CONTENT_FILE/OUT_DIR); default paths share the same code path" },
+        { "ac": "With `CONTENT_FILE=<tmp>/c.json OUT_DIR=<tmp>/out node build.mjs`, the page is written to `<tmp>/out/index.html` and the repo's `dist/` is untouched (covers: REQ-14)", "result": "pass", "evidence": "every suite test uses temp paths; repo has no dist/ after npm test" },
+        { "ac": "The output has one inline `<style>` element and no `<link rel=\"stylesheet\">` (covers: REQ-3)", "result": "pass", "evidence": "TS-INV-02 asserts one <style>, no stylesheet link" },
+        { "ac": "The output contains no `<script` element, no `on*=` attribute and no `javascript:` URL (covers: REQ-3, REQ-12)", "result": "pass", "evidence": "TS-INV-02 with hostile script/onclick/onmouseover content" },
+        { "ac": "`<title>` is the `name`, and the document has exactly one `<h1>`, whose text is the `name`, with the tagline directly after it (covers: REQ-5, REQ-10)", "result": "pass", "evidence": "TS-INV-04" },
+        { "ac": "The rendered order is header, About section, Projects section, Contact section (covers: REQ-6, REQ-9)", "result": "pass", "evidence": "TS-INV-04 index ordering of h1/about/projects/contact" },
+        { "ac": "Each project renders one card whose title is `<a href=\"<url>\">` when `url` is set, with its summary (covers: REQ-4, REQ-7)", "result": "pass", "evidence": "TS-INV-04 asserts <a href=\"https://e.com/1\">P1</a>; cards are <article> with summary <p>" },
+        { "ac": "The Contact section contains `<a href=\"mailto:<email>\">` (covers: REQ-8)", "result": "pass", "evidence": "TS-INV-04 asserts mailto link" },
+        { "ac": "The content file's bytes and mtime are unchanged after a build (covers: REQ-13)", "result": "pass", "evidence": "TS-INV-01 sha256 and mtime unchanged" },
+        { "ac": "Two builds of the same content produce byte-identical `index.html` (`cmp` exits 0) (covers: REQ-20)", "result": "pass", "evidence": "TS-INV-03 string-equal outputs from two OUT_DIRs" },
+        { "ac": "A project with no `url` (or an empty one) renders its title as plain text: the output has no `href=\"#\"` and no `href=\"\"` (covers: REQ-15)", "result": "pass", "evidence": "TS-INV-06 for url absent and empty" },
+        { "ac": "With `projects: []` or `projects` absent, the Projects section shows \"Projects are coming soon.\" and contains no `<ul>`/`<ol>`/`<li>` (covers: REQ-16)", "result": "pass", "evidence": "TS-INV-07 both variants" },
+        { "ac": "A title `<b>Rock & Roll</b>` appears as `&lt;b&gt;Rock &amp; Roll&lt;/b&gt;`; every content string is escaped, attribute values included (covers: REQ-17)", "result": "pass", "evidence": "TS-INV-05 incl. href=\"x&quot;y\"" },
+        { "ac": "A missing content file → exit 1, exactly one stderr line naming the file, no `index.html` written (covers: REQ-18)", "result": "pass", "evidence": "TS-ERR-CONTENT_MISSING" },
+        { "ac": "A content file containing `{not json` → exit 1, exactly one stderr line, no `index.html` written (covers: REQ-18)", "result": "pass", "evidence": "TS-ERR-CONTENT_INVALID_JSON" },
+        { "ac": "Content with no `name` → exit 1, exactly one stderr line naming `name`, no `index.html` written (covers: REQ-19)", "result": "pass", "evidence": "TS-REQ-name-missing" }
+      ]
+    },
+    {
+      "task_id": "TASK-002",
+      "status": "done",
+      "ac_results": [
+        { "ac": "`build.test.mjs` exists at the repo root, uses only `node:` builtins, and `npm test` (`node --test`) exits 0 (covers: REQ-21)", "result": "pass", "evidence": "npm test exit 0; verify t0 r1 a1 green 1/1 fixtures" },
+        { "ac": "Every test sets `CONTENT_FILE` and `OUT_DIR` to temporary paths; the repo's `content.json` and `dist/` are never read or written by the suite (covers: REQ-14, REQ-21)", "result": "pass", "evidence": "run() always sets both env vars from mkdtemp paths" },
+        { "ac": "The suite has one named test per Test Surface row (TS-INV-01..08, TS-ERR-CONTENT_MISSING, TS-ERR-CONTENT_INVALID_JSON, TS-REQ-name-missing, TS-NOGO-01..03) (covers: REQ-21)", "result": "pass", "evidence": "14 tests named by row id" },
+        { "ac": "The suite asserts escaping of `<b>Rock & Roll</b>` (covers: REQ-17)", "result": "pass", "evidence": "TS-INV-05" },
+        { "ac": "The suite asserts the no-url and no-projects edge behaviour (covers: REQ-15, REQ-16)", "result": "pass", "evidence": "TS-INV-06, TS-INV-07" },
+        { "ac": "The suite asserts exit 1, exactly one stderr line and no `index.html` for missing, unparseable and name-less content (covers: REQ-18, REQ-19)", "result": "pass", "evidence": "TS-ERR-CONTENT_MISSING, TS-ERR-CONTENT_INVALID_JSON, TS-REQ-name-missing" },
+        { "ac": "The suite asserts byte-identical output across two builds (covers: REQ-20)", "result": "pass", "evidence": "TS-INV-03" }
+      ]
+    }
+  ],
+  "files_touched": [
+    { "path": "build.mjs", "change": "created" },
+    { "path": "build.test.mjs", "change": "created" }
+  ],
+  "discoveries": [],
+  "assumptions": [
+    "No repo content.json exists and it is outside the substrate; ACs mentioning it were verified through CONTENT_FILE temp files",
+    "An empty-string name is treated as missing"
+  ],
+  "deviations": []
+}

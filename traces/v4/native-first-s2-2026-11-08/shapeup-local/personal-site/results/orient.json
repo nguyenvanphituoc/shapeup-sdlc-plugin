@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "order_id": "personal-site/orient",
+  "worker": "orient",
+  "status": "done",
+  "artifacts": [
+    ".shapeup/personal-site/orient/code-surface.md",
+    ".shapeup/personal-site/orient/spike-not-needed.md",
+    ".shapeup/personal-site/orient/discovered-seed.md",
+    ".shapeup/personal-site/orient/hill-signal.md"
+  ],
+  "deviations": [
+    "Pitch has no separate breadboard; none read.",
+    "Pitch is silent on default path resolution for CONTENT_FILE/OUT_DIR and href policy for unusual urls."
+  ]
+}

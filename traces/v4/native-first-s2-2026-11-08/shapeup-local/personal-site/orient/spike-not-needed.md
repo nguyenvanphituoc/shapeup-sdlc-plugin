@@ -1,0 +1,3 @@
+# SPIKE-NOT-NEEDED
+
+Risk triage returned rank 0: every pitch element rests on Node stdlib prior art (`node:fs` read/write, `JSON.parse`, `process.exit`, `node:test` with `child_process.spawnSync`, string-template HTML), available on the installed Node v24.15.0 with `"type":"module"` already set in `package.json:1`. There is no third-party API, unknown data shape, or cross-layer contract; the greenfield build has no integration seam to prove. The edge behaviours (escape, missing url, empty projects, exit 1, determinism) are pure functions of input and are covered by the Test Surface, not by investigation.

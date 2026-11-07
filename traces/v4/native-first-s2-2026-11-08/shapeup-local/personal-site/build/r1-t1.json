@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "round": 1,
+  "trial": 1,
+  "at": "2026-11-07T18:20:13.632Z",
+  "run_id": "personal-site-20261107T181400Z-47ca59a5",
+  "archetype": "library",
+  "overall": "green",
+  "steps": [
+    {
+      "kind": "build_probe",
+      "cmd": "node --test",
+      "exit": 0,
+      "pass": true,
+      "stdout_tail": "✔ TS-INV-01 content file never modified (34.245833ms)\n✔ TS-INV-02 no JavaScript in output (34.270083ms)\n✔ TS-INV-03 byte-identical output (62.979625ms)\n✔ TS-INV-04 one h1 and title (31.70875ms)\n✔ TS-INV-05 escaping (31.854917ms)\n✔ TS-INV-06 no url means no link (60.3825ms)\n✔ TS-INV-07 empty projects (60.012541ms)\n✔ TS-INV-08 no dependencies, no network (30.952083ms)\n✔ TS-ERR-CONTENT_MISSING (30.862042ms)\n✔ TS-ERR-CONTENT_INVALID_JSON (31.488834ms)\n✔ TS-REQ-name-missing (30.536333ms)\n✔ TS-NOGO-01 no Markdown (30.859792ms)\n✔ TS-NOGO-02 one file only (30.967292ms)\n✔ TS-NOGO-03 process exits on its own (31.271083ms)\nℹ tests 14\nℹ suites 0\nℹ pass 14\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 588.647375\n",
+      "stderr_tail": ""
+    }
+  ],
+  "warnings": [
+    "the run ledger declares no run_cmd — the build itself is not part of this gate"
+  ],
+  "discovered_tasks": []
+}

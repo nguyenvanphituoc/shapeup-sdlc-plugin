@@ -57,3 +57,55 @@ Three things S1 removes that the plan did not name, so they are stated here:
 - **`hill-chart` loses its round history, scope board and run-graph screens.** They were drawn from the graph. The template's code for
   them is still in the file and unreachable; deleting it is a separate edit to a 1,400-line asset.
 
+## S1 gate
+
+Real nested `claude -p --plugin-dir` runs of the committed tree in the consumer project, the plugin copied under a locally
+excluded folder inside it (a plugin outside the working directory cannot be read by a headless session, which is how the first
+attempt stopped). Four launches, one comparable result:
+
+| Launch | Outcome | Cause |
+|---|---|---|
+| 1 | stopped after the run opened | the session could not read the plugin's resource files from outside the project |
+| 2 | stopped at intake | the Vietnamese pitch's word for "tag" and "card" is one word; an unattended run stops on an ambiguous term, as designed |
+| 3 | aborted at GATE L1b | the coverage step registered the pitch's No-gos as requirements; spec-lint reds them and an unattended run has no PO to mark them CUT. A defect the 4.0.0 execution record already names; S1 touches none of it |
+| 4 | **shipped PASS, one round** | with the pitch's No-gos stated as plain sentences in its Solution |
+
+Launch 4 is `traces/v4/native-first-s1-2026-11-08/`. Its gate sequence is the 4.0.0 run's less one row: the opening `L0` is recorded once,
+not twice (the baseline's second row is the loop resolving a gate `init run` had already ledgered). The sandbox fence, the envelope gate
+and the receipt hook all left rows. QA ran as `not-hunted` because the session's workers were refused every `node` command but the
+kernel's, an environment limit of the consumer's grant.
+
+Cost as the host reported it: $0.88 + $1.16 + $3.29 + $4.55 across the four launches; only the last is a result.
+
+## S2 — re-scoped, with the reason
+
+The plan's S2 row assumed `compile`, `reduce ingest` and `reduce board` could go. They are the decision engine's inputs and outputs:
+`probe next` emits a `compile` and an `ingest` command at every dispatch, so they cannot be removed while the engine stays, and the
+engine's fate is S3's measurement. S2 therefore does the parts that stand alone, and records the rest.
+
+| Plan row | Result |
+|---|---|
+| `agents/*.md` for the four workers | **done** — `tools`, `model: inherit`, `skills:` preloaded. A nested session confirmed the agent resolves as `shapeup-sdlc-plugin:<worker>`, that the preloaded skill reaches it with `${CLAUDE_PLUGIN_ROOT}` already expanded to the absolute path (so the kernel grant still matches), and that `SubagentStart`/`SubagentStop` carry `agent_id`, `agent_type` and `last_assistant_message` |
+| `maxTurns` | not set: no run on file says what a legitimate worker needs, and a cap below it ends a good leg as `partial` |
+| `isolation: worktree` on build agents | **rejected** — the run trace, the board and the T0 artifacts live in the gitignored `.shapeup/`, which a worktree checkout does not contain |
+| `hooks/ledger.mjs` on `SubagentStart`/`SubagentStop` | **not needed** — the existing `PostToolUse` receipt hook sees what the subagent hooks do not: the prompt that carries `--order`, plus the result's `agentType`, `totalTokens`, `totalDurationMs` and `resolvedModel`. It now records the agent as the attestation and the usage on its row; `reduce ingest` takes the leg row's tokens from it when the loop passes no flags |
+| the worker writes its own `results/<order>.json`, `verify envelope` shrinks | **kept** — workers already write their result; `verify envelope` is the dispatch gate that denies a malformed order, which is a witness, not a parse |
+| `safety-spine` → `permissions.deny` | **not done, on evidence** — see below |
+| `compile`, `reduce ingest`, `reduce board` removed | **deferred to S3's outcome** — see above |
+| `lib/contract.mjs` to one JSON format | **rejected** — ADR-0001 chose Markdown on disk so a reviewer reads a scope contract and a wiring map in a pull request; reversing it is the PO's call, not a refactor |
+
+**Why `safety-spine` stays.** The plan replaced it with a deny block on the grounds that it had never denied anything on any ledger.
+That reading missed what the ledger is: the spine fires on every `Bash`, `Read`, `Write` and `Edit` and records an `allow` row naming the
+program that ran — 5,429 of the 6,860 rows on file — so it is the only record of which programs a worker ran, and the audit trail the
+"own" column of `analysis/01` asks for. A deny rule matches a prefix and cannot read flag order, so it covers fewer spellings of the
+same command, and it cannot be verified by execution for `rm -rf ~` without risking the home folder it protects. And a rule written by
+`npx shapeup-sdlc init` protects only projects where init ran, where the hook ships with the plugin. Removing it is one commit if the PO
+still wants it; it is left in place until then.
+
+## S2 gate
+
+`traces/v4/native-first-s2-2026-11-08/`: one launch, shipped PASS in one round, gate sequence equal to the 4.0.0 run's **row for row**.
+Each of the four worker legs has a receipt with `tool: Agent`, `agent_type: shapeup-sdlc-plugin:<worker>` and the host's tokens,
+duration and resolved model, and its leg row carries `usage_source: agent-hook` — no session passed a figure. The nested run allowed
+`Bash(node *)` for its workers, so QA hunted for real (7 findings) where the S1 launch could not.
+

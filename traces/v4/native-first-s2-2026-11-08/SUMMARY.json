@@ -1,0 +1,148 @@
+{
+  "run": "personal-site",
+  "date": "2026-11-08",
+  "plugin": "a0e7f7c",
+  "pitch": "pitch.gate.md — the personal-site pitch with its No-gos section folded into the Solution as plain statements",
+  "launches": 1,
+  "claude_cost_usd": 3.9071806999999996,
+  "claude_turns": 83,
+  "duration_s": 628,
+  "closed": [
+    "final_verdict: PASS",
+    "rounds_used: 1",
+    "close_cause: verdict=PASS rounds=1 qa_findings=7 qa=run",
+    "closed_status: shipped"
+  ],
+  "gates": [
+    [
+      "L0",
+      "proceed",
+      "preset:ci"
+    ],
+    [
+      "L0",
+      "proceed",
+      "preset:ci"
+    ],
+    [
+      "L1a",
+      "proceed",
+      "preset:ci"
+    ],
+    [
+      "L1a.5",
+      "proceed",
+      "preset:ci"
+    ],
+    [
+      "L1b",
+      "proceed",
+      "preset:ci"
+    ],
+    [
+      "L2",
+      "proceed",
+      "preset:ci"
+    ],
+    [
+      "L3",
+      "loop",
+      "preset:ci"
+    ],
+    [
+      "QA",
+      "run",
+      "preset:ci"
+    ],
+    [
+      "H",
+      "accept-cut-list",
+      "preset:ci"
+    ],
+    [
+      "L4",
+      "ship",
+      "preset:ci"
+    ],
+    [
+      "COACH-1",
+      "skip",
+      "preset:ci"
+    ]
+  ],
+  "legs": 8,
+  "leg_rows": [
+    {
+      "order": "orient",
+      "worker": "orient",
+      "attested": true,
+      "tokens_total": 49371,
+      "usage_source": "agent-hook",
+      "duration_s": 4
+    },
+    {
+      "order": "plan-requirements",
+      "worker": "building",
+      "attested": false,
+      "tokens_total": null,
+      "usage_source": null,
+      "duration_s": 18
+    },
+    {
+      "order": "plan-spec",
+      "worker": "building",
+      "attested": false,
+      "tokens_total": null,
+      "usage_source": null,
+      "duration_s": 103
+    },
+    {
+      "order": "plan-wire",
+      "worker": "building",
+      "attested": false,
+      "tokens_total": null,
+      "usage_source": null,
+      "duration_s": 8
+    },
+    {
+      "order": "plan-scopes",
+      "worker": "building",
+      "attested": false,
+      "tokens_total": null,
+      "usage_source": null,
+      "duration_s": 13
+    },
+    {
+      "order": "build-site-r1-a1",
+      "worker": "task-executor",
+      "attested": true,
+      "tokens_total": 48884,
+      "usage_source": "agent-hook",
+      "duration_s": 4
+    },
+    {
+      "order": "evaluate-r1",
+      "worker": "spec-evaluator",
+      "attested": true,
+      "tokens_total": 51680,
+      "usage_source": "agent-hook",
+      "duration_s": 5
+    },
+    {
+      "order": "hunt",
+      "worker": "qa-edge-hunter",
+      "attested": true,
+      "tokens_total": 47538,
+      "usage_source": "agent-hook",
+      "duration_s": 6
+    }
+  ],
+  "hook_rows": {
+    "validate-envelope:allow": 5,
+    "dispatch-receipt:allow": 5,
+    "safety-spine:allow": 135,
+    "sandbox-guard:allow": 26,
+    "sandbox-guard:deny": 2
+  },
+  "note": "S2 gate: the four workers dispatched as plugin agents. One launch, shipped PASS in 1 round. The gate sequence equals the 4.0.0 run's, row for row. Each worker leg has a receipt that names the agent that ran and carries the host's own tokens, duration and resolved model; the leg rows take their usage from it (usage_source agent-hook), so no session copied a figure. QA hunted for real (7 findings): the nested run allowed Bash(node *) for its workers, which the S1 run did not."
+}

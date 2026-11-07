@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "order_id": "personal-site/plan-spec",
+  "worker": "building",
+  "status": "done",
+  "artifacts": [
+    "shapeup/personal-site/spec/usecases/UC-BuildSite.md",
+    ".shapeup/personal-site/tasks/TASK-001-build-script.md",
+    ".shapeup/personal-site/tasks/TASK-002-test-suite.md"
+  ]
+}
