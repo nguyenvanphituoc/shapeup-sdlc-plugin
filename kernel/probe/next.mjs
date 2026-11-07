@@ -195,8 +195,8 @@ export function deriveNext(cwd, slug, { restart = false } = {}) {
     ? [{ command: K(`probe resume --slug ${slug} --set-status ${STATUS_FOR[phase]}`) }] : []);
 
   /** Where a scope's first-attempt order for a round is written: the id compile derives, lower-cased and filename-safe. */
-  const buildOrderPath = (scopeId, round) => join(ordersDir(cwd, slug),
-    `${scopeId.toLowerCase().replace(/[^a-z0-9.-]/g, "-").replace(/^[^a-z0-9]+/, "")}-r${round}-a1.json`);
+  const buildOrderPath = (scopeId, round, attempt = 1) => join(ordersDir(cwd, slug),
+    `${scopeId.toLowerCase().replace(/[^a-z0-9.-]/g, "-").replace(/^[^a-z0-9]+/, "")}-r${round}-a${attempt}.json`);
 
   /** The model tier a worker runs at, from the launch record: the judge at eval, the hunter at qa, the rest at exec. */
   const modelFor = (skill) => (skill === "spec-evaluator" ? L.models.eval : skill === "qa-edge-hunter" ? (L.models.qa || L.models.exec) : L.models.exec);
@@ -507,8 +507,14 @@ export function deriveNext(cwd, slug, { restart = false } = {}) {
       const green = greenVerdict(cwd, slug, s.scope_id, r).green && ls.orders.some((o) => o.has_result);
       const unanswered = ls.orders.filter((o) => !o.has_result && o.order_id && receiptCount(o.order_id) > 0);
       const inFlight = !green && !restart && unanswered.length > 0;
-      const settled = green || (!inFlight && ls.orders.some((o) => o.has_result));
-      out.set(s.scope_id, { green, inFlight, settled, unapplied: ls.unapplied, orders: ls.orders });
+      // A scope is SETTLED when it is green or has spent its attempt budget — never merely because a worker
+      // came back. A worker that returns red, or escalates, with budget left has not finished the scope: it is
+      // released again at its next attempt, and a dependent waits for it. (Settling on "a result exists" built a
+      // dependent over a dependency one attempt into five.)
+      const att = ls.orders.length ? scopeAttempts(cwd, slug, s.scope_id, r, attemptBudget) : { spent: 0, tripped: false };
+      const exhausted = !green && att.tripped;
+      const settled = green || exhausted;
+      out.set(s.scope_id, { green, inFlight, settled, exhausted, spent: att.spent, unapplied: ls.unapplied, orders: ls.orders });
     }
     return out;
   };
@@ -548,19 +554,27 @@ export function deriveNext(cwd, slug, { restart = false } = {}) {
         return {
           step: `build.r${round}`, kind: "build", round, width: dial, model: L.models.exec,
           reason: `${open.length} scope(s) not yet settled in round ${round}`,
-          release: release.map((s) => ({
-            scope_id: s.scope_id, path: s.path, skill: `${SKILL_NS}:task-executor`,
-            compile: K(`compile --scope "${s.path}" --round ${round} --attempt 1`),
-            order_path: buildOrderPath(s.scope_id, round),
-            ingest: K(`reduce ingest --order "${buildOrderPath(s.scope_id, round)}"`),
-            note: fixNote +
+          release: release.map((s) => {
+            const spent = states.get(s.scope_id).spent;
+            const first = Math.min(spent + 1, attemptBudget);
+            const again = spent > 0
+              ? `Attempts 1 to ${spent} of this scope are already spent in this round and it is not green: you have ${attemptBudget - spent} left. Start at attempt ${first} ` +
+                `and read the trial history the compiled order carries before changing anything — a worker that returned early left the scope unfinished. `
+              : "";
+            return {
+            scope_id: s.scope_id, path: s.path, skill: `${SKILL_NS}:task-executor`, attempt: first,
+            compile: K(`compile --scope "${s.path}" --round ${round} --attempt ${first}`),
+            order_path: buildOrderPath(s.scope_id, round, first),
+            ingest: K(`reduce ingest --order "${buildOrderPath(s.scope_id, round, first)}"`),
+            note: again + fixNote +
               `Re-compile the order for every attempt after the first, with --attempt <n>. An attempt will be REFUSED (exit 3) while the previous one is unanswered — ` +
               `dispatched with no leg row and no WorkResult — because grading a tree the previous attempt may still be writing counts an attempt nobody ran. Let it come back ` +
               `rather than opening the next one. Run the attempt ratchet for THIS scope only: up to ${attemptBudget} attempts of implement → ` +
               `\`node "${KERNEL}" verify t0 "${s.path}" --round ${round} --attempt <n>\`, each scored against the last kept trial. Stop on the first green T0, or when the ` +
               `attempt budget or the stagnation breaker trips. Write only inside this scope's substrate whitelist — the sandbox hook enforces it. Report green, attempts_used, ` +
               `which breaker (if any) tripped, and the T0 artifact path — attempts_used is what the attested channels carry, not a count of the orders you compiled.`,
-          })),
+            };
+          }),
           in_flight: [...inFlight], waiting: open.filter((id) => !release.some((s) => s.scope_id === id) && !inFlight.has(id)),
           pre: statusPre("build"), then: [], warnings,
         };

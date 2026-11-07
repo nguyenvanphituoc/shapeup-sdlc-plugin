@@ -76,7 +76,9 @@ export async function run(ctx) {
   const wiring = (ws) => put(shared(ws, "wiring-map.md"), "# wiring\n");
   const scopes = (ws, ids = ["alpha"]) => ids.forEach((id) => put(shared(ws, "scopes", `${id}.md`), `---\nscope_id: ${id}\n---\n`));
   const t0 = (ws, scope, round, overall = "green") => json(local(ws, "t0", "verdicts", `r${round}-a1-t1.json`), { scope_id: scope, round, overall, run_id: RUN_ID });
-  const buildOrder = (ws, scope, round, o = {}) => order(ws, `${scope}-r${round}-a1`, { receipts: 1, ...o, leg: { scope_id: scope, round }, body: { scope: scope } });
+  const buildOrder = (ws, scope, round, o = {}) => order(ws, `${scope}-r${round}-a${o.attempt ?? 1}`, { receipts: 1, ...o, leg: { scope_id: scope, round }, body: { scope: scope } });
+  /** Every attempt of the launch's budget (3) spent and answered red: the scope is exhausted, not merely returned. */
+  const exhaustedRed = (ws, scope = "alpha", round = 1) => [1, 2, 3].forEach((a) => buildOrder(ws, scope, round, { attempt: a, result: { green: false }, applied: true }));
   const planned = (ws, { ids = ["alpha"] } = {}) => { profile(ws); orient(ws); gate(ws, "L1a"); requirements(ws); tree(ws); wiring(ws); gate(ws, "L1a.5"); scopes(ws, ids); gate(ws, "L1b"); };
   const roundGreen = (ws, scope = "alpha", round = 1) => { buildOrder(ws, scope, round, { result: { green: true }, applied: true }); t0(ws, scope, round); };
   const gateArt = (ws, round, overall) => json(local(ws, "build", `r${round}-t1.json`), { round, trial: 1, overall, run_id: RUN_ID });
@@ -242,7 +244,20 @@ export async function run(ctx) {
       (s) => is("build")(s) && s.release[0].scope_id === "alpha", ["--restart"]);
     row("a green T0 with no WorkResult envelope is red, not green (the scope is released again)", (ws) => { planned(ws); t0(ws, "alpha", 1); buildOrder(ws, "alpha", 1, {}); },
       (s) => is("wait")(s) || is("build")(s));
-    row("a scope that answered red and is the only scope trips the nothing-green breaker", (ws) => { planned(ws); buildOrder(ws, "alpha", 1, { result: { green: false }, applied: true }); },
+    row("a scope that answered red with budget left is released again at its next attempt, with the spent count in its note", (ws) => { planned(ws); buildOrder(ws, "alpha", 1, { result: { green: false }, applied: true }); },
+      (s) => is("build", "build.r1")(s) && s.release[0].attempt === 2 && s.release[0].compile.includes("--attempt 2") && s.release[0].order_path.endsWith("alpha-r1-a2.json")
+        && /Attempts 1 to 1 .* already spent .* 2 left/.test(s.release[0].note));
+    row("a dependent is not released over a dependency that is red with budget left", (ws) => {
+      planned(ws, { ids: ["alpha", "beta"] });
+      put(shared(ws, "scopes", "beta.md"), "---\nscope_id: beta\ndepends_on: [alpha]\n---\n");
+      buildOrder(ws, "alpha", 1, { result: { green: false }, applied: true });
+    }, (s) => is("build")(s) && s.release.map((r) => r.scope_id).join() === "alpha" && s.release[0].attempt === 2 && s.waiting.includes("beta"));
+    row("a dependent is released once its dependency has spent its whole budget", (ws) => {
+      planned(ws, { ids: ["alpha", "beta"] });
+      put(shared(ws, "scopes", "beta.md"), "---\nscope_id: beta\ndepends_on: [alpha]\n---\n");
+      exhaustedRed(ws);
+    }, (s) => is("build")(s) && s.release.map((r) => r.scope_id).join() === "beta");
+    row("a scope that spent its whole budget red and is the only scope trips the nothing-green breaker", (ws) => { planned(ws); exhaustedRed(ws); },
       (s) => is("stop", "stop.census")(s) && /breaker \(none\)|breaker \(attempt_budget\)/.test(s.reason) && s.inputs.breaker !== null && s.inputs.hammer_proposals.includes("alpha"));
     row("a settled green round runs its build gate once, late-ingesting an unapplied green result first", (ws) => {
       planned(ws); declareRun(ws); buildOrder(ws, "alpha", 1, { result: { green: true } }); t0(ws, "alpha", 1);
@@ -321,7 +336,7 @@ export async function run(ctx) {
     // THE STOP STEP IS AN ACTIVITY, NOT A DISPATCH. Its step names the resource, the probes every claim cites,
     // and the file it is done on; nothing is compiled and no sub-agent is told anything.
     row("the stop step is an activity: it names the resource, the three probe commands (one per proposal scope for attempts), the census file and its required fields, and dispatches nothing", (ws) => {
-      planned(ws); buildOrder(ws, "alpha", 1, { result: { green: false }, applied: true });
+      planned(ws); exhaustedRed(ws);
     }, (s) => is("stop", "stop.census")(s) && s.resource === "resources/stop.md" && s.section === "Census" && !("compile" in s) && !("skill" in s)
       && s.produces.path === ".shapeup/demo/reports/hammer-census.json" && ["schema_version", "verdict", "cut_list"].every((f) => s.produces.required.includes(f))
       && JSON.stringify(s.produces.verdicts) === JSON.stringify(["ship-now", "ship-after-fixes", "cannot-ship"])

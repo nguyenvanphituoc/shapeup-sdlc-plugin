@@ -101,6 +101,6 @@ export async function run(ctx) {
     "a phase's result nothing applied is applied before the phase counts as done — planning and orient alike");
   pinnedBy(ctx, ["a settled green round runs its build gate once, late-ingesting an unapplied green result first"],
     "a build scope's unapplied green result is late-ingested before the round is judged");
-  pinnedBy(ctx, ["a scope that answered red and is the only scope trips the nothing-green breaker", "an unanswered order is named at every close"],
+  pinnedBy(ctx, ["a scope that spent its whole budget red and is the only scope trips the nothing-green breaker", "an unanswered order is named at every close"],
     "a stalled round names the breaker the attested census supports, and the close names unanswered orders");
 }
