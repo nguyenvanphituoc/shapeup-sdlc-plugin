@@ -1,0 +1,159 @@
+{
+  "run": "personal-site",
+  "date": "2026-11-07",
+  "plugin": "plan/single-loop at 2e24f29 \u2014 the final tree after A2\u2013A6 (planning, stop, retro and intake folded; tech-lead, the run script, staging, run-args retired)",
+  "pitch": "the same site pitch, slug chosen by the loop",
+  "launches": 1,
+  "launch_note": "one launch from an empty project to a shipped close, no operator step",
+  "legs": 8,
+  "leg_rows": [
+    {
+      "order": "orient",
+      "worker": "orient",
+      "mode": "orchestrated",
+      "attested": true,
+      "duration_s": 32,
+      "tokens_total": 58103
+    },
+    {
+      "order": "plan-requirements",
+      "worker": "building",
+      "mode": "standalone",
+      "attested": false,
+      "duration_s": 15,
+      "tokens_total": null
+    },
+    {
+      "order": "plan-spec",
+      "worker": "building",
+      "mode": "standalone",
+      "attested": false,
+      "duration_s": 95,
+      "tokens_total": null
+    },
+    {
+      "order": "plan-wire",
+      "worker": "building",
+      "mode": "standalone",
+      "attested": false,
+      "duration_s": 7,
+      "tokens_total": null
+    },
+    {
+      "order": "plan-scopes",
+      "worker": "building",
+      "mode": "standalone",
+      "attested": false,
+      "duration_s": 12,
+      "tokens_total": null
+    },
+    {
+      "order": "build-site-r1-a1",
+      "worker": "task-executor",
+      "mode": "orchestrated",
+      "attested": true,
+      "duration_s": 79,
+      "tokens_total": 77895
+    },
+    {
+      "order": "evaluate-r1",
+      "worker": "spec-evaluator",
+      "mode": "orchestrated",
+      "attested": true,
+      "duration_s": 49,
+      "tokens_total": 74621
+    },
+    {
+      "order": "hunt",
+      "worker": "qa-edge-hunter",
+      "mode": "orchestrated",
+      "attested": true,
+      "duration_s": 64,
+      "tokens_total": 71779
+    }
+  ],
+  "gates": [
+    {
+      "gate": "L0",
+      "round": null,
+      "decision": "proceed",
+      "source": "preset:ci"
+    },
+    {
+      "gate": "L0",
+      "round": null,
+      "decision": "proceed",
+      "source": "preset:ci"
+    },
+    {
+      "gate": "L1a",
+      "round": null,
+      "decision": "proceed",
+      "source": "preset:ci"
+    },
+    {
+      "gate": "L1a.5",
+      "round": null,
+      "decision": "proceed",
+      "source": "preset:ci"
+    },
+    {
+      "gate": "L1b",
+      "round": null,
+      "decision": "proceed",
+      "source": "preset:ci"
+    },
+    {
+      "gate": "L2",
+      "round": 1,
+      "decision": "proceed",
+      "source": "preset:ci"
+    },
+    {
+      "gate": "L3",
+      "round": 1,
+      "decision": "loop",
+      "source": "preset:ci"
+    },
+    {
+      "gate": "QA",
+      "round": 1,
+      "decision": "run",
+      "source": "preset:ci"
+    },
+    {
+      "gate": "H",
+      "round": null,
+      "decision": "accept-cut-list",
+      "source": "preset:ci"
+    },
+    {
+      "gate": "L4",
+      "round": null,
+      "decision": "ship",
+      "source": "preset:ci"
+    },
+    {
+      "gate": "COACH-1",
+      "round": null,
+      "decision": "skip",
+      "source": "preset:ci"
+    }
+  ],
+  "session_minutes": 11,
+  "reported_cost_usd": 4.88,
+  "turns": 93,
+  "verdict": "PASS",
+  "rounds": 1,
+  "qa": "not-hunted",
+  "hook_rows": {
+    "validate-envelope:allow": 11,
+    "dispatch-receipt:allow": 11,
+    "safety-spine:allow": 148,
+    "sandbox-guard:allow": 32,
+    "tier-guard:allow": 33,
+    "sandbox-guard:deny": 1,
+    "gate-zerowork:allow": 1
+  },
+  "not_measured": "one pitch, one run, no repetition; not a comparison with the fan-out arm (a different pitch); cost is what the host reported for the session including its sub-agents"
+}

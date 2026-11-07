@@ -1,0 +1,71 @@
+{
+  "schema_version": 2,
+  "round": 1,
+  "attempt": 1,
+  "trial": 1,
+  "at": "2026-11-07T13:48:01.046Z",
+  "run_id": "personal-site-20261107T134125Z-8132311c",
+  "scope_id": "build-site",
+  "env": {
+    "schema_version": 1,
+    "host": {
+      "platform": "darwin",
+      "arch": "arm64",
+      "os_release": "27.0.0",
+      "node": "v24.15.0",
+      "hostname_sha256": "fc7b2e355cd153f2742755036cef7a85840bc651258026e69764f044a4fbdbb9"
+    },
+    "cwd": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer",
+    "tree": {
+      "head": "4a9b3a931d45523ca1725472de95341e8845967e",
+      "dirty": true,
+      "branch": "master"
+    },
+    "toolchain": [
+      {
+        "bin": "node",
+        "path": "/Users/liberty/.nvm/versions/node/v24.15.0/bin/node"
+      }
+    ],
+    "lockfiles": [],
+    "caches": null,
+    "env": {
+      "allowlist": [
+        "PATH",
+        "NODE_ENV",
+        "CI",
+        "LANG",
+        "TZ"
+      ],
+      "sha256": "64d1487fe5e61c44d75a95f5ac6c9c96d934a2ae0075cbb0d0839c4a2e089c06"
+    },
+    "env_sha256": "5455a8434e5e030e9fc254fa2a801e710d985ebc2a0cdd3de5169a7721fd9fa5"
+  },
+  "fixtures": [
+    {
+      "cmd": "node build.mjs",
+      "exit": 0,
+      "pass": true
+    },
+    {
+      "cmd": "node --test build.test.mjs",
+      "exit": 0,
+      "pass": true,
+      "stdout_tail": "✔ TS-INV-01 byte-identical rebuild (68.662041ms)\n✔ TS-INV-02 failed build writes no index.html (33.37975ms)\n✔ TS-INV-03 text is escaped (32.313375ms)\n✔ TS-INV-04 exactly one h1 with name (30.459584ms)\n✔ TS-INV-05 project without url is plain text (30.105375ms)\n✔ TS-INV-06 empty projects shows coming soon, no list (30.479625ms)\n✔ TS-ERR-CONTENT_MISSING (30.970333ms)\n✔ TS-ERR-CONTENT_INVALID_JSON (31.93675ms)\n✔ TS-ERR-NAME_MISSING (30.98025ms)\n✔ TS-NOGO-01 no markdown rendering (32.022041ms)\n✔ TS-NOGO-03 only index.html written (30.901292ms)\n✔ TS-NOGO-05 process exits on its own (31.533291ms)\nℹ tests 12\nℹ suites 0\nℹ pass 12\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 461.343708\n"
+    }
+  ],
+  "db_probe": null,
+  "fixtures_green": true,
+  "db_probe_green": true,
+  "overall": "green",
+  "score": {
+    "fixtures_passed": 2,
+    "fixtures_total": 2,
+    "db_probe": null
+  },
+  "discovered_tasks": [],
+  "check_files": {
+    "build.mjs": "b1997988168efcb885221ee200ccd2f0341512d767deeaa329960ae4a1eb1769",
+    "build.test.mjs": "da1968fc282f6c190814792aa3ca658559207b9e633062260bb362f126506032"
+  }
+}

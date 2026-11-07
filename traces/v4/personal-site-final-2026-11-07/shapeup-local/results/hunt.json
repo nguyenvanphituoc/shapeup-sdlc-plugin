@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "order_id": "personal-site/hunt",
+  "worker": "qa-edge-hunter",
+  "status": "failed",
+  "summary": "not-hunted: charters 0/0. The deliverable (node build.mjs) could not be executed; every command was refused with 'requires approval' in this non-interactive session. No live repro was possible, so no findings.",
+  "discoveries": [],
+  "artifacts": ["qa/hunt-report.md"]
+}

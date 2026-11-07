@@ -1,0 +1,6 @@
+flowchart LR
+  entry([entry point])
+  n_build_mjs["build.mjs"]
+  entry --> n_build_mjs
+  n_build_mjs --> n_UC_BuildSite_aff(["`node build.mjs` writes `dist/index.html`"])
+  classDef dead stroke:#d33,stroke-width:2px,color:#d33;

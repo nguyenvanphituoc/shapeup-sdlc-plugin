@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "order_id": "personal-site/hunt",
+  "kernel": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.claude/shapeup-sdlc-plugin/kernel/harness.mjs",
+  "run_id": "personal-site-20261107T134125Z-8132311c",
+  "compiled_at": "2026-11-07T13:49:57.298Z",
+  "worker": "qa-edge-hunter",
+  "mode": "orchestrated",
+  "operation": "hunt",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [],
+    "frozen": [
+      "shapeup/personal-site/spec/**",
+      ".shapeup/personal-site/**"
+    ],
+    "own": [
+      ".shapeup/personal-site/qa/**",
+      ".shapeup/personal-site/results/hunt.json"
+    ]
+  },
+  "payload": {
+    "trial_history": [
+      {
+        "schema_version": 1,
+        "trial": 1,
+        "round": 1,
+        "attempt": 1,
+        "scope_id": "build-site",
+        "score": {
+          "fixtures_passed": 2,
+          "fixtures_total": 2,
+          "db_probe": null
+        },
+        "status": "kept",
+        "delta": "baseline",
+        "digest": []
+      }
+    ],
+    "feature": "personal-site",
+    "spec_folder": "shapeup/personal-site/spec/",
+    "round": 1,
+    "build_gate": ".shapeup/personal-site/build/r1-t1.json",
+    "kb_rules_path": "shapeup/knowledge-base/qa-edge-hunter.md"
+  }
+}

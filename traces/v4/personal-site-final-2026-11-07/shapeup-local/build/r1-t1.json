@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "round": 1,
+  "trial": 1,
+  "at": "2026-11-07T13:48:36.131Z",
+  "run_id": "personal-site-20261107T134125Z-8132311c",
+  "archetype": "library",
+  "overall": "green",
+  "steps": [
+    {
+      "kind": "build_probe",
+      "cmd": "node build.mjs",
+      "exit": 0,
+      "pass": true,
+      "stdout_tail": "",
+      "stderr_tail": ""
+    }
+  ],
+  "warnings": [
+    "the run ledger declares no run_cmd — the build itself is not part of this gate"
+  ],
+  "discovered_tasks": []
+}

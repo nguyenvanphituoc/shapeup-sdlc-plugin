@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "order_id": "personal-site/evaluate-r1",
+  "worker": "spec-evaluator",
+  "status": "done",
+  "verdict": {
+    "overall": "PASS",
+    "report_path": ".shapeup/personal-site/evaluation/EVAL-FEATURE-personal-site.md",
+    "t0_citations": [
+      { "scope_id": "build-site", "path": ".shapeup/personal-site/t0/verdicts/r1-a1-t1.json", "sha256": "249f7b9d14f38b7e8982123d6a8ed223e1aa589b7a000342722cc0e6c3772d39" }
+    ],
+    "criteria": [
+      { "criterion": "TS-INV-01", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "medium", "reprobed": false, "evidence": "build.test.mjs:34 compares two builds byte-for-byte; T0 names PASS", "traces_to": ["REQ-18"] },
+      { "criterion": "TS-INV-02", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "medium", "reprobed": false, "evidence": "build.test.mjs:46 exit 1 and no index.html; T0 names PASS", "traces_to": ["REQ-16", "REQ-17"] },
+      { "criterion": "TS-INV-03", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "medium", "reprobed": false, "evidence": "build.mjs:4 esc() on all interpolations; build.test.mjs:52", "traces_to": ["REQ-14"] },
+      { "criterion": "TS-INV-04", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "medium", "reprobed": false, "evidence": "build.mjs:65 single h1; build.test.mjs:58", "traces_to": ["REQ-4"] },
+      { "criterion": "TS-INV-05", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "medium", "reprobed": false, "evidence": "build.mjs:41 plain title without url; build.test.mjs:64", "traces_to": ["REQ-12"] },
+      { "criterion": "TS-INV-06", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "medium", "reprobed": false, "evidence": "build.mjs:48 coming-soon sentence; build.test.mjs:72", "traces_to": ["REQ-13"] },
+      { "criterion": "TS-ERR-CONTENT_MISSING", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "medium", "reprobed": false, "evidence": "build.mjs:24; build.test.mjs:78", "traces_to": ["REQ-15"] },
+      { "criterion": "TS-ERR-CONTENT_INVALID_JSON", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "medium", "reprobed": false, "evidence": "build.mjs:31; build.test.mjs:90", "traces_to": ["REQ-15"] },
+      { "criterion": "TS-ERR-NAME_MISSING", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "medium", "reprobed": false, "evidence": "build.mjs:34; build.test.mjs:97", "traces_to": ["REQ-17"] },
+      { "criterion": "TS-NOGO-01", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "medium", "reprobed": false, "evidence": "no markdown handling in build.mjs; build.test.mjs:106", "traces_to": [] },
+      { "criterion": "TS-NOGO-03", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "medium", "reprobed": false, "evidence": "build.mjs:85 sole write; build.test.mjs:112", "traces_to": [] },
+      { "criterion": "TS-NOGO-05", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "medium", "reprobed": false, "evidence": "no watch loop; build.test.mjs:117", "traces_to": [] },
+      { "criterion": "UC-BuildSite steps 1-7", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "medium", "reprobed": false, "evidence": "build.mjs:17-85 implements env overrides, validation, ordered sections, mailto, inline CSS", "traces_to": [] },
+      { "criterion": "UC-BuildSite invariants INV-01..06", "dimension": "completeness", "verdict": "PASS", "confidence": "medium", "reprobed": false, "evidence": "each invariant covered by its TS-INV row", "traces_to": [] },
+      { "criterion": "T0 fixtures green", "dimension": "tdd-surface", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "r1-a1-t1.json overall green, sha256 recomputed", "traces_to": [] }
+    ],
+    "refuted": [],
+    "bugs": []
+  }
+}

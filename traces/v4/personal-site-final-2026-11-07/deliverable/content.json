@@ -1,0 +1,10 @@
+{
+  "name": "Jane Doe",
+  "tagline": "Builder of small, useful things",
+  "about": "I write software and occasionally ship it.",
+  "projects": [
+    { "title": "Alpha", "summary": "A first project.", "url": "https://example.com/alpha" },
+    { "title": "Beta", "summary": "A second project.", "url": "https://example.com/beta" }
+  ],
+  "contact": { "email": "jane@example.com" }
+}

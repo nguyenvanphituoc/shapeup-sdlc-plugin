@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "verdict": "ship-now",
+  "cut_list": [
+    "~ judge evidence for REQ-1, REQ-2, REQ-3, REQ-5, REQ-6, REQ-7, REQ-8, REQ-9, REQ-10, REQ-11 (probe requirements: no evidence; the evaluator graded only Test Surface rows) — carry: re-grade with an evaluator that can execute",
+    "~ QA edge hunt not hunted (sandbox refused executing node build.mjs) — carry: re-run the hunt with execution granted",
+    "~ javascript: scheme in project url is escaped but not filtered (orient D5, QA scent, pitch silent) — carry as a raw idea",
+    "~ non-object JSON, blank or non-string name, absent optional fields (orient D1-D3, pitch silent) — carry as a raw idea"
+  ],
+  "ship_blocking": [],
+  "breaker": null,
+  "baseline": null
+}
