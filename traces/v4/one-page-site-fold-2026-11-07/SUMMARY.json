@@ -1,0 +1,146 @@
+{
+  "run": "one-page-site",
+  "date": "2026-11-07",
+  "plugin": "plan/single-loop at 6b20f39 \u2014 the loop skill `building` with planning folded into the loop (A2)",
+  "pitch": "the same one-page-site pitch as one-page-site-2026-11-07, after the pitch's two mis-filed No-gos were moved to the solution shape",
+  "launches": 1,
+  "launch_note": "one launch from an empty project to a shipped close; no relaunch, no operator intervention, no abort",
+  "legs": 8,
+  "leg_rows": [
+    {
+      "order": "orient",
+      "worker": "orient",
+      "mode": "orchestrated",
+      "attested": true,
+      "duration_s": 33,
+      "tokens_total": 69586
+    },
+    {
+      "order": "plan-requirements",
+      "worker": "building",
+      "mode": "standalone",
+      "attested": false,
+      "duration_s": 16,
+      "tokens_total": null
+    },
+    {
+      "order": "plan-spec",
+      "worker": "building",
+      "mode": "standalone",
+      "attested": false,
+      "duration_s": 205,
+      "tokens_total": null
+    },
+    {
+      "order": "plan-wire",
+      "worker": "building",
+      "mode": "standalone",
+      "attested": false,
+      "duration_s": 9,
+      "tokens_total": null
+    },
+    {
+      "order": "plan-scopes",
+      "worker": "building",
+      "mode": "standalone",
+      "attested": false,
+      "duration_s": 12,
+      "tokens_total": null
+    },
+    {
+      "order": "build-site-r1-a1",
+      "worker": "task-executor",
+      "mode": "orchestrated",
+      "attested": true,
+      "duration_s": 78,
+      "tokens_total": 82988
+    },
+    {
+      "order": "evaluate-r1",
+      "worker": "spec-evaluator",
+      "mode": "orchestrated",
+      "attested": true,
+      "duration_s": 49,
+      "tokens_total": 81007
+    },
+    {
+      "order": "hunt",
+      "worker": "qa-edge-hunter",
+      "mode": "orchestrated",
+      "attested": true,
+      "duration_s": 52,
+      "tokens_total": 69840
+    }
+  ],
+  "plan_substeps": "four fence-only plan orders (requirements, spec, wire, scopes), each closed by `reduce ingest --close-plan`, none attested because no skill was dispatched",
+  "gates": [
+    {
+      "gate": "L0",
+      "round": null,
+      "decision": "proceed",
+      "source": "preset:ci"
+    },
+    {
+      "gate": "L0",
+      "round": null,
+      "decision": "proceed",
+      "source": "preset:ci"
+    },
+    {
+      "gate": "L1a",
+      "round": null,
+      "decision": "proceed",
+      "source": "preset:ci"
+    },
+    {
+      "gate": "L1a.5",
+      "round": null,
+      "decision": "proceed",
+      "source": "preset:ci"
+    },
+    {
+      "gate": "L1b",
+      "round": null,
+      "decision": "proceed",
+      "source": "preset:ci"
+    },
+    {
+      "gate": "L2",
+      "round": 1,
+      "decision": "proceed",
+      "source": "preset:ci"
+    },
+    {
+      "gate": "L3",
+      "round": 1,
+      "decision": "loop",
+      "source": "preset:ci"
+    },
+    {
+      "gate": "QA",
+      "round": 1,
+      "decision": "run",
+      "source": "preset:ci"
+    },
+    {
+      "gate": "H",
+      "round": null,
+      "decision": "accept-cut-list",
+      "source": "preset:ci"
+    },
+    {
+      "gate": "L4",
+      "round": null,
+      "decision": "ship",
+      "source": "preset:ci"
+    }
+  ],
+  "session_minutes": 13,
+  "reported_cost_usd": 6.27,
+  "turns": 110,
+  "verdict": "PASS",
+  "rounds": 1,
+  "qa": "not-hunted",
+  "deliverable_tests": "19 pass",
+  "not_measured": "one pitch, one run, no repetition; cost is what the host reported for the session including its sub-agents; not a comparison with the fan-out arm (a different pitch) and not a pass^k"
+}

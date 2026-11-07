@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "order_id": "one-page-site/evaluate-r1",
+  "worker": "spec-evaluator",
+  "status": "done",
+  "verdict": {
+    "overall": "PASS",
+    "report_path": ".shapeup/one-page-site/evaluation/EVAL-FEATURE-one-page-site.md",
+    "t0_citations": [
+      {"scope_id": "build-site", "path": ".shapeup/one-page-site/t0/verdicts/r1-a1-t1.json", "sha256": "759a9ae388deecc142028c61326ba7693b025cf6fed98129b410541742d15b75"}
+    ],
+    "criteria": [
+      {"criterion": "UC-BuildSite TS-INV-01", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "T0 r1-a1-t1 'PASS TS-INV-01 byte-identical builds'; test/build.test.mjs:39 compares second build to first", "traces_to": ["REQ-17"]},
+      {"criterion": "UC-BuildSite TS-INV-02", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "T0 named PASS; test/build.test.mjs:46 asserts no script/on*/link/src, one style", "traces_to": ["REQ-2"]},
+      {"criterion": "UC-BuildSite TS-INV-03", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "T0 named PASS; test/build.test.mjs:55 content bytes unchanged", "traces_to": []},
+      {"criterion": "UC-BuildSite TS-INV-04", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "T0 named PASS; test/build.test.mjs:62 asserts escaped string and no raw <b>", "traces_to": ["REQ-14"]},
+      {"criterion": "UC-BuildSite TS-INV-05", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "T0 named PASS; test/build.test.mjs:68 no href=# / empty href / anchor on plain titles", "traces_to": ["REQ-12"]},
+      {"criterion": "UC-BuildSite TS-INV-06", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "T0 named PASS; test/build.test.mjs:76 exactly one h1 = name", "traces_to": ["REQ-4"]},
+      {"criterion": "TS-REQ-projects-empty", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "T0 named PASS; test/build.test.mjs:82", "traces_to": ["REQ-13"]},
+      {"criterion": "TS-REQ-projects-order", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "T0 named PASS; test/build.test.mjs:90 order and anchors", "traces_to": ["REQ-6"]},
+      {"criterion": "TS-REQ-layout", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "T0 named PASS; test/build.test.mjs:98 title, section order, mailto", "traces_to": ["REQ-4", "REQ-5", "REQ-7", "REQ-8", "REQ-9"]},
+      {"criterion": "TS-REQ-env-override", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "T0 named PASS; test/build.test.mjs:108 output at OUT_DIR/index.html", "traces_to": ["REQ-1", "REQ-10", "REQ-11"]},
+      {"criterion": "TS-NOGO-01", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "T0 named PASS; build.mjs:1-2 only node: imports", "traces_to": []},
+      {"criterion": "TS-NOGO-02", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "T0 named PASS; build.mjs:42 isHttp gate", "traces_to": []},
+      {"criterion": "TS-NOGO-03", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "T0 named PASS; test/build.test.mjs:129", "traces_to": []},
+      {"criterion": "UC-RejectInvalidContent TS-INV-01", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "T0 named PASS 'reject: nothing written'; test/build.test.mjs:147 asserts no page and no out dir for 8 bad cases", "traces_to": ["REQ-15"]},
+      {"criterion": "UC-RejectInvalidContent TS-INV-02", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "T0 named PASS; test/build.test.mjs:156 one stderr line, no stack frames", "traces_to": ["REQ-15"]},
+      {"criterion": "TS-ERR-E_CONTENT_MISSING", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "T0 named PASS; test/build.test.mjs:164 stderr names path", "traces_to": ["REQ-15"]},
+      {"criterion": "TS-ERR-E_CONTENT_INVALID", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "T0 named PASS; test/build.test.mjs:170", "traces_to": ["REQ-15"]},
+      {"criterion": "TS-ERR-E_NAME_MISSING", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "T0 named PASS; test/build.test.mjs:178", "traces_to": ["REQ-16"]},
+      {"criterion": "TS-REQ-name-missing", "dimension": "test-surface-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "T0 named PASS; test/build.test.mjs:186", "traces_to": ["REQ-16"]},
+      {"criterion": "UC-BuildSite steps 1-8 and Done-when (spec-conformance)", "dimension": "spec-conformance", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "build.mjs:96-98 load, render, mkdir, single write; build gate .shapeup/one-page-site/build/r1-t1.json green 19/19", "traces_to": ["REQ-1", "REQ-3"]},
+      {"criterion": "UC-BuildSite/UC-RejectInvalidContent Invariants (completeness)", "dimension": "completeness", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "All 8 invariants have a named passing row in T0; build.mjs:15-18 one-line fail", "traces_to": []},
+      {"criterion": "node --test suite covers every Test Surface row (tdd-surface)", "dimension": "tdd-surface", "verdict": "PASS", "confidence": "high", "reprobed": false, "evidence": "test/build.test.mjs:39-190, 19 tests for 19 rows; T0 node --test exit 0", "traces_to": ["REQ-21"]}
+    ],
+    "refuted": [],
+    "bugs": []
+  },
+  "deviations": [
+    "The evaluator's shell could not run node --test directly (approval required); rows were graded from the T0 artifact and build gate output naming each row, after reading each check against its row's Expect."
+  ]
+}

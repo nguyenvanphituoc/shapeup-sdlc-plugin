@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "order_id": "one-page-site/build-site-r1-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-001",
+      "status": "done",
+      "ac_results": [
+        {"ac": "`build.mjs` exists at the project root and `node build.mjs` with a valid `content.json` exits 0 and writes `dist/index.html` (covers: REQ-1, REQ-10)", "result": "pass", "evidence": "TS-REQ-env-override; node --test 20/20"},
+        {"ac": "The output has one `<style>` block and no `<script>`, no `on*=` attribute, no `<link>` and no `src=` (covers: REQ-2)", "result": "pass", "evidence": "TS-INV-02"},
+        {"ac": "`build.mjs` imports only `node:` builtins and makes no network calls (TS-NOGO-01)", "result": "pass", "evidence": "TS-NOGO-01"},
+        {"ac": "A project titled `<b>Rock & Roll</b>` appears as `&lt;b&gt;Rock &amp; Roll&lt;/b&gt;` with no raw `<b>` from content (covers: REQ-14)", "result": "pass", "evidence": "TS-INV-04"},
+        {"ac": "`<title>` equals `name`, and the page has exactly one `<h1>` whose text is `name`, with the tagline after it (covers: REQ-4, REQ-9)", "result": "pass", "evidence": "TS-INV-06, TS-REQ-layout"},
+        {"ac": "Sections appear in order h1+tagline, About (with the `about` text), Projects, Contact (covers: REQ-5, REQ-8)", "result": "pass", "evidence": "TS-REQ-layout"},
+        {"ac": "Each project renders as one card in array order; its title is an `<a href>` to its `url` (covers: REQ-6)", "result": "pass", "evidence": "TS-REQ-projects-order"},
+        {"ac": "Contact renders a `mailto:<email>` link (covers: REQ-7)", "result": "pass", "evidence": "TS-REQ-layout"},
+        {"ac": "`CONTENT_FILE=<tmp>/c.json OUT_DIR=<tmp>/out node build.mjs` reads that file and writes `<tmp>/out/index.html` (covers: REQ-11)", "result": "pass", "evidence": "TS-REQ-env-override"},
+        {"ac": "Two consecutive builds of the same content produce byte-identical files (covers: REQ-17)", "result": "pass", "evidence": "TS-INV-01"},
+        {"ac": "The content file's bytes are unchanged after a build (TS-NOGO-03)", "result": "pass", "evidence": "TS-NOGO-03, TS-INV-03"},
+        {"ac": "A project with no `url` (or a blank or non-`http(s)` url such as `javascript:alert(1)`) renders its title as plain text: no `<a>`, no `href=\"#\"`, no `href=\"\"` (covers: REQ-12)", "result": "pass", "evidence": "TS-INV-05, TS-NOGO-02"},
+        {"ac": "`projects: []` or absent → the Projects section contains \"Projects are coming soon.\" and no `<ul>`/`<li>` (covers: REQ-13)", "result": "pass", "evidence": "TS-REQ-projects-empty"},
+        {"ac": "Absent `tagline`, `about` or `contact.email` → no crash; that element is omitted", "result": "pass", "evidence": "TS-REQ-projects-empty builds {name:'X'} exit 0"}
+      ]
+    },
+    {
+      "task_id": "TASK-002",
+      "status": "done",
+      "ac_results": [
+        {"ac": "A missing content file → exit 1, exactly one stderr line naming the path, no `index.html` and no output dir created (covers: REQ-15)", "result": "pass", "evidence": "TS-ERR-E_CONTENT_MISSING, TS-INV-01 reject"},
+        {"ac": "An unparsable file (`{not json`) or a non-object root (`null`, `[]`) → exit 1, one stderr line, nothing written (covers: REQ-15, REQ-3)", "result": "pass", "evidence": "TS-ERR-E_CONTENT_INVALID"},
+        {"ac": "Missing, non-string or blank `name` → exit 1, one stderr line mentioning `name`, nothing written (covers: REQ-16, REQ-3)", "result": "pass", "evidence": "TS-ERR-E_NAME_MISSING, TS-REQ-name-missing"},
+        {"ac": "stderr never contains a stack trace (no line starting with `    at `) (covers: REQ-15)", "result": "pass", "evidence": "TS-INV-02 reject"}
+      ]
+    },
+    {
+      "task_id": "TASK-003",
+      "status": "done",
+      "ac_results": [
+        {"ac": "`test/build.test.mjs` exists, uses only `node:test`, `node:assert`, `node:child_process`, `node:fs`, `node:os`, `node:path` (covers: REQ-21)", "result": "pass", "evidence": "file imports inspected"},
+        {"ac": "`node --test` exits 0 from the project root (covers: REQ-21)", "result": "pass", "evidence": "T0 verify green r1-a1-t1"},
+        {"ac": "The suite has one test per Test Surface row of both use cases, each named by its row id (covers: REQ-21)", "result": "pass", "evidence": "13 BuildSite rows + 6 Reject rows named by id (reject INV rows suffixed 'reject')"},
+        {"ac": "Tests never read or write the real `content.json` or `dist/` (covers: REQ-21)", "result": "pass", "evidence": "all builds use temp CONTENT_FILE/OUT_DIR"}
+      ]
+    }
+  ],
+  "files_touched": [
+    {"path": "build.mjs", "change": "created"},
+    {"path": "content.json", "change": "created"},
+    {"path": "test/build.test.mjs", "change": "created"}
+  ],
+  "discoveries": [],
+  "assumptions": [
+    "Reject-use-case rows TS-INV-01/02 share ids with BuildSite rows; test names suffixed 'reject' to stay unique",
+    "http(s) url check is case-insensitive with no whitespace inside"
+  ],
+  "deviations": []
+}

@@ -1,0 +1,248 @@
+{
+  "schema_version": 1,
+  "order_id": "one-page-site/build-site-r1-a1",
+  "kernel": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.claude/shapeup-sdlc-plugin/kernel/harness.mjs",
+  "run_id": "one-page-site-20261107T111650Z-ca69af29",
+  "compiled_at": "2026-11-07T11:23:54.965Z",
+  "worker": "task-executor",
+  "mode": "orchestrated",
+  "operation": "execute",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "build.mjs",
+      "test/**",
+      "content.json",
+      ".shapeup/one-page-site/spikes/**"
+    ],
+    "shared": [],
+    "frozen": [
+      ".shapeup/one-page-site/**"
+    ],
+    "own": [
+      ".shapeup/one-page-site/results/build-site-r1-a1.json",
+      ".shapeup/one-page-site/tasks/TASK-*.md",
+      ".shapeup/one-page-site/discovery/**",
+      ".shapeup/one-page-site/spikes/**"
+    ]
+  },
+  "payload": {
+    "scope_contract": {
+      "scope_id": "build-site",
+      "topology_type": "ICEBERG",
+      "use_cases": [
+        "UC-BuildSite",
+        "UC-RejectInvalidContent"
+      ],
+      "covers": [
+        "REQ-1",
+        "REQ-2",
+        "REQ-3",
+        "REQ-4",
+        "REQ-5",
+        "REQ-6",
+        "REQ-7",
+        "REQ-8",
+        "REQ-9",
+        "REQ-10",
+        "REQ-11",
+        "REQ-12",
+        "REQ-13",
+        "REQ-14",
+        "REQ-15",
+        "REQ-16",
+        "REQ-17",
+        "REQ-21"
+      ],
+      "depends_on": [],
+      "allowed_file_substrate": [
+        "build.mjs",
+        "test/**",
+        "content.json"
+      ],
+      "shared_substrate": [],
+      "affordance_manifest": [],
+      "e2e_verification_fixtures": [
+        "node --test"
+      ],
+      "hill_phase": "UPHILL_UNKNOWN"
+    },
+    "tasks": [
+      {
+        "id": "TASK-001",
+        "title": "Render content.json into a static dist/index.html with build.mjs",
+        "status": "ready",
+        "priority": 1,
+        "depends_on": [],
+        "use_case_refs": [
+          "[[usecases/UC-BuildSite]]"
+        ],
+        "scope_id": "",
+        "body_path": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.shapeup/one-page-site/tasks/TASK-001.md",
+        "acceptance_criteria": [
+          {
+            "text": "`build.mjs` exists at the project root and `node build.mjs` with a valid `content.json` exits 0 and writes `dist/index.html` (covers: REQ-1, REQ-10)",
+            "covers": [
+              "REQ-1",
+              "REQ-10"
+            ]
+          },
+          {
+            "text": "The output has one `<style>` block and no `<script>`, no `on*=` attribute, no `<link>` and no `src=` (covers: REQ-2)",
+            "covers": [
+              "REQ-2"
+            ]
+          },
+          "`build.mjs` imports only `node:` builtins and makes no network calls (TS-NOGO-01)",
+          {
+            "text": "A project titled `<b>Rock & Roll</b>` appears as `&lt;b&gt;Rock &amp; Roll&lt;/b&gt;` with no raw `<b>` from content (covers: REQ-14)",
+            "covers": [
+              "REQ-14"
+            ]
+          },
+          {
+            "text": "`<title>` equals `name`, and the page has exactly one `<h1>` whose text is `name`, with the tagline after it (covers: REQ-4, REQ-9)",
+            "covers": [
+              "REQ-4",
+              "REQ-9"
+            ]
+          },
+          {
+            "text": "Sections appear in order h1+tagline, About (with the `about` text), Projects, Contact (covers: REQ-5, REQ-8)",
+            "covers": [
+              "REQ-5",
+              "REQ-8"
+            ]
+          },
+          {
+            "text": "Each project renders as one card in array order; its title is an `<a href>` to its `url` (covers: REQ-6)",
+            "covers": [
+              "REQ-6"
+            ]
+          },
+          {
+            "text": "Contact renders a `mailto:<email>` link (covers: REQ-7)",
+            "covers": [
+              "REQ-7"
+            ]
+          },
+          {
+            "text": "`CONTENT_FILE=<tmp>/c.json OUT_DIR=<tmp>/out node build.mjs` reads that file and writes `<tmp>/out/index.html` (covers: REQ-11)",
+            "covers": [
+              "REQ-11"
+            ]
+          },
+          {
+            "text": "Two consecutive builds of the same content produce byte-identical files (covers: REQ-17)",
+            "covers": [
+              "REQ-17"
+            ]
+          },
+          "The content file's bytes are unchanged after a build (TS-NOGO-03)",
+          {
+            "text": "A project with no `url` (or a blank or non-`http(s)` url such as `javascript:alert(1)`) renders its title as plain text: no `<a>`, no `href=\"#\"`, no `href=\"\"` (covers: REQ-12)",
+            "covers": [
+              "REQ-12"
+            ]
+          },
+          {
+            "text": "`projects: []` or absent → the Projects section contains \"Projects are coming soon.\" and no `<ul>`/`<li>` (covers: REQ-13)",
+            "covers": [
+              "REQ-13"
+            ]
+          },
+          "Absent `tagline`, `about` or `contact.email` → no crash; that element is omitted"
+        ]
+      },
+      {
+        "id": "TASK-002",
+        "title": "Reject missing or invalid content with exit 1, one stderr line, nothing written",
+        "status": "ready",
+        "priority": 2,
+        "depends_on": [
+          "TASK-001"
+        ],
+        "use_case_refs": [
+          "[[usecases/UC-RejectInvalidContent]]"
+        ],
+        "scope_id": "",
+        "body_path": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.shapeup/one-page-site/tasks/TASK-002.md",
+        "acceptance_criteria": [
+          {
+            "text": "A missing content file → exit 1, exactly one stderr line naming the path, no `index.html` and no output dir created (covers: REQ-15)",
+            "covers": [
+              "REQ-15"
+            ]
+          },
+          {
+            "text": "An unparsable file (`{not json`) or a non-object root (`null`, `[]`) → exit 1, one stderr line, nothing written (covers: REQ-15, REQ-3)",
+            "covers": [
+              "REQ-15",
+              "REQ-3"
+            ]
+          },
+          {
+            "text": "Missing, non-string or blank `name` → exit 1, one stderr line mentioning `name`, nothing written (covers: REQ-16, REQ-3)",
+            "covers": [
+              "REQ-16",
+              "REQ-3"
+            ]
+          },
+          {
+            "text": "stderr never contains a stack trace (no line starting with `    at `) (covers: REQ-15)",
+            "covers": [
+              "REQ-15"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "TASK-003",
+        "title": "Add a node --test suite that drives build.mjs against throwaway content files",
+        "status": "ready",
+        "priority": 3,
+        "depends_on": [
+          "TASK-001",
+          "TASK-002"
+        ],
+        "use_case_refs": [
+          "[[usecases/UC-BuildSite]]",
+          "[[usecases/UC-RejectInvalidContent]]"
+        ],
+        "scope_id": "",
+        "body_path": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.shapeup/one-page-site/tasks/TASK-003.md",
+        "acceptance_criteria": [
+          {
+            "text": "`test/build.test.mjs` exists, uses only `node:test`, `node:assert`, `node:child_process`, `node:fs`, `node:os`, `node:path` (covers: REQ-21)",
+            "covers": [
+              "REQ-21"
+            ]
+          },
+          {
+            "text": "`node --test` exits 0 from the project root (covers: REQ-21)",
+            "covers": [
+              "REQ-21"
+            ]
+          },
+          {
+            "text": "The suite has one test per Test Surface row of both use cases, each named by its row id (covers: REQ-21)",
+            "covers": [
+              "REQ-21"
+            ]
+          },
+          {
+            "text": "Tests never read or write the real `content.json` or `dist/` (covers: REQ-21)",
+            "covers": [
+              "REQ-21"
+            ]
+          }
+        ]
+      }
+    ],
+    "spec_folder": "shapeup/one-page-site/spec",
+    "feature": "one-page-site",
+    "kb_rules_path": "shapeup/knowledge-base/task-executor.md"
+  }
+}

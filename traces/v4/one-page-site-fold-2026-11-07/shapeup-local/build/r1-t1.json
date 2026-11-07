@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "round": 1,
+  "trial": 1,
+  "at": "2026-11-07T11:25:30.695Z",
+  "run_id": "one-page-site-20261107T111650Z-ca69af29",
+  "archetype": "cli",
+  "overall": "green",
+  "steps": [
+    {
+      "kind": "build_probe",
+      "cmd": "node --test",
+      "exit": 0,
+      "pass": true,
+      "stdout_tail": "✔ TS-INV-01 byte-identical builds (74.181083ms)\n✔ TS-INV-02 no script, handlers, link, src; one style (32.680833ms)\n✔ TS-INV-03 content file unchanged (66.517083ms)\n✔ TS-INV-04 content is escaped (33.522584ms)\n✔ TS-INV-05 no url renders plain title (32.003958ms)\n✔ TS-INV-06 exactly one h1 equal to name (32.760375ms)\n✔ TS-REQ-projects-empty (63.465667ms)\n✔ TS-REQ-projects-order (31.194334ms)\n✔ TS-REQ-layout (30.522459ms)\n✔ TS-REQ-env-override (31.515333ms)\n✔ TS-NOGO-01 only node: imports, build succeeds (31.40925ms)\n✔ TS-NOGO-02 javascript: url not linked (31.999625ms)\n✔ TS-NOGO-03 content file hash unchanged by build (64.222458ms)\n✔ TS-INV-01 reject: nothing written on failure (258.728083ms)\n✔ TS-INV-02 reject: exactly one stderr line, no stack (263.506167ms)\n✔ TS-ERR-E_CONTENT_MISSING (36.731875ms)\n✔ TS-ERR-E_CONTENT_INVALID (69.890084ms)\n✔ TS-ERR-E_NAME_MISSING (68.146625ms)\n✔ TS-REQ-name-missing (35.47775ms)\nℹ tests 19\nℹ suites 0\nℹ pass 19\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 1348.468666\n",
+      "stderr_tail": ""
+    }
+  ],
+  "warnings": [
+    "the run ledger declares no run_cmd — the build itself is not part of this gate"
+  ],
+  "discovered_tasks": []
+}

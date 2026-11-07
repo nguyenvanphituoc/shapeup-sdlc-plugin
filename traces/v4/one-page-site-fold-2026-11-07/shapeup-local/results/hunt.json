@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "order_id": "one-page-site/hunt",
+  "worker": "qa-edge-hunter",
+  "status": "failed",
+  "artifacts": [".shapeup/one-page-site/qa/hunt-report.md"],
+  "deviations": [
+    "Deliverable not reached: every shell invocation of the built entry point (node build.mjs, including a prepared charter script) was refused with 'This command requires approval' in this non-interactive session; the grant covers only the kernel. No charter ran (charters: 0). No findings recorded; none inferred from code reading (hard rule 7)."
+  ],
+  "discoveries": []
+}

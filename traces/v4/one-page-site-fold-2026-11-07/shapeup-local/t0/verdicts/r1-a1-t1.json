@@ -1,0 +1,62 @@
+{
+  "schema_version": 2,
+  "round": 1,
+  "attempt": 1,
+  "trial": 1,
+  "at": "2026-11-07T11:25:03.892Z",
+  "run_id": "one-page-site-20261107T111650Z-ca69af29",
+  "scope_id": "build-site",
+  "env": {
+    "schema_version": 1,
+    "host": {
+      "platform": "darwin",
+      "arch": "arm64",
+      "os_release": "27.0.0",
+      "node": "v24.15.0",
+      "hostname_sha256": "fc7b2e355cd153f2742755036cef7a85840bc651258026e69764f044a4fbdbb9"
+    },
+    "cwd": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer",
+    "tree": {
+      "head": "fb56fd7bd96d73afbffb807063d606d28dad4692",
+      "dirty": true,
+      "branch": "master"
+    },
+    "toolchain": [
+      {
+        "bin": "node",
+        "path": "/Users/liberty/.nvm/versions/node/v24.15.0/bin/node"
+      }
+    ],
+    "lockfiles": [],
+    "caches": null,
+    "env": {
+      "allowlist": [
+        "PATH",
+        "NODE_ENV",
+        "CI",
+        "LANG",
+        "TZ"
+      ],
+      "sha256": "64d1487fe5e61c44d75a95f5ac6c9c96d934a2ae0075cbb0d0839c4a2e089c06"
+    },
+    "env_sha256": "a191b64a74b3a531dda8aabba33d52428d481f470aea58aa04b80b88089eb068"
+  },
+  "fixtures": [
+    {
+      "cmd": "node --test",
+      "exit": 0,
+      "pass": true,
+      "stdout_tail": "✔ TS-INV-01 byte-identical builds (66.224458ms)\n✔ TS-INV-02 no script, handlers, link, src; one style (31.143083ms)\n✔ TS-INV-03 content file unchanged (64.950125ms)\n✔ TS-INV-04 content is escaped (34.600084ms)\n✔ TS-INV-05 no url renders plain title (34.580209ms)\n✔ TS-INV-06 exactly one h1 equal to name (33.594792ms)\n✔ TS-REQ-projects-empty (65.025334ms)\n✔ TS-REQ-projects-order (32.99525ms)\n✔ TS-REQ-layout (33.216292ms)\n✔ TS-REQ-env-override (32.5285ms)\n✔ TS-NOGO-01 only node: imports, build succeeds (33.966875ms)\n✔ TS-NOGO-02 javascript: url not linked (32.342125ms)\n✔ TS-NOGO-03 content file hash unchanged by build (63.370292ms)\n✔ TS-INV-01 reject: nothing written on failure (270.78825ms)\n✔ TS-INV-02 reject: exactly one stderr line, no stack (265.603417ms)\n✔ TS-ERR-E_CONTENT_MISSING (31.425542ms)\n✔ TS-ERR-E_CONTENT_INVALID (65.229791ms)\n✔ TS-ERR-E_NAME_MISSING (67.385333ms)\n✔ TS-REQ-name-missing (31.630916ms)\nℹ tests 19\nℹ suites 0\nℹ pass 19\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 1346.445333\n"
+    }
+  ],
+  "db_probe": null,
+  "fixtures_green": true,
+  "db_probe_green": true,
+  "overall": "green",
+  "score": {
+    "fixtures_passed": 1,
+    "fixtures_total": 1,
+    "db_probe": null
+  },
+  "discovered_tasks": []
+}

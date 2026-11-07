@@ -1,0 +1,17 @@
+{
+  "slug": "one-page-site",
+  "runId": "one-page-site-20261107T111650Z-ca69af29",
+  "autoLevel": "unattended",
+  "answers": "ci",
+  "models": {
+    "exec": "sonnet",
+    "eval": "sonnet",
+    "qa": "sonnet"
+  },
+  "budgets": {
+    "maxRounds": 3,
+    "attemptBudget": 5
+  },
+  "pluginRoot": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.claude/shapeup-sdlc-plugin",
+  "startedAt": "2026-11-07T11:17:05.676Z"
+}

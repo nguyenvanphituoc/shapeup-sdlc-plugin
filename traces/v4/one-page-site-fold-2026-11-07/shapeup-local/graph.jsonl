@@ -1,0 +1,108 @@
+{"k":"node","id":"run:one-page-site-20261107T111650Z-ca69af29","t":"Run","run_id":"one-page-site-20261107T111650Z-ca69af29","slug":"one-page-site","started_at":"2026-11-07T11:16:50.595Z","intake_sha256":"e69c916099de399af5f5f8a6de481c9b886b623e3c7c0fcc2895e2302a2d2235","auto_level":"unattended"}
+{"k":"node","id":"order:one-page-site/build-site-r1-a1","t":"Order","order_id":"one-page-site/build-site-r1-a1","worker":"task-executor","operation":"execute","round":null,"attempt":null,"scope_id":"build-site","run_id":"one-page-site-20261107T111650Z-ca69af29"}
+{"k":"node","id":"order:one-page-site/evaluate-r1","t":"Order","order_id":"one-page-site/evaluate-r1","worker":"spec-evaluator","operation":"evaluate","round":null,"attempt":null,"scope_id":null,"run_id":"one-page-site-20261107T111650Z-ca69af29"}
+{"k":"node","id":"order:one-page-site/orient","t":"Order","order_id":"one-page-site/orient","worker":"orient","operation":"orient","round":null,"attempt":null,"scope_id":null,"run_id":"one-page-site-20261107T111650Z-ca69af29"}
+{"k":"node","id":"order:one-page-site/plan-requirements","t":"Order","order_id":"one-page-site/plan-requirements","worker":"building","operation":"plan","round":null,"attempt":null,"scope_id":null,"run_id":"one-page-site-20261107T111650Z-ca69af29"}
+{"k":"node","id":"order:one-page-site/plan-scopes","t":"Order","order_id":"one-page-site/plan-scopes","worker":"building","operation":"plan","round":null,"attempt":null,"scope_id":null,"run_id":"one-page-site-20261107T111650Z-ca69af29"}
+{"k":"node","id":"order:one-page-site/plan-spec","t":"Order","order_id":"one-page-site/plan-spec","worker":"building","operation":"plan","round":null,"attempt":null,"scope_id":null,"run_id":"one-page-site-20261107T111650Z-ca69af29"}
+{"k":"node","id":"order:one-page-site/plan-wire","t":"Order","order_id":"one-page-site/plan-wire","worker":"building","operation":"plan","round":null,"attempt":null,"scope_id":null,"run_id":"one-page-site-20261107T111650Z-ca69af29"}
+{"k":"node","id":"result:one-page-site/build-site-r1-a1","t":"Result","order_id":"one-page-site/build-site-r1-a1","status":"done","artifacts":0,"discoveries":0}
+{"k":"node","id":"result:one-page-site/evaluate-r1","t":"Result","order_id":"one-page-site/evaluate-r1","status":"done","artifacts":0,"discoveries":0}
+{"k":"node","id":"result:one-page-site/orient","t":"Result","order_id":"one-page-site/orient","status":"done","artifacts":4,"discoveries":0}
+{"k":"node","id":"result:one-page-site/plan-requirements","t":"Result","order_id":"one-page-site/plan-requirements","status":"done","artifacts":1,"discoveries":0}
+{"k":"node","id":"result:one-page-site/plan-scopes","t":"Result","order_id":"one-page-site/plan-scopes","status":"done","artifacts":2,"discoveries":0}
+{"k":"node","id":"result:one-page-site/plan-spec","t":"Result","order_id":"one-page-site/plan-spec","status":"done","artifacts":5,"discoveries":0}
+{"k":"node","id":"result:one-page-site/plan-wire","t":"Result","order_id":"one-page-site/plan-wire","status":"done","artifacts":1,"discoveries":0}
+{"k":"node","id":"leg:one-page-site/orient","t":"Leg","order_id":"one-page-site/orient","worker":"orient","operation":"orient","scope_id":"orient","round":null,"attempt":null,"dispatched_at":"2026-11-07T11:18:21.698Z","ingested_at":"2026-11-07T11:18:54.804Z","attested":true,"run_id":"one-page-site-20261107T111650Z-ca69af29"}
+{"k":"node","id":"leg:one-page-site/plan-requirements","t":"Leg","order_id":"one-page-site/plan-requirements","worker":"building","operation":"plan","scope_id":"plan-requirements","round":null,"attempt":null,"dispatched_at":null,"ingested_at":"2026-11-07T11:19:23.657Z","attested":false,"run_id":"one-page-site-20261107T111650Z-ca69af29"}
+{"k":"node","id":"leg:one-page-site/plan-spec","t":"Leg","order_id":"one-page-site/plan-spec","worker":"building","operation":"plan","scope_id":"plan-spec","round":null,"attempt":null,"dispatched_at":null,"ingested_at":"2026-11-07T11:22:52.851Z","attested":false,"run_id":"one-page-site-20261107T111650Z-ca69af29"}
+{"k":"node","id":"leg:one-page-site/plan-wire","t":"Leg","order_id":"one-page-site/plan-wire","worker":"building","operation":"plan","scope_id":"plan-wire","round":null,"attempt":null,"dispatched_at":null,"ingested_at":"2026-11-07T11:23:15.385Z","attested":false,"run_id":"one-page-site-20261107T111650Z-ca69af29"}
+{"k":"node","id":"leg:one-page-site/plan-scopes","t":"Leg","order_id":"one-page-site/plan-scopes","worker":"building","operation":"plan","scope_id":"plan-scopes","round":null,"attempt":null,"dispatched_at":null,"ingested_at":"2026-11-07T11:23:39.321Z","attested":false,"run_id":"one-page-site-20261107T111650Z-ca69af29"}
+{"k":"node","id":"leg:one-page-site/build-site-r1-a1","t":"Leg","order_id":"one-page-site/build-site-r1-a1","worker":"task-executor","operation":"execute","scope_id":"build-site","round":1,"attempt":1,"dispatched_at":"2026-11-07T11:24:05.374Z","ingested_at":"2026-11-07T11:25:22.984Z","attested":true,"run_id":"one-page-site-20261107T111650Z-ca69af29"}
+{"k":"node","id":"leg:one-page-site/evaluate-r1","t":"Leg","order_id":"one-page-site/evaluate-r1","worker":"spec-evaluator","operation":"evaluate","scope_id":"evaluate","round":1,"attempt":null,"dispatched_at":"2026-11-07T11:25:51.312Z","ingested_at":"2026-11-07T11:26:40.050Z","attested":true,"run_id":"one-page-site-20261107T111650Z-ca69af29"}
+{"k":"node","id":"verdict:one-page-site:r1-a1-t1","t":"Verdict","artifact":"r1-a1-t1.json","overall":"green","regression":false,"round":1,"attempt":1,"scope_id":"build-site","run_id":"one-page-site-20261107T111650Z-ca69af29"}
+{"k":"node","id":"gate:one-page-site:L0:1","t":"GateDecision","gate":"L0","decision":"proceed","status":"ok","source":"preset:ci","note":"Pre-approved for a headless lane. No human is present; the decision is recorded here so the ledger still names a source. — run opened: intake recorded, receipt written","round":null,"run_id":"one-page-site-20261107T111650Z-ca69af29"}
+{"k":"node","id":"gate:one-page-site:L0:2","t":"GateDecision","gate":"L0","decision":"proceed","status":"ok","source":"preset:ci","note":"Pre-approved for a headless lane. No human is present; the decision is recorded here so the ledger still names a source.","round":null,"run_id":"one-page-site-20261107T111650Z-ca69af29"}
+{"k":"node","id":"gate:one-page-site:L1a:1","t":"GateDecision","gate":"L1a","decision":"proceed","status":"ok","source":"preset:ci","note":"Pre-approved for a headless lane. No human is present; the decision is recorded here so the ledger still names a source.","round":null,"run_id":"one-page-site-20261107T111650Z-ca69af29"}
+{"k":"node","id":"gate:one-page-site:L1a.5:1","t":"GateDecision","gate":"L1a.5","decision":"proceed","status":"ok","source":"preset:ci","note":"Pre-approved for a headless lane. No human is present; the decision is recorded here so the ledger still names a source.","round":null,"run_id":"one-page-site-20261107T111650Z-ca69af29"}
+{"k":"node","id":"gate:one-page-site:L1b:1","t":"GateDecision","gate":"L1b","decision":"proceed","status":"ok","source":"preset:ci","note":"Pre-approved for a headless lane. No human is present; the decision is recorded here so the ledger still names a source.","round":null,"run_id":"one-page-site-20261107T111650Z-ca69af29"}
+{"k":"node","id":"gate:one-page-site:L2:1","t":"GateDecision","gate":"L2","decision":"proceed","status":"ok","source":"preset:ci","note":"Pre-approved for a headless lane. No human is present; the decision is recorded here so the ledger still names a source.","round":1,"run_id":"one-page-site-20261107T111650Z-ca69af29"}
+{"k":"node","id":"trial:one-page-site:one-page-site-20261107T111650Z-ca69af29:build-site:1","t":"Trial","trial":1,"round":1,"attempt":1,"scope_id":"build-site","status":"kept","artifact":"t0/verdicts/r1-a1-t1.json","sha256":"759a9ae388deecc142028c61326ba7693b025cf6fed98129b410541742d15b75","run_id":"one-page-site-20261107T111650Z-ca69af29"}
+{"k":"node","id":"scope:one-page-site:build-site","t":"Scope","scope_id":"build-site","title":null,"substrate":3}
+{"k":"node","id":"uc:one-page-site:UC-BuildSite","t":"UseCase","use_case":"UC-BuildSite","file":"UC-BuildSite.md"}
+{"k":"node","id":"uc:one-page-site:UC-RejectInvalidContent","t":"UseCase","use_case":"UC-RejectInvalidContent","file":"UC-RejectInvalidContent.md"}
+{"k":"node","id":"req:one-page-site:REQ-1","t":"Requirement","req_id":"REQ-1"}
+{"k":"node","id":"req:one-page-site:REQ-18","t":"Requirement","req_id":"REQ-18"}
+{"k":"node","id":"req:one-page-site:REQ-2","t":"Requirement","req_id":"REQ-2"}
+{"k":"node","id":"req:one-page-site:REQ-3","t":"Requirement","req_id":"REQ-3"}
+{"k":"node","id":"req:one-page-site:REQ-4","t":"Requirement","req_id":"REQ-4"}
+{"k":"node","id":"req:one-page-site:REQ-5","t":"Requirement","req_id":"REQ-5"}
+{"k":"node","id":"req:one-page-site:REQ-6","t":"Requirement","req_id":"REQ-6"}
+{"k":"node","id":"req:one-page-site:REQ-7","t":"Requirement","req_id":"REQ-7"}
+{"k":"node","id":"req:one-page-site:REQ-8","t":"Requirement","req_id":"REQ-8"}
+{"k":"node","id":"req:one-page-site:REQ-9","t":"Requirement","req_id":"REQ-9"}
+{"k":"node","id":"req:one-page-site:REQ-10","t":"Requirement","req_id":"REQ-10"}
+{"k":"node","id":"req:one-page-site:REQ-11","t":"Requirement","req_id":"REQ-11"}
+{"k":"node","id":"req:one-page-site:REQ-12","t":"Requirement","req_id":"REQ-12"}
+{"k":"node","id":"req:one-page-site:REQ-13","t":"Requirement","req_id":"REQ-13"}
+{"k":"node","id":"req:one-page-site:REQ-14","t":"Requirement","req_id":"REQ-14"}
+{"k":"node","id":"req:one-page-site:REQ-15","t":"Requirement","req_id":"REQ-15"}
+{"k":"node","id":"req:one-page-site:REQ-16","t":"Requirement","req_id":"REQ-16"}
+{"k":"node","id":"req:one-page-site:REQ-17","t":"Requirement","req_id":"REQ-17"}
+{"k":"node","id":"req:one-page-site:REQ-21","t":"Requirement","req_id":"REQ-21"}
+{"k":"node","id":"seam:one-page-site:CLI top-level: main() loads content, renders in memory, writes index.html once","t":"Seam","seam":"CLI top-level: main() loads content, renders in memory, writes index.html once","engine":"build.mjs","entry_point":"build.mjs — top-level main() invocation"}
+{"k":"node","id":"seam:one-page-site:CLI top-level: main() validates before rendering; caught error → one stderr line, exit 1","t":"Seam","seam":"CLI top-level: main() validates before rendering; caught error → one stderr line, exit 1","engine":"build.mjs","entry_point":"build.mjs — top-level main() invocation, catch branch"}
+{"k":"edge","from":"run:one-page-site-20261107T111650Z-ca69af29","t":"PRODUCED","to":"order:one-page-site/build-site-r1-a1"}
+{"k":"edge","from":"order:one-page-site/build-site-r1-a1","t":"DERIVED_FROM","to":"scope:one-page-site:build-site"}
+{"k":"edge","from":"run:one-page-site-20261107T111650Z-ca69af29","t":"PRODUCED","to":"order:one-page-site/evaluate-r1"}
+{"k":"edge","from":"run:one-page-site-20261107T111650Z-ca69af29","t":"PRODUCED","to":"order:one-page-site/orient"}
+{"k":"edge","from":"run:one-page-site-20261107T111650Z-ca69af29","t":"PRODUCED","to":"order:one-page-site/plan-requirements"}
+{"k":"edge","from":"run:one-page-site-20261107T111650Z-ca69af29","t":"PRODUCED","to":"order:one-page-site/plan-scopes"}
+{"k":"edge","from":"run:one-page-site-20261107T111650Z-ca69af29","t":"PRODUCED","to":"order:one-page-site/plan-spec"}
+{"k":"edge","from":"run:one-page-site-20261107T111650Z-ca69af29","t":"PRODUCED","to":"order:one-page-site/plan-wire"}
+{"k":"edge","from":"order:one-page-site/build-site-r1-a1","t":"PRODUCED","to":"result:one-page-site/build-site-r1-a1"}
+{"k":"edge","from":"order:one-page-site/evaluate-r1","t":"PRODUCED","to":"result:one-page-site/evaluate-r1"}
+{"k":"edge","from":"order:one-page-site/orient","t":"PRODUCED","to":"result:one-page-site/orient"}
+{"k":"edge","from":"order:one-page-site/plan-requirements","t":"PRODUCED","to":"result:one-page-site/plan-requirements"}
+{"k":"edge","from":"order:one-page-site/plan-scopes","t":"PRODUCED","to":"result:one-page-site/plan-scopes"}
+{"k":"edge","from":"order:one-page-site/plan-spec","t":"PRODUCED","to":"result:one-page-site/plan-spec"}
+{"k":"edge","from":"order:one-page-site/plan-wire","t":"PRODUCED","to":"result:one-page-site/plan-wire"}
+{"k":"edge","from":"result:one-page-site/orient","t":"INGESTED","to":"leg:one-page-site/orient"}
+{"k":"edge","from":"result:one-page-site/plan-requirements","t":"INGESTED","to":"leg:one-page-site/plan-requirements"}
+{"k":"edge","from":"result:one-page-site/plan-spec","t":"INGESTED","to":"leg:one-page-site/plan-spec"}
+{"k":"edge","from":"result:one-page-site/plan-wire","t":"INGESTED","to":"leg:one-page-site/plan-wire"}
+{"k":"edge","from":"result:one-page-site/plan-scopes","t":"INGESTED","to":"leg:one-page-site/plan-scopes"}
+{"k":"edge","from":"result:one-page-site/build-site-r1-a1","t":"INGESTED","to":"leg:one-page-site/build-site-r1-a1"}
+{"k":"edge","from":"result:one-page-site/evaluate-r1","t":"INGESTED","to":"leg:one-page-site/evaluate-r1"}
+{"k":"edge","from":"verdict:one-page-site:r1-a1-t1","t":"EVALUATES","to":"scope:one-page-site:build-site"}
+{"k":"edge","from":"order:one-page-site/build-site-r1-a1","t":"PRODUCED","to":"verdict:one-page-site:r1-a1-t1"}
+{"k":"edge","from":"gate:one-page-site:L0:1","t":"DEPENDS_ON","to":"run:one-page-site-20261107T111650Z-ca69af29"}
+{"k":"edge","from":"gate:one-page-site:L0:2","t":"DEPENDS_ON","to":"run:one-page-site-20261107T111650Z-ca69af29"}
+{"k":"edge","from":"gate:one-page-site:L1a:1","t":"DEPENDS_ON","to":"run:one-page-site-20261107T111650Z-ca69af29"}
+{"k":"edge","from":"gate:one-page-site:L1a.5:1","t":"DEPENDS_ON","to":"run:one-page-site-20261107T111650Z-ca69af29"}
+{"k":"edge","from":"gate:one-page-site:L1b:1","t":"DEPENDS_ON","to":"run:one-page-site-20261107T111650Z-ca69af29"}
+{"k":"edge","from":"gate:one-page-site:L2:1","t":"DEPENDS_ON","to":"run:one-page-site-20261107T111650Z-ca69af29"}
+{"k":"edge","from":"gate:one-page-site:L2:1","t":"DEPENDS_ON","to":"verdict:one-page-site:r1-a1-t1"}
+{"k":"edge","from":"trial:one-page-site:one-page-site-20261107T111650Z-ca69af29:build-site:1","t":"EVALUATES","to":"verdict:one-page-site:r1-a1-t1"}
+{"k":"edge","from":"scope:one-page-site:build-site","t":"IMPLEMENTS","to":"uc:one-page-site:UC-BuildSite"}
+{"k":"edge","from":"scope:one-page-site:build-site","t":"IMPLEMENTS","to":"uc:one-page-site:UC-RejectInvalidContent"}
+{"k":"edge","from":"scope:one-page-site:build-site","t":"COVERS","to":"req:one-page-site:REQ-1"}
+{"k":"edge","from":"scope:one-page-site:build-site","t":"COVERS","to":"req:one-page-site:REQ-2"}
+{"k":"edge","from":"scope:one-page-site:build-site","t":"COVERS","to":"req:one-page-site:REQ-3"}
+{"k":"edge","from":"scope:one-page-site:build-site","t":"COVERS","to":"req:one-page-site:REQ-4"}
+{"k":"edge","from":"scope:one-page-site:build-site","t":"COVERS","to":"req:one-page-site:REQ-5"}
+{"k":"edge","from":"scope:one-page-site:build-site","t":"COVERS","to":"req:one-page-site:REQ-6"}
+{"k":"edge","from":"scope:one-page-site:build-site","t":"COVERS","to":"req:one-page-site:REQ-7"}
+{"k":"edge","from":"scope:one-page-site:build-site","t":"COVERS","to":"req:one-page-site:REQ-8"}
+{"k":"edge","from":"scope:one-page-site:build-site","t":"COVERS","to":"req:one-page-site:REQ-9"}
+{"k":"edge","from":"scope:one-page-site:build-site","t":"COVERS","to":"req:one-page-site:REQ-10"}
+{"k":"edge","from":"scope:one-page-site:build-site","t":"COVERS","to":"req:one-page-site:REQ-11"}
+{"k":"edge","from":"scope:one-page-site:build-site","t":"COVERS","to":"req:one-page-site:REQ-12"}
+{"k":"edge","from":"scope:one-page-site:build-site","t":"COVERS","to":"req:one-page-site:REQ-13"}
+{"k":"edge","from":"scope:one-page-site:build-site","t":"COVERS","to":"req:one-page-site:REQ-14"}
+{"k":"edge","from":"scope:one-page-site:build-site","t":"COVERS","to":"req:one-page-site:REQ-15"}
+{"k":"edge","from":"scope:one-page-site:build-site","t":"COVERS","to":"req:one-page-site:REQ-16"}
+{"k":"edge","from":"scope:one-page-site:build-site","t":"COVERS","to":"req:one-page-site:REQ-17"}
+{"k":"edge","from":"scope:one-page-site:build-site","t":"COVERS","to":"req:one-page-site:REQ-21"}
+{"k":"edge","from":"uc:one-page-site:UC-BuildSite","t":"DEPENDS_ON","to":"seam:one-page-site:CLI top-level: main() loads content, renders in memory, writes index.html once"}
+{"k":"edge","from":"uc:one-page-site:UC-RejectInvalidContent","t":"DEPENDS_ON","to":"seam:one-page-site:CLI top-level: main() validates before rendering; caught error → one stderr line, exit 1"}

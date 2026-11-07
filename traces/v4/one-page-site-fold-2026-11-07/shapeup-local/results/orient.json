@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "order_id": "one-page-site/orient",
+  "worker": "orient",
+  "status": "done",
+  "artifacts": [
+    ".shapeup/one-page-site/orient/code-surface.md",
+    ".shapeup/one-page-site/orient/discovered-seed.md",
+    ".shapeup/one-page-site/orient/hill-signal.md",
+    ".shapeup/one-page-site/orient/spike-escaping-and-failure-atomicity.md"
+  ],
+  "deviations": [
+    "Pitch gap: behaviour for javascript:/unsafe URL schemes in project url is unspecified.",
+    "Pitch gap: behaviour for missing contact or contact.email is unspecified.",
+    "Pitch gap: missing optional tagline/about (omit element vs empty) is unspecified."
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "order_id": "one-page-site/plan-spec",
+  "worker": "building",
+  "status": "done",
+  "artifacts": [
+    "shapeup/one-page-site/spec/usecases/UC-BuildSite.md",
+    "shapeup/one-page-site/spec/usecases/UC-RejectInvalidContent.md",
+    ".shapeup/one-page-site/tasks/TASK-001.md",
+    ".shapeup/one-page-site/tasks/TASK-002.md",
+    ".shapeup/one-page-site/tasks/TASK-003.md"
+  ]
+}

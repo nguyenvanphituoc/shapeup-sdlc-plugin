@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "slug": "one-page-site",
+  "at": "2026-11-07T11:25:35.492Z",
+  "mode": "advisory",
+  "advisory": true,
+  "covers_closure": {
+    "checked": true,
+    "requirements_total": 18,
+    "covered_status": 18,
+    "cut_status": 0,
+    "covered_by_ac": 18,
+    "uncovered": [],
+    "dangling_covers": [],
+    "pass": true,
+    "skipped_reason": null
+  },
+  "reachability": {
+    "checked": true,
+    "entry_point": "build.mjs",
+    "entry_resolved": "build.mjs",
+    "module_extensions": [
+      ".js",
+      ".mjs",
+      ".cjs",
+      ".jsx",
+      ".ts",
+      ".tsx"
+    ],
+    "reachable_files": 1,
+    "engines_total": 2,
+    "engines_reachable": 2,
+    "unreachable": [],
+    "pass": true
+  },
+  "scope_reachability": {
+    "checked": true,
+    "scopes": [
+      {
+        "scope_id": "build-site",
+        "source_files": 2,
+        "reachable_files": 1
+      }
+    ],
+    "orphaned": []
+  },
+  "findings": [],
+  "overall": "green"
+}

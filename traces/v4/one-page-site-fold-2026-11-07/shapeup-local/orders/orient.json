@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "order_id": "one-page-site/orient",
+  "kernel": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.claude/shapeup-sdlc-plugin/kernel/harness.mjs",
+  "run_id": "one-page-site-20261107T111650Z-ca69af29",
+  "compiled_at": "2026-11-07T11:18:13.743Z",
+  "worker": "orient",
+  "mode": "orchestrated",
+  "operation": "orient",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      ".shapeup/one-page-site/orient/**"
+    ],
+    "frozen": [
+      "shapeup/one-page-site/spec/**"
+    ],
+    "own": [
+      ".shapeup/one-page-site/results/orient.json"
+    ]
+  },
+  "payload": {
+    "pitch": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.shapeup/one-page-site/intake.md",
+    "spec_folder": "shapeup/one-page-site/spec/",
+    "feature": "one-page-site",
+    "kb_rules_path": "shapeup/knowledge-base/orient.md"
+  }
+}

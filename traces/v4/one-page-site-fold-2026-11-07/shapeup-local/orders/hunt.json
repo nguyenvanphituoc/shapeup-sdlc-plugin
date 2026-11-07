@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "order_id": "one-page-site/hunt",
+  "kernel": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.claude/shapeup-sdlc-plugin/kernel/harness.mjs",
+  "run_id": "one-page-site-20261107T111650Z-ca69af29",
+  "compiled_at": "2026-11-07T11:26:56.817Z",
+  "worker": "qa-edge-hunter",
+  "mode": "orchestrated",
+  "operation": "hunt",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [],
+    "frozen": [
+      "shapeup/one-page-site/spec/**",
+      ".shapeup/one-page-site/**"
+    ],
+    "own": [
+      ".shapeup/one-page-site/qa/**",
+      ".shapeup/one-page-site/results/hunt.json"
+    ]
+  },
+  "payload": {
+    "trial_history": [
+      {
+        "schema_version": 1,
+        "trial": 1,
+        "round": 1,
+        "attempt": 1,
+        "scope_id": "build-site",
+        "score": {
+          "fixtures_passed": 1,
+          "fixtures_total": 1,
+          "db_probe": null
+        },
+        "status": "kept",
+        "delta": "baseline",
+        "digest": []
+      }
+    ],
+    "feature": "one-page-site",
+    "spec_folder": "shapeup/one-page-site/spec/",
+    "round": 1,
+    "build_gate": ".shapeup/one-page-site/build/r1-t1.json",
+    "kb_rules_path": "shapeup/knowledge-base/qa-edge-hunter.md"
+  }
+}

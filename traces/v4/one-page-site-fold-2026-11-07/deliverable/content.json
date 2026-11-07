@@ -1,0 +1,9 @@
+{
+  "name": "Your Name",
+  "tagline": "Freelance developer",
+  "about": "I build small, fast websites.",
+  "projects": [
+    { "title": "Example Project", "summary": "A short description.", "url": "https://example.com" }
+  ],
+  "contact": { "email": "you@example.com" }
+}
