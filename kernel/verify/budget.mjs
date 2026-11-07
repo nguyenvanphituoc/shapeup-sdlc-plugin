@@ -24,7 +24,7 @@
 //     INNER    attempt_budget   — T0 attempts per scope
 //     DEADLINE wall_clock_budget — elapsed seconds, this file
 //
-// Tripping the deadline breaker does NOT kill the run. It routes to GATE H (scope-hammer): the
+// Tripping the deadline breaker does NOT kill the run. It routes to GATE H (the stop step): the
 // census runs, the cut list is compared against the baseline, and whatever is green ships. That
 // is the entire difference between an external SIGTERM and a circuit breaker — one produces a
 // dash in every column, the other produces a smaller feature that works.
@@ -73,7 +73,7 @@ export function evaluateBudget(elapsedS, budgetS) {
       status: "trip", elapsed_s: elapsed, budget_s: budgetS, remaining_s: remaining, used_fraction: used,
       action:
         "DEADLINE BREAKER TRIPPED. Do not start another build round or another scope. Go straight to " +
-        "GATE H (delegate scope-hammer with --breaker deadline): run the census, compare the shippable " +
+        "GATE H (the stop step, breaker deadline): run the census, compare the shippable " +
         "subset against the baseline, and ship what is green. A run killed from outside ships nothing; " +
         "a run that trips its own breaker ships the part that works.",
     };

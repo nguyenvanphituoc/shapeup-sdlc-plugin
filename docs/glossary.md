@@ -54,7 +54,7 @@ mechanically true rather than aspirational.
 | **substrate disjointness** | The lint asserting no two scopes may write the same file — what makes parallel building safe. |
 | **circuit breaker** | Two nested retry budgets — an outer one on rounds, an inner one on per-scope T0 attempts — plus an opt-in wall-clock budget for the whole run. An exhausted scope queues a cut proposal rather than blocking the round; every other exhaustion routes to the ship gate so whatever is green still ships. |
 | **discovered task** | Anything found mid-run that is not in the current spec. It goes to the ledger, never silently into the build. |
-| **knowledge base** | Committed per-skill guideline files written by `/coach` from your feedback (or by `/retro --scan` from the project on disk, or `/retro --research <stack>` from the platform's official documentation, every rule confirmed by you), read back by the six coachable workers on their next run and by `tech-lead` at GATE L0. Guidance only: it never decides a gate. |
+| **knowledge base** | Committed per-reader guideline files written by `/retro` from your feedback (or by `/retro --scan` from the project on disk, or `/retro --research <stack>` from the platform's official documentation, every rule confirmed by you), read back by the three coachable workers (`task-executor`, `orient`, `qa-edge-hunter`) on their next run, by the planning step at each plan step, and by the loop at GATE L0. Guidance only: it never decides a gate. |
 
 ## Naming conventions
 
@@ -65,6 +65,6 @@ mechanically true rather than aspirational.
 | `TS-*` | A row in the Test Surface |
 | `TS-INV-NN` | A Test Surface row created by a newly discovered invariant |
 | `GATE L*` | An orchestrator gate (L0 intake → L4 ship sign-off) |
-| `GATE H` | The scope-hammer stop |
+| `GATE H` | The stop census and cut list |
 | `GATE COACH-1` | The retro's categorization question |
 | `~` | A QA finding that does not block ship |

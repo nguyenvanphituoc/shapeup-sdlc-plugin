@@ -20,12 +20,12 @@
 // produced this module.
 //
 // WHY THE SAME FUNCTION SERVES THE BREAKER AND THE CENSUS. Before this module, the round loop's
-// inner breaker and `scope-hammer`'s GATE H0 census read different evidence for the same question
+// inner breaker and the stop step's census read different evidence for the same question
 // — the loop trusted the worker's own self-reported `attempts_used`/`breaker` (schema-shaped, not
 // re-verified), the census read `t0/verdicts/*.json` directly — and disagreed on the measured run.
 // One shared, attested derivation is what makes "the census and the breaker agree" true by
-// construction rather than by coincidence: `skills/scope-hammer/SKILL.md` cites this same probe
-// the way it already cites `probe owner` for ownership claims.
+// construction rather than by coincidence: the stop step's census cites this same probe
+// (its command is handed out by `probe next`) the way it cites `probe owner` for ownership claims.
 
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -100,7 +100,7 @@ export function attemptEvidence(cwd, slug, scopeId, round, attempt, receipts, le
 
 /**
  * A scope's attempt census for one round, derived ONLY from attested channels — the function both
- * the round loop's inner breaker and scope-hammer's GATE H0 census call, so they cannot drift apart
+ * the round loop's inner breaker and the stop step's census call, so they cannot drift apart
  * again the way a measured run found them.
  *
  * @param {string} cwd - Project root.

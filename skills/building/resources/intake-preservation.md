@@ -1,6 +1,6 @@
 # Preservation Rules
 
-What the translator touches, what it must never touch, and how it proves the result.
+What the intake translation touches, what it must never touch, and how it proves the result.
 Read this before translating any file. The governing principle: **translate meaning,
 preserve everything that machines parse.** A `.en.md` that reads well but breaks the spec
 tree's wikilinks or drops a table row is a failed translation.

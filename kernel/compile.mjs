@@ -28,13 +28,12 @@
 // pretty-printed envelope, colocated so audits can read it). Prints the path on stdout.
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, rmSync } from "node:fs";
-import { discover, resolve as resolveGate, appendGateLedger, PRESETS } from "./gate.mjs";
 import { resolve, join, dirname, basename, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { validate } from "./verify/envelope.mjs";
 import { readTrials } from "./verify/t0.mjs";
 import { runArgs } from "./lib/argv.mjs";
-import { readRunId, dispatchReceipts, legLedger, readReceipt, receipt } from "./lib/paths.mjs";
+import { readRunId, dispatchReceipts, legLedger } from "./lib/paths.mjs";
 // `specDir` is aliased: this module has a local `let specDir` holding the resolved, possibly
 // --spec-overridden directory, and the import is the convention-derived default.
 import {
@@ -56,7 +55,7 @@ import { matchesAny } from "../hooks/sandbox-guard.mjs";
 /**
  * Workers that read a coaching file. Kept beside the compile step because this is the only place
  * the file is handed over: a worker not in this set never sees `payload.kb_rules_path`, however
- * many rules the coach files for it. Mirrored by the coach skill's category list (structural test).
+ * many rules the retro files for it. Mirrored by the retro resource's category table (structural test).
  * The planning activity is not a worker: its `plan` orders carry `payload.kb_rules_paths` instead (see
  * `planGuidancePaths`), and the loop reads its own guidance at L0 — neither is a dispatch.
  */
@@ -191,15 +190,7 @@ export function ledgerDecisions(ledgerText, scopeId) {
  */
 export const OP_OWNER = {
   evaluate: "spec-evaluator", orient: "orient",
-  hunt: "qa-edge-hunter", translate: "translator",
-  hammer: "scope-hammer", coach: "coach",
-  // `scan` is the coach reading the project instead of L4 feedback, and `research` the coach
-  // reading the platform's official documentation instead of the project — a project with nothing
-  // on disk has nothing to scan. Same worker, same write surface, same categorization gate. An
-  // operation the schema enumerates but this table does not route compiles no order at all, so the
-  // suite checks the two the other way round as well.
-  scan: "coach",
-  research: "coach",
+  hunt: "qa-edge-hunter",
 };
 
 /**
@@ -214,8 +205,7 @@ export const FENCE_ONLY_OPERATIONS = { plan: "building" };
 /**
  * Resolve the write-contract (sandbox substrate) for an operation — one whitelist template per
  * operation, so mode/flag differences are enforced by the sandbox hook reading the order's substrate, not trusted to prose.
- * @param {string} operation - The order's operation (execute|fix|spike|plan|evaluate|orient|hunt|
- *   translate|hammer|coach|scan|research).
+ * @param {string} operation - The order's operation (execute|fix|spike|plan|evaluate|orient|hunt).
  * @param {{slug?:string, specDir?:string, scope?:object, ownStem?:string}} [ctx] - slug (names
  *   LOCAL/SHARED roots), specDir (overrides the default spec path), scope (contract supplying
  *   allowed/shared substrates), ownStem (this order's own file stem, so a build leg may write its
@@ -263,9 +253,9 @@ function substrateTemplate(operation, { slug, specDir, scope, ownStem = null, st
   // are what the run was asked for. `init run` stages them beside the receipt that digests them, and
   // every planning and evaluating operation reads them — so a worker that can rewrite either can
   // rewrite the question it is about to be measured on, and the receipt's digest stops describing
-  // the file next to it. Frozen, not merely unlisted: `analyze` already carries the whole run trace
-  // in its `allowed` globs, so only a `frozen` entry denies the write. `translate` is the one
-  // operation that legitimately rewrites a pitch, and it writes the COMMITTED copy, not this one.
+  // the file next to it. Frozen, not merely unlisted: a planning substep already carries the whole run
+  // trace in its `allowed` globs, so only a `frozen` entry denies the write. The one act that
+  // legitimately rewrites a pitch is the intake's translation, which writes the COMMITTED copy, not this one.
   const FROZEN_INTAKE = [`${local}/intake.md`, `${local}/breadboard.md`];
   // THE LEG'S OWN ATTESTATION. A dispatch receipt, a leg-completion row and a T0 verdict exist to
   // answer "did a worker actually run, and what did it measure" from evidence the leg being judged
@@ -386,19 +376,6 @@ function substrateTemplate(operation, { slug, specDir, scope, ownStem = null, st
       };
     case "orient":
       return { allowed: [`${local}/orient/**`], frozen: [`${spec}/**`] };
-    case "translate":
-      return { allowed: [globShared(slug, "shaping/*.md"), globShared(slug, "glossary.md")] };
-    case "hammer":
-      return { allowed: [globShared(slug, "REPORT.md"), `${local}/reports/**`] };
-    case "coach":
-    case "scan":
-    case "research":
-      // `scan` seeds the same files from the project on disk and `research` from the platform's
-      // official documentation, instead of from L4 feedback; all three write only the knowledge
-      // base, and the profile they suggest probes for stays the tech lead's to write (single
-      // writer of the committed tier). Research is a source, not a verification: what it reads
-      // is still a claim until the tech lead pins it at L0 and the kernel runs it.
-      return { allowed: [relKnowledgeBase("*")] };
     default:
       return { allowed: [`${local}/**`] };
   }
@@ -1036,8 +1013,8 @@ export function compileOrder({
   // (e.g. two scopes both running `evaluate` in the same round), compiled to the identical suffix
   // and the second write clobbered the first order file on disk while the run read green. `scopeId`
   // is already derived above for any operation, not only BUILD; folding it in here — only when a
-  // scope was actually passed — closes that collision. Operation-level dispatches (orient, analyze,
-  // wire, map-scopes, evaluate, hunt, hammer) never pass a scope, so `scopeId` is empty for them and
+  // scope was actually passed — closes that collision. Operation-level dispatches (orient,
+  // evaluate, hunt, plan) never pass a scope, so `scopeId` is empty for them and
   // this reduces to the unchanged `${operation}-r${round}` / `${operation}` shape.
   const scopedRoundSuffix = scopeId
     ? (round ? `${operation}-${scopeId}-r${round}` : `${operation}-${scopeId}`)
@@ -1091,8 +1068,8 @@ export function compileOrder({
   // The coachable set — every worker that reads `shapeup/knowledge-base/<worker>.md` at the top
   // of its run. Guidance only: a rule here steers craft and never resolves, skips or reorders a
   // gate, and never widens a substrate (the sandbox hook reads the order, not the KB). The judge
-  // (spec-evaluator) and the census (scope-hammer) are excluded on purpose: coaching the judge
-  // makes a second grader, and the hammer's ownership claims must come from `probe owner`.
+  // (spec-evaluator) and the stop step's census are excluded on purpose: coaching the judge
+  // makes a second grader, and the census's ownership claims must come from `probe owner`.
   if (COACHABLE.has(worker)) order.payload.kb_rules_path = relKnowledgeBase(worker);
   // The planning activity is not a worker, so it has no single coaching file: it reads its own and
   // the three its parts were filed under. A consumer's existing rules reach the step's order.
@@ -1238,28 +1215,6 @@ export async function cli(rawArgv) {
     || (scopePath || flag("task") || has("next") ? "task-executor" : null)
     || (operation ? OP_OWNER[operation] : null);
   if (!worker || !operation) { console.error("compile-order: could not resolve --worker/--operation"); process.exit(2); }
-
-  // GATE COACH-1 HAS A DETERMINISTIC CALL SITE: THE COACH DISPATCH. The gate asks whether a PO is
-  // present to categorize feedback; its answer used to be a prose instruction inside the coach
-  // skill, so an unattended lane could dispatch a coach nobody would answer and no row recorded the
-  // decision. Compiling the coach order resolves it with the run's own answer set and records the
-  // row; `skip` refuses the order, which is what "no live PO" means. `ask` compiles it — the
-  // categorization conversation the coach then holds IS the answer.
-  if (operation === "coach") {
-    const ga = readReceipt(receipt(cwd, slug))?.config?.gate_answers ?? null;
-    const presetName = ga && PRESETS[ga] ? ga : null;
-    let found = discover({ cwd, slug, preset: presetName, file: ga && !presetName ? ga : null });
-    if (found.error) found = { set: PRESETS.interactive, source: "preset:interactive (no answer set on disk)" };
-    const r = resolveGate(found.set, "COACH-1", found.source);
-    appendGateLedger(cwd, slug, {
-      at: new Date().toISOString(), run_id: readRunId(cwd, slug), gate: "COACH-1", status: r.status,
-      decision: r.decision ?? null, source: r.source ?? found.source, note: r.note ?? r.reason ?? null, round: null,
-    });
-    if (r.decision === "skip") {
-      console.error(`compile-order: GATE COACH-1 resolved "skip" (${r.source ?? found.source}) — no live PO to categorize feedback, so no coach order is compiled. The decision is on the gate ledger.`);
-      process.exit(3);
-    }
-  }
 
   // Task selection.
   let tasks;

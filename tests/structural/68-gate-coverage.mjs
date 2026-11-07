@@ -11,8 +11,8 @@
 // decision's source is ledgered."
 //
 // WHAT THIS MODULE CAN AND CANNOT PROVE. The three missing calls now live in prose
-// (`references/gates.md`, `skills/coach/SKILL.md`) rather than in the workflow script, because both
-// L0 and L4/COACH-1 are explicitly outside the script's own range — see the file headers this
+// (`references/gates.md`, the retro resource) and in `probe next`'s own commands, rather than in the
+// workflow script, because both L0 and L4/COACH-1 are explicitly outside the script's own range — see the file headers this
 // module reads. A structural suite cannot execute prose. What it CAN do, and does: (a) prove every
 // one of the ten ids has AT LEAST ONE call site, script or prose, so "the answer set is a superset
 // of what any call site can emit" is checkable without hand-maintaining the roster twice; (b) prove
@@ -41,10 +41,13 @@ export async function run(ctx) {
 
     // Every prose file that may resolve a gate outside the script's own range — L0 pins the run
     // before the script launches, L4/COACH-1 after it returns.
+    // `kernel/probe/next.mjs` is not prose, but it is the call site that matters most now: it hands the
+    // loop the exact `gate --resolve COACH-1` command on the shipped terminal step.
     const proseFiles = [
       "skills/tech-lead/SKILL.md",
       "skills/tech-lead/references/gates.md",
-      "skills/coach/SKILL.md",
+      "skills/building/resources/retro.md",
+      "kernel/probe/next.mjs",
     ];
     const proseIds = new Set();
     for (const rel of proseFiles) {
@@ -98,9 +101,9 @@ export async function run(ctx) {
       // read `escalated` with no verdict. `ship` asserts a census cleared the run, so the fixture
       // writes the census it is asserting about. The negative case is checked below.
       mkdirSync(join(ws, ".shapeup", "widgets", "results"), { recursive: true });
-      writeFileSync(join(ws, ".shapeup", "widgets", "results", "hammer.json"), JSON.stringify({
-        schema_version: 1, order_id: "widgets/hammer", worker: "scope-hammer",
-        status: "done", payload: { verdict: "ship-now", cut_list: [] },
+      mkdirSync(join(ws, ".shapeup", "widgets", "reports"), { recursive: true });
+      writeFileSync(join(ws, ".shapeup", "widgets", "reports", "hammer-census.json"), JSON.stringify({
+        schema_version: 1, verdict: "ship-now", cut_list: [], ship_blocking: [], breaker: null, baseline: null,
       }));
 
       // Exactly the call the prose now spells for L0 and L4 — --preset ci resolves both to
@@ -199,7 +202,7 @@ export async function run(ctx) {
   }
 
   // ===============================================================================================
-  section("112. L0 is crossed by the run's opening and COACH-1 by the coach dispatch — deterministic calls, not prose");
+  section("112. L0 is crossed by the run's opening and COACH-1 by a command `probe next` hands the loop — deterministic calls, not prose");
   // ===============================================================================================
   {
     const { mkdtempSync, rmSync, readFileSync, existsSync } = await import("node:fs");
@@ -214,15 +217,20 @@ export async function run(ctx) {
       const l0 = rows("ci-run").find((r) => r.gate === "L0");
       if (ci.status === 0 && l0 && l0.decision === "proceed" && /preset:ci/.test(l0.source) && l0.run_id) ok("(c) `init run` records the L0 row itself — decision, source and run key — before any worker runs");
       else fail(`(c) init run left no usable L0 row: exit ${ci.status} ${JSON.stringify(l0)}`);
-      const coachCi = kernel("compile", "--operation", "coach", "--slug", "ci-run");
+      // COACH-1 used to be crossed inside `compile --operation coach`, refusing the order on `skip`. There is
+      // no coach order now; the same decision is the gate command the shipped terminal step carries
+      // (`retro.gate`, asserted against a real shipped step in the probe-next module). What stays pinned here is
+      // what that command does for each lane: a ci run resolves skip (exit 0), records the row and files nothing;
+      // an interactive run resolves ask (exit 4), records the row, and the categorization conversation is the answer.
+      const coachCi = kernel("gate", "--resolve", "COACH-1", "--slug", "ci-run", "--preset", "ci");
       const c1 = rows("ci-run").find((r) => r.gate === "COACH-1");
-      if (coachCi.status === 3 && c1 && c1.decision === "skip" && !existsSync(join(ws, ".shapeup/ci-run/orders/coach.json"))) ok("(d) compiling a coach order in a ci run resolves COACH-1 to skip, records the row, and refuses the order — no coach nobody will answer");
-      else fail(`(d) coach compile in a ci run: exit ${coachCi.status}, row ${JSON.stringify(c1)}, order ${existsSync(join(ws, ".shapeup/ci-run/orders/coach.json"))}`);
+      if (coachCi.status === 0 && c1 && c1.decision === "skip" && /preset:ci/.test(c1.source) && c1.run_id) ok("(d) COACH-1 in a ci run resolves skip (exit 0) and records the row with its source and run key — no retro conversation nobody will answer");
+      else fail(`(d) COACH-1 in a ci run: exit ${coachCi.status}, row ${JSON.stringify(c1)}`);
       const it = kernel("init", "run", "--slug", "it-run", "--intake-text", "Add a cart badge", "--gate-answers", "interactive", "--force");
-      const coachIt = kernel("compile", "--operation", "coach", "--slug", "it-run");
+      const coachIt = kernel("gate", "--resolve", "COACH-1", "--slug", "it-run", "--preset", "interactive");
       const c2 = rows("it-run").find((r) => r.gate === "COACH-1");
-      if (it.status === 0 && coachIt.status === 0 && c2 && c2.decision === "ask" && existsSync(join(ws, ".shapeup/it-run/orders/coach.json"))) ok("(d) in an interactive run COACH-1 resolves ask, the row is recorded, and the coach order compiles — the categorization conversation is the answer");
-      else fail(`(d) coach compile in an interactive run: init ${it.status}, compile ${coachIt.status}, row ${JSON.stringify(c2)}`);
+      if (it.status === 0 && coachIt.status === 4 && c2 && c2.decision === "ask" && c2.status === "ask") ok("(d) in an interactive run COACH-1 resolves ask (exit 4) and the row is recorded — the categorization conversation is the answer");
+      else fail(`(d) COACH-1 in an interactive run: init ${it.status}, gate ${coachIt.status}, row ${JSON.stringify(c2)}`);
     } finally {
       rmSync(ws, { recursive: true, force: true });
     }

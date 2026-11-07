@@ -13,9 +13,10 @@ import { join, dirname, isAbsolute } from "node:path";
 import { spawnSync } from "node:child_process";
 
 // The dispatched workers that run kernel commands. The three planners (ba-pitch-analyzer, solution-architect,
-// scope-architect) left this list when planning became the loop's own activity: nothing is dispatched for it
-// and the commands it runs are handed out by `probe next` with the kernel's absolute path already in them.
-const WORKERS = ["task-executor", "spec-evaluator", "scope-hammer"];
+// scope-architect) left this list when planning became the loop's own activity, and scope-hammer left it when the
+// stop census did: nothing is dispatched for either, and the commands they run are handed out by `probe next`
+// with the kernel's absolute path already in them (the probe-next module asserts that for the stop step's probes).
+const WORKERS = ["task-executor", "spec-evaluator"];
 
 /**
  * Run the kernel-path checks.

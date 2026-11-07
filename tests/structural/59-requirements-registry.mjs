@@ -716,12 +716,12 @@ export async function run(ctx) {
       if (/probe requirements/.test(l4)) ok("(j) …and says to transcribe it from `probe requirements`, not to compose it");
       else fail("(j) GATE L4's Requirements line cites no query — a line composed at the gate is a claim, not a measurement");
 
-      const hammer = read(join(ROOT, "skills/scope-hammer/SKILL.md"));
-      const h0 = hammer.slice(hammer.indexOf("## GATE H0"), hammer.indexOf("## GATE H1"));
-      if (/probe requirements/.test(h0) && /no (PASS )?evidence/i.test(h0)) {
-        ok("(j) GATE H0's census takes requirements with no PASS evidence from the probe, and cites it");
+      const stop = read(join(ROOT, "skills/building/resources/stop.md"));
+      const h0 = stop.slice(stop.indexOf("## Census"), stop.indexOf("## Baseline comparison"));
+      if (/probes\.requirements/.test(h0) && /no (PASS )?evidence/i.test(h0)) {
+        ok("(j) the stop step's census takes requirements with no PASS evidence from the probe, and cites it");
       } else {
-        fail("(j) GATE H0 never censuses requirements with no evidence — the clause nothing verified is invisible exactly where the ship decision is made");
+        fail("(j) the stop step's census never censuses requirements with no evidence — the clause nothing verified is invisible exactly where the ship decision is made");
       }
       // §5 of the plan this came from: the matrix informs the baseline comparison, it never vetoes.
       if (/never block|never a ship blocker|does not block|not a ship blocker|decides nothing/i.test(l4.slice(0, 1400))) {

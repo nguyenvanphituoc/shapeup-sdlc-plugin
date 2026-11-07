@@ -19,7 +19,7 @@
 //       stage never trips the breaker at all.
 //     agree        — the same exhausted fixture, read two independent ways: a direct import (what
 //       the round loop's own inner breaker would call) and a spawned `harness probe attempts`
-//       process (what scope-hammer's SKILL.md now instructs the census to run). Prints
+//       process (what the stop step hands the loop to run for the census). Prints
 //       `CENSUS==BREAKER` when both agree on `spent` and `tripped`.
 //     revert-check — the SAME `unattested` fixture, read by a NAIVE re-derivation straight from
 //       the order set and the T0 verdict set (exactly what this stage forbids) instead of the
@@ -276,8 +276,8 @@ try {
     }
 
     // agree — the SAME fixture, read by the round loop's own path (a direct import) and by the
-    // census's own path (a spawned `probe attempts` process, exactly as scope-hammer's SKILL.md
-    // now instructs it to run), then compared.
+    // census's own path (a spawned `probe attempts` process, exactly as the stop step
+    // now hands it out), then compared.
     const cli = spawnSync(process.execPath, [
       join(ROOT, "kernel/harness.mjs"), "probe", "attempts",
       "--slug", SLUG, "--scope", SCOPE, "--round", String(ROUND), "--attempt-budget", "2", "--cwd", ws,

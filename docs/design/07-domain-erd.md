@@ -63,9 +63,9 @@ erDiagram
     WorkOrder {
         int schema_version "1"
         string order_id PK "slug/rN-aM | slug/operation[-rN]"
-        enum worker "WorkerName (7 workers) | building (fence-only plan order)"
+        enum worker "WorkerName (4 workers) | building (fence-only plan order)"
         enum mode "orchestrated | standalone"
-        enum operation "Operation (12 operations)"
+        enum operation "Operation (7 operations)"
         json interaction "pause_gates, max_questions"
         json substrate "allowed[], shared[], append_only[], frozen[]"
         json payload "WorkOrderPayload — see 7.4"
@@ -302,8 +302,8 @@ rather than kept as a mechanism that looks like it works and doesn't.)
 
 | Enum | Values |
 |---|---|
-| `WorkerName` (7) | task-executor · spec-evaluator · orient · qa-edge-hunter · translator · scope-hammer · coach — the loop (`building`) is not a member: it is the `worker` of a fence-only `plan` order, which the order schema accepts beside the roster |
-| `Operation` (12) | execute, fix, spike · evaluate · orient · hunt · translate · hammer · coach, scan, research · plan (fence-only: one order per planning substep — `requirements`, `spec`, `wire`, `scopes` — answered by `reduce ingest --close-plan`, no sub-agent) |
+| `WorkerName` (4) | task-executor · spec-evaluator · orient · qa-edge-hunter — the loop (`building`) is not a member: it is the `worker` of a fence-only `plan` order, which the order schema accepts beside the roster |
+| `Operation` (7) | execute, fix, spike · evaluate · orient · hunt · plan (fence-only: one order per planning substep — `requirements`, `spec`, `wire`, `scopes` — answered by `reduce ingest --close-plan`, no sub-agent) |
 
 ## 7.6 — Payload fields by worker (`x-payload-by-worker`)
 
@@ -316,9 +316,6 @@ Which `WorkOrderPayload` fields each worker may rely on — anything absent from
 | spec-evaluator | `spec_folder`, `feature`, `dimensions`, `run_cmd`, `launch_cmd`, `build_gate`, `t0_artifacts`, `browser`, `tasks` |
 | orient | `pitch`, `breadboard`, `stack`, `spec_folder`, `feature`, `kb_rules_path` |
 | qa-edge-hunter | `feature`, `spec_folder`, `eval_report`, `app_url`, `ledger`, `kb_rules_path` |
-| translator | `intake`, `glossary` |
-| scope-hammer | `feature`, `baseline`, `breaker`, `scope_id` |
-| coach | `feedback`, `stack` (research) |
 | building (plan orders) | `feature`, `spec_folder`, `step`, `mode`, `kb_rules_paths` |
 
 ## 7.7 — Result fields by worker (`x-result-by-worker`)
@@ -330,5 +327,5 @@ Which `WorkResult` fields each worker is allowed to output. Enforces architectur
 | task-executor | `task_results`, `files_touched`, `discoveries`, `artifacts`, `assumptions`, `deviations` |
 | spec-evaluator | `verdict`, `files_touched`, `artifacts`, `assumptions`, `deviations` |
 | qa-edge-hunter | `discoveries`, `files_touched`, `artifacts`, `assumptions`, `deviations` |
-| orient, translator, scope-hammer, coach | `files_touched`, `artifacts`, `assumptions`, `deviations` |
+| orient | `files_touched`, `artifacts`, `assumptions`, `deviations` |
 | building (plan orders) | `artifacts`, `deviations` |

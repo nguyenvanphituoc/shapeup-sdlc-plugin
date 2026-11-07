@@ -1,6 +1,6 @@
 # Harness Defect Register
 
-> Filed by `/coach` from Ship-Gate (L4) feedback the PO categorized as `harness-defect` at
+> Filed by `/retro` from Ship-Gate (L4) feedback the PO categorized as `harness-defect` at
 > GATE COACH-1. **Read by no worker** — these are drafted raw ideas for the Betting Table
 > (the debt-free path), not guidelines. Remove an entry when its fix ships or its pitch is bet.
 

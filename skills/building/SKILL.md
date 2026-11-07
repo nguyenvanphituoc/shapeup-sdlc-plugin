@@ -1,6 +1,6 @@
 ---
 name: building
-description: "Use this skill whenever the user wants to ship a kicked-off Shape Up pitch end to end — orient, plan, build, evaluate, hunt, cut, ship — as the tech lead who drives the run in this session and sits at every gate with the PO. Trigger on: \"ship this feature\", \"run the harness\", \"build from this pitch\", \"from pitch to ship\", \"run the full harness\", \"orchestrate the build\", \"resume the run\". DEFAULT: /ship <pitch>. Use it even when the user describes a multi-step build flow without naming the skills."
+description: "Use this skill whenever the user wants to ship a kicked-off Shape Up pitch end to end — orient, plan, build, evaluate, hunt, cut, ship — as the tech lead who drives the run in this session and sits at every gate with the PO. Trigger on: \"ship this feature\", \"run the harness\", \"build from this pitch\", \"from pitch to ship\", \"run the full harness\", \"orchestrate the build\", \"resume the run\". Also covers its sub-commands: translate a non-English pitch to English (intake), decide when to stop with the census and cut list (GATE H, \"hammer this down to must-haves\"), and file ship feedback or seed the knowledge base from the project or the platform docs (the retro, \"coach this feedback\", \"scan the project for guidelines\"). DEFAULT: /ship <pitch>. Use it even when the user describes a multi-step build flow without naming the skills."
 ---
 
 # Building — the loop that drives a run
@@ -29,7 +29,8 @@ comes back "requires approval", stop and say so — the scripts need a one-time 
 
 ## Step 0 — open the run
 
-Resolve the intake and open it as `resources/intake.md` says: language check, the L0 collect-list,
+Resolve the intake and open it as `resources/intake.md` says: language check (a non-English pitch is made
+English by you, right there: `<name>.en.md` and the glossary, and the run opens on the copy), the L0 collect-list,
 `init run` (exit 3 = a run is already open — mark the relaunch with `probe resume --slug <slug>
 --mark-relaunch` and go to the loop with `--restart`), the shared `project-profile.md`, the L0 gate,
 and `init run-args` (the launch record; every switch the operator typed lands there or does nothing).
@@ -48,12 +49,13 @@ work, not work in flight. Surface every string in `warnings`. Then act on `kind`
 |---|---|
 | `dispatch` | Run each `pre`, then `compile`. Spawn ONE sub-agent (model: `model`) told to invoke `Skill(<skill>) --order "<order_path>"` plus `note`, and to return a one-line summary. When it returns run `ingest` — add `--tokens-total <N> --usage-source agent-tool-result` when the result reported a total, and nothing when it did not; never estimate one — then each `then`. A failed `compile`, or a sub-agent that dies, runs `on_fail_close` and stops. A refused `ingest` is not a stop: ask again — the kernel sends the worker back once with the refusal, then stops with the real reason. |
 | `plan` | One planning substep, done HERE — no sub-agent. Unless `order_open`, run `open`: it stamps the write fence (`payload.step`, `payload.mode`, `payload.feature`, `payload.spec_folder`, `payload.kb_rules_paths`). Read `resource` (`section` says where) and `guidance`; write ONLY what `produces` names, never outside the substep's substrate between `open` and `close`. Run each of `checks` (fix a red, run it again; `advisory` never stops). Run `close`, then ask again. A `close` over no artifact is recorded, not retried — the next step names what is missing. |
+| `stop` | The census, done HERE — no sub-agent. Run each `pre` (it records a refusal), then each command in `probes` (owner, requirements, one attempts probe per proposal scope) and cite what they print for every ownership, exhaustion and requirement claim. Read `resource` (`section` says where), compare against the BASELINE and never the ideal, write the census to `produces.path` with its `required` fields, run `close`. A refused census comes back once, with the reason in `note`; a second refusal is a stop. |
 | `build` | For every scope in `release`, in ONE message, spawn a sub-agent (model: `model`) for that scope exactly as for `dispatch`, using the item's own `compile`, `order_path`, `note` and `ingest` (usage flags included). When they return, ask again. |
 | `command` | Run `pre`, then `command`; exit codes in `ok_exits` (default `[0]`) pass; any other runs `on_fail_close` when present. Then each `then`. |
 | `gate` | See below. |
 | `wait` | Nothing may open until an in-flight scope returns. Ask again once one does. |
 | `need` | Something outside the kernel is missing (`need`). Create it with the PO (the profile: `resources/intake.md`), then ask again. |
-| `terminal` | Run `close_command`, report `status` and `reason`. `shipped` goes on to `resources/retro.md`. Stop. |
+| `terminal` | Run `close_command`, report `status` and `reason`. `shipped` goes on to the retro (`retro`: `resources/retro.md`, and `retro.gate` is its GATE COACH-1 command). Stop. |
 | `done` | Nothing to resume. Say so. |
 
 A `pre` or `then` entry marked `advisory` is a projection: run it, log a failure, never stop on it.
@@ -86,14 +88,23 @@ suspected harness defect and stop.
 `ingest` of a build order you write nothing yourself; between `open` and `close` of a plan order you write
 only what the substep produces.
 
+## Sub-commands
+
+`/ship` with none runs the whole loop. A sub-command does one activity of it, from the same kernel steps:
+`plan` (`/scopes`, `/wire`) — the planning substeps; `stop` (`/hammer`) — the census, over the run in hand when
+`probe next` hands a `kind: stop` step, and otherwise a report of the step the run is at; `retro` (`/retro`,
+`/retro --scan`, `/retro --research <stack>`) — `resources/retro.md`, `retro-scan.md`, `retro-research.md`;
+`intake <path>…` (`--check` writes nothing) — the language gate alone, `resources/intake.md` §2.
+
 ## Resume
 
 `/ship` again over an open run is the resume: Step 0 finds the receipt, the loop reads artifacts on
 disk and nothing else. A closed run that did not ship is reopened on the record by the loop's first
 step; one that shipped reports `done`.
 
-> **Intake, language check, profile, the launch record** → `resources/intake.md`
+> **Intake, language check and translation, profile, the launch record** → `resources/intake.md`
 > **Planning: how a substep runs, requirements; the spec, wiring and scope formats** → `resources/plan.md` and its `plan-*.md` siblings
 > **Which knowledge-base file is read where, and under what name a rule is filed** → `resources/guidance.md`
 > **How to put a gate to the PO** → `resources/gates.md`
-> **After a ship: feedback, the retro gate** → `resources/retro.md`
+> **The census, the baseline comparison, the cut list (GATE H)** → `resources/stop.md`
+> **After a ship: feedback, the retro gate, `--scan`, `--research`** → `resources/retro.md`, `retro-scan.md`, `retro-research.md`

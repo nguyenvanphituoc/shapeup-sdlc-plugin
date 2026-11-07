@@ -77,12 +77,9 @@ grep -n "OP_OWNER" -A 12 kernel/compile.mjs
 
 # The actual substrate an operation is compiled with (authoritative — it is what the hook enforces)
 node -e "
+const ops = JSON.parse(require('fs').readFileSync('kernel/schemas/domain.schema.json','utf8')).\$defs.Operation.enum;
 import('./kernel/compile.mjs').then(m=>{
-  for (const op of ['analyze','reconcile','retrofit-surface','coverage','map-scopes','wire',
-                    'evaluate','orient','hunt','translate','hammer','coach','execute',
-                    'fix','spike']) {
-    console.log(op, JSON.stringify(m.substrateFor(op,{slug:'demo'})));
-  }
+  for (const op of ops) console.log(op, JSON.stringify(m.substrateFor(op,{slug:'demo'})));
 });
 "
 ```

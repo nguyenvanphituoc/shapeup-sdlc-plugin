@@ -1,7 +1,7 @@
 # Knowledge Base — task-executor
 
 > Team-shared guidelines distilled from PO/TL feedback at the Ship Gate (L4) or from a project
-> scan, by `/coach`. Read by `task-executor` at the top of its run. **Guidelines, not invariants** —
+> scan, by `/retro`. Read by `task-executor` at the top of its run. **Guidelines, not invariants** —
 > they steer the worker; they never override a spec, widen a substrate, resolve a gate or change
 > the spec-evaluator verdict (single-judge rule). Committed on purpose: a teammate inherits these
 > on `git pull`.

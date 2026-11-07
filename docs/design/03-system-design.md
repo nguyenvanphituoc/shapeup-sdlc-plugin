@@ -47,7 +47,7 @@ write to even if it wanted to.
 
 | Field | Purpose |
 |---|---|
-| `worker` | One of the 7 enumerated worker skills — the order names its own destination — or `building`, the loop itself, on a fence-only `plan` order no sub-agent answers |
+| `worker` | One of the 4 enumerated worker skills — the order names its own destination — or `building`, the loop itself, on a fence-only `plan` order no sub-agent answers |
 | `operation` | Replaces ad-hoc flags (`--tasks-only`, `--from-discovered` …) — the caller knows the pipeline position, the worker never re-derives it |
 | `substrate` | The write contract for this order — data the sandbox hook enforces, not prose asking the worker to behave |
 | `payload` | Worker-specific inputs: scope contract, tasks, prior decisions, digested errors, KB rules path |
@@ -68,7 +68,7 @@ routing key**: `compile-order` resolves the owning worker from the operation alo
 `OP_OWNER` map, mirroring `domain.schema.json`'s `$defs/Operation` ownership), so a dispatch
 never carries a redundant `--worker`, and each operation stamps a fixed `substrate` write
 contract (from `substrateFor`) that the sandbox hook then enforces. One compiled order therefore
-*is* the dataflow across the skill set — the 12 operations fan out to the 7 worker skills (and one
+*is* the dataflow across the skill set — the 7 operations fan out to the 4 worker skills (and one
 fence-only order the loop itself answers) by pipeline stage:
 
 ```mermaid
@@ -79,17 +79,11 @@ graph LR
     CO --> TE["task-executor<br/>(execute · fix · spike)"]
     CO --> SE["spec-evaluator<br/>(evaluate)"]
     CO --> QA["qa-edge-hunter<br/>(hunt)"]
-    CO --> SH["scope-hammer<br/>(hammer)"]
-    CO --> TR["translator<br/>(translate)"]
-    CO --> CH["coach<br/>(coach)"]
     ORI --> IR["harness reduce ingest<br/>(single writer)"]
     PL --> IR
     TE --> IR
     SE --> IR
     QA --> IR
-    SH --> IR
-    TR --> IR
-    CH --> IR
 ```
 
 | Pipeline stage | Operation(s) | Worker skill | Order's `substrate.allowed` (write target) |
@@ -105,9 +99,6 @@ graph LR
 | Build | `execute`, `fix`, `spike` | `task-executor` | the scope's own `allowed_file_substrate` + `<local>/spikes/**` |
 | Evaluate | `evaluate` | `spec-evaluator` | `<local>/evaluation/**` |
 | QA hunt | `hunt` | `qa-edge-hunter` | `<local>/qa/**` |
-| Ship / triage | `hammer` | `scope-hammer` | `<shared>/<slug>/REPORT.md` + `<local>/reports/**` |
-| Intake | `translate` | `translator` | `<shared>/<slug>/shaping/*.md` + `glossary.md` |
-| Retro | `coach` | `coach` | `<shared>/knowledge-base/*.md` |
 
 Every case also stamps `frozen` (and, where relevant, `append_only`) — the spec core
 (`domain-model.md`, use-case `#Steps`, `contracts/**`, `ux-behavior.md`) is frozen for every
@@ -119,15 +110,17 @@ ingest --close-plan` answers it from the artifacts it finds on disk — mode `st
 it for no dispatch receipt — leaving one leg row per substep. Its `worker` is `building`, which the
 order schema accepts beside the roster and which is deliberately not in `WorkerName`.
 
+Three more acts used to be operations with a worker each — `hammer` (the stop census), `translate` (the intake's English copy) and `coach`/`scan`/`research` (the retro) — and are now the loop's own, with no order and no fence at all: the census is written to a fixed file under `<local>/reports/` that the kernel checks against its shape (`harness reduce ingest --close-census`; refused once, then a stop) and that GATE L4 reads, the English copy lands beside its source with its glossary, and the retro files rules under `<shared>/knowledge-base/`. The skill count behind them fell with the operations: 8 skills, 4 of them workers.
+
 Two consequences fall out of routing *in the order* rather than in each skill: **(1)** adding a
 worker is adding an operation, its `OP_OWNER` entry, and its `substrateFor` case — the
 orchestrator owns the vocabulary and workers never re-derive their own pipeline position; and
 **(2)** because the write contract travels inside the order, one `sandbox-guard.mjs` hook fences
 every skill's writes with zero per-skill code — it reads the *order's* substrate block directly
-(§3.2). The return leg is uniform too: whatever any of the 7 workers produces comes back as a
+(§3.2). The return leg is uniform too: whatever any of the 4 workers produces comes back as a
 `WorkResult`, and `harness reduce ingest` is the sole writer that lands it into shared state (§3.1) —
 except for the planning substeps whose product IS a committed design document (`wire`, `scopes`,
-`requirements`), which the loop writes directly under the substrate the hook enforces.
+`requirements`), which the loop writes directly under the substrate the hook enforces, and for the census, the retro and the intake's English copy, which it writes directly with nothing fencing them.
 
 ## 3.2 — Runtime-enforced guardrails (hooks)
 
@@ -151,7 +144,7 @@ the spine.)
 > **Why the sandbox reads the order, not the scope contract.** It used to resolve
 > `.shapeup/active-scope` → `scopes/<id>.md` and enforce that contract's
 > `allowed_file_substrate`. That covered exactly one operation — the build — because only build
-> orders carry a scope. Every other dispatch (`analyze`, `wire`, `evaluate`, `hunt`, `coach` …)
+> orders carry a scope. Every other dispatch (`orient`, `evaluate`, `hunt` …)
 > is compiled with a substrate by `substrateFor` (§3.1b) and then ran unfenced, and the
 > `frozen`/`append_only` surfaces that table stamps had no enforcer at all. Reading the order
 > makes the write contract the compiler already emits the same one the hook enforces, for every
@@ -214,7 +207,7 @@ roster off `domain.schema.json#/$defs/WorkerName` and refuses `init run` with ex
 names the copy that produced it. That is the cheap half, and it is honestly incomplete: it proves
 *these files exist at this root at this version*, not that the session will resolve that copy. Both
 states the failure actually takes — installed but disabled, and a different version loaded — have all
-seven `SKILL.md` files and pass it green.
+four `SKILL.md` files and pass it green.
 
 So the orchestrator's first leg is a canary: one `Skill(...)` dispatch, deliberately with no
 `--order` (it is testing name resolution, not doing work, and an order would leave a compiled order

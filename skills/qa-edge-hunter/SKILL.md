@@ -137,7 +137,7 @@ A charter is a license to deviate within a hunting ground; a test case is a scri
 
 ```
 Q1.0  Read team guidelines: the file at `payload.kb_rules_path` (if present; absent field = none).
-      `/coach`-distilled edge classes that kept biting past features (e.g. "session-expiry
+      retro-distilled edge classes that kept biting past features (e.g. "session-expiry
       mid-form keeps surfacing"). Steering, never spec and never a verdict: use them to
       PRIORITIZE charters within the six fixed lenses — never to add a seventh lens, skip
       covered-territory subtraction, or promote a finding on their say-so. Absent = none recorded.

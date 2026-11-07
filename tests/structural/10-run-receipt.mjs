@@ -554,9 +554,8 @@ export async function run(ctx) {
   const { dispatchEvidence } = await import(join(ROOT, "kernel/verify/dispatch.mjs"));
 
   // (a) THE ROSTER IS DERIVED. A hand-written list beside a schema enum is the drift this project
-  //     exists to prevent: the two names an eight-name literal would have omitted (`translator`,
-  //     `coach`) are exactly the ones a short run never reaches, so the omission surfaces months
-  //     later on the one run that did.
+  //     exists to prevent: a literal that dropped one member of the enum would omit exactly the worker
+  //     a short run never reaches, so the omission surfaces months later on the one run that did.
   const schemaEnum = JSON.parse(readFileSync(join(ROOT, "kernel/schemas/domain.schema.json"), "utf8"))
     .$defs.WorkerName.enum;
   if (JSON.stringify(roster(ROOT)) === JSON.stringify(schemaEnum)) {

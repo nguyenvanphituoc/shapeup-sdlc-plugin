@@ -15,9 +15,9 @@
 //
 // THE ROSTER IS DERIVED, NEVER SPELLED. It comes from `domain.schema.json#/$defs/WorkerName` — the
 // same enum that decides which workers a WorkOrder may be addressed to. A hand-written list beside
-// a schema enum is the drift this project exists to prevent: eight names beside a ten-member enum
-// reads perfectly and is wrong, and the two it would omit (`translator`, `coach`) are exactly the
-// ones a short run never reaches, so the omission would surface months later on the one run that did.
+// a schema enum is the drift this project exists to prevent: a list that drops one member of the enum
+// reads perfectly and is wrong, and the member it omits is exactly the one a short run never reaches,
+// so the omission would surface months later on the one run that did.
 //
 // THE ROOT IS DERIVED FROM THIS MODULE'S OWN LOCATION, not from `CLAUDE_PLUGIN_ROOT`: the env var is
 // not reliably exported into a sub-agent's shell, and the kernel that is executing is already inside

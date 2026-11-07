@@ -958,7 +958,7 @@ export function closeRun(cwd, slug, { status, cause = null, withExport = true } 
   const finishClose = (result) => {
     const warning = shouldExport ? exportOnClose(cwd, slug) : null;
     // The breadcrumb goes down before the pointers come up: the hooks that fire next — the
-    // scope-hammer census, the ship phase — resolve their run through whichever of the two exists,
+    // stop census, the ship phase — resolve their run through whichever of the two exists,
     // and there must be no instant in which neither does. Best-effort like the rest of this close.
     try {
       mkdirSync(dirname(lastRun(cwd)), { recursive: true });

@@ -373,7 +373,7 @@ export function stageWorkflows(cwd, pluginRoot, { refresh = true } = {}) {
  * the staged copy is this function's OUTPUT, and re-opening a run from its staged intake must not
  * inherit the breadboard of the run it replaces.
  *
- * A TRANSLATED PITCH GETS ITS TRANSLATED BREADBOARD. When the intake is a translator output
+ * A TRANSLATED PITCH GETS ITS TRANSLATED BREADBOARD. When the intake is an English copy written at intake
  * (`<name>.en.md`), each folder is tried for `breadboard.en.md` before `breadboard.md`, and the
  * result says whether it is translated — an English spec planned from a source-language breadboard
  * is a mismatch the caller reports, not one it may silently stage.
@@ -539,7 +539,7 @@ export function cli(rawArgv) {
   catch (e) { fail(2, e.message); }
   if (bb?.translated === false) {
     console.error(`⚠ init-run: the intake is a translation but its breadboard is not — staging ${repoRel(cwd, bb.path)} as found.`);
-    console.error("  Translate the breadboard too (translator), and name the .en.md with --breadboard, or the spec is planned from two languages.");
+    console.error("  Translate the breadboard too (the intake step), and name the .en.md with --breadboard, or the spec is planned from two languages.");
   }
   const intakeSource = args.intakeStdin || intakeFile === "-" ? "stdin" : intakeFile ? repoRel(cwd, resolve(cwd, intakeFile)) : "text";
 

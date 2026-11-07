@@ -11,7 +11,7 @@
     Edge Hunt. A circuit breaker can route directly from the build/evaluate loop to Ship
     and Triage at GATE H (Cut-List Review) when the round budget or wall-clock budget
     runs out, bypassing QA and shipping what is green. Ship and Triage passes through
-    GATE H (Cut-List Review) and then GATE L4 (Ship Sign-off) sign-off into Coach Retro,
+    GATE H (Cut-List Review) and then GATE L4 (Ship Sign-off) sign-off into Retro,
     which records feedback in the team knowledge base. The Gate key below the legend
     spells out every gate pill's plain name.
   </desc>
@@ -256,7 +256,7 @@
   <g>
     <rect class="n-box" x="625" y="522" width="180" height="56" rx="8"/>
     <text class="t-n" font-size="14" font-weight="500" x="715" y="540" text-anchor="middle" dominant-baseline="central">Ship &amp; Triage</text>
-    <text class="ts-n" font-size="12" x="715" y="562" text-anchor="middle" dominant-baseline="central">/scope-hammer</text>
+    <text class="ts-n" font-size="12" x="715" y="562" text-anchor="middle" dominant-baseline="central">/hammer</text>
   </g>
   <line class="edge flow e12" x1="805" y1="550" x2="815" y2="550"/>
   <g>
@@ -270,12 +270,12 @@
     <text class="t-n" font-size="14" font-weight="500" x="985" y="550" text-anchor="middle" dominant-baseline="central">Ship Sign-off</text>
   </g>
 
-  <!-- ROW 4: Coach Retro -->
+  <!-- ROW 4: Retro -->
   <line class="edge flow e13" x1="985" y1="572" x2="985" y2="650" marker-end="url(#arrow)"/>
   <g>
     <rect class="n-box" x="895" y="650" width="180" height="56" rx="8"/>
-    <text class="t-n" font-size="14" font-weight="500" x="985" y="668" text-anchor="middle" dominant-baseline="central">Coach Retro</text>
-    <text class="ts-n" font-size="12" x="985" y="690" text-anchor="middle" dominant-baseline="central">/coach</text>
+    <text class="t-n" font-size="14" font-weight="500" x="985" y="668" text-anchor="middle" dominant-baseline="central">Retro</text>
+    <text class="ts-n" font-size="12" x="985" y="690" text-anchor="middle" dominant-baseline="central">/retro</text>
   </g>
 
   <!-- legend -->

@@ -26,13 +26,16 @@
 //   plan      one planning substep, done in the loop's own context: run `open` (it stamps the fence)
 //             unless `order_open`, write only what `produces` names, run each of `checks`, run
 //             `close` (it answers the fence from the files). `resource`/`section` say where the craft is.
+//   stop      the census, done in the loop's own context: run the `probes`, write the census file named by
+//             `produces`, run `close`. Satisfied by a readable, valid census on disk — nothing else.
 //   command   run one kernel command; `on_fail_close` (when present) is what to run if it fails.
 //   gate      show `block`, run `command`; exit 4 = ask the PO and rerun `answer_command`; exit 5 =
 //             run `abort_close`. `pre` commands run first, each with its own `on_fail_close`.
 //   build     dispatch every scope in `release` at once; `in_flight` and `waiting` say why not more.
 //   wait      nothing is releasable until an in-flight scope returns.
 //   need      the run cannot go on until something outside the kernel exists (named in `need`).
-//   terminal  the run is over: run `close_command` and report `status`.
+//   terminal  the run is over: run `close_command` and report `status`. A shipped one carries `retro`: the
+//             resource and the COACH-1 gate command the retro crosses.
 //   done      the run already ended and there is nothing to resume.
 // Every step may carry `pre` (commands to run first) and `warnings` (strings to surface).
 //
@@ -48,7 +51,7 @@ import { fileURLToPath } from "node:url";
 import { runArgs, isMain } from "../lib/argv.mjs";
 import {
   ordersDir, resultsDir, legLedger, dispatchReceipts, readRunId, gates as gatesPath,
-  runArgsPath, receipt as receiptPath, hammerCensus, report as reportPath, orientDir, gateAnswerCandidates, harnessRun,
+  runArgsPath, receipt as receiptPath, relLocal, report as reportPath, orientDir, gateAnswerCandidates, harnessRun,
 } from "../lib/paths.mjs";
 import { launchProblems } from "../lib/floor.mjs";
 import { planOrderFacts, planProduces, planGuidancePaths } from "../lib/plan.mjs";
@@ -65,6 +68,7 @@ import { lint as specLint } from "../verify/spec.mjs";
 import { latestRoundBuild, declaredSteps } from "../verify/build.mjs";
 import { evaluateBudget, findRun } from "../verify/budget.mjs";
 import { censusVerdict } from "../gate.mjs";
+import { readCensus, censusRefusalRows } from "../lib/census.mjs";
 
 const KERNEL = resolve(dirname(fileURLToPath(import.meta.url)), "../harness.mjs");
 const RESULT_SCHEMA = JSON.parse(readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), "../schemas/work-result.schema.json"), "utf8"));
@@ -656,28 +660,56 @@ export function deriveNext(cwd, slug, { restart = false } = {}) {
   const greens = greenScopes();
   const rowVerdict = (() => { for (let r = Math.min(round, maxRounds); r >= 1; r--) { const x = l3(r); if (x?.verdict) return x.verdict; } return null; })();
   const settle = outer ? { ...outer } : null;
-  const o = orderState("hammer");
-  const censusFile = hammerCensus(cwd, slug);
-  const census = existsSync(censusFile) ? readJson(censusFile) : null;
-  const hv = censusVerdict(cwd, slug);
-  if (!hv) {
-    const buildHammer = (note = "") => dispatch({
-      step: "stop.census", skill: "scope-hammer", operation: "hammer", stem: "hammer", phase: null,
-      payload: { feature: slug, qa_findings: settle ? 0 : qaFindings, hammer_proposals: proposalsNow, breaker: settle ? settle.breaker : null },
-      note: "Run the census, compare against the BASELINE and never the ideal, and produce the cut list. Write the census as data to `reports/hammer-census.json` under the run's local root — " +
-        "the `reports/**` entry in your order's substrate names the directory — with schema_version 1, order_id, verdict (ship-now | ship-after-fixes | cannot-ship), cut_list, " +
-        "ship_blocking, breaker, baseline — beside the human-readable report. GATE L4's resolver reads that file and nothing else before it lets any answer set say `ship`; " +
-        "a census that lives only in your printed blocks cannot be read by a gate." + note,
-      reason: note ? "the census result was refused before it was applied — sent back once"
-        : settle ? `a breaker (${settle.breaker}) routed the run to GATE H and no census exists` : "the loop ended well and no census exists",
-    });
-    if (o.has_result && !o.applied) return ingestCmd(o, "H", buildHammer);
-    if (o.has_result && o.receipts >= 2) return abort("H", "scope-hammer returned and left no readable census");
-    return buildHammer("");
+  // THE STOP STEP IS DONE ON A FILE. The census is written by the loop itself (no sub-agent, no
+  // order), so what satisfies it is the file: a valid census on disk. A census that is on disk and is
+  // not one is refused — sent back once with the reason, then the run stops with it. "Once" is a count
+  // of refusals the kernel recorded (`reduce ingest --close-census`), keyed by the refused file's hash,
+  // never a counter this function holds: it is read-only and remembers nothing.
+  const cs = readCensus(cwd, slug);
+  const stopClose = K(`reduce ingest --close-census --slug ${slug}`);
+  const buildStop = (note = "", why = null, pre = []) => ({
+    step: "stop.census", kind: "stop",
+    reason: why || (settle ? `a breaker (${settle.breaker}) routed the run to GATE H and no census exists` : "the loop ended well and no census exists"),
+    resource: "resources/stop.md", section: "Census",
+    inputs: { qa_findings: settle ? 0 : qaFindings, hammer_proposals: proposalsNow, green_scopes: greens, breaker: settle ? settle.breaker : null },
+    probes: {
+      owner: K(`probe owner --slug ${slug} --format table`),
+      requirements: K(`probe requirements --slug ${slug} --format table`),
+      attempts: proposalsNow.map((scope) => ({ scope, command: K(`probe attempts --slug ${slug} --scope ${scope} --round ${Math.max(1, Math.min(round, maxRounds))} --attempt-budget ${attemptBudget}`) })),
+    },
+    produces: {
+      path: relLocal(slug, "reports", "hammer-census.json"),
+      schema_version: 1,
+      required: ["schema_version", "verdict", "cut_list"],
+      also: ["ship_blocking", "breaker", "baseline"],
+      verdicts: ["ship-now", "ship-after-fixes", "cannot-ship"],
+    },
+    note: "Compare against the BASELINE and never the ideal, cite a probe for every ownership, exhaustion and requirement claim, and write the census as data to `produces.path` " +
+      "beside the human-readable report. GATE L4's resolver reads that file and nothing else before it lets any answer set say `ship`; " +
+      "a census that lives only in your printed blocks cannot be read by a gate." + note,
+    close: stopClose, pre,
+    on_fail_close: failClose("H", "the census step could not close"), warnings,
+  });
+  const lastRefusal = () => censusRefusalRows(cwd, slug).at(-1)?.reason ?? null;
+  let hv = null;
+  if (cs.exists && cs.problem) {
+    const rows = censusRefusalRows(cwd, slug);
+    const seen = rows.some((r) => r.sha256 === cs.sha256);
+    if (rows.length + (seen ? 0 : 1) >= 2) return abort("H", `the census was refused twice and is still not a valid census: ${cs.problem}`);
+    return buildStop(` Your previous census was refused before it was applied: ${cs.problem}. Write it again exactly as \`produces\` says, then close.`,
+      "the census on disk is not a valid census — sent back once",
+      seen ? [] : [{ command: stopClose, advisory: true }]);
   }
+  if (cs.exists) hv = cs.verdict;
+  else hv = censusVerdict(cwd, slug);
+  if (!hv) {
+    const was = lastRefusal();
+    return buildStop(was ? ` Your previous census was refused (${was}) and is no longer on disk; write it again.` : "");
+  }
+  const census = cs.census;
   const cutList = Array.isArray(census?.cut_list) ? census.cut_list : [];
   const tail = (extra = "") => withSuffix(extra);
-  if (!settle && hv === "cannot-ship") return abort("H", `scope-hammer: CANNOT SHIP — ${cutList.join("; ") || "a must-have failed"}`);
+  if (!settle && hv === "cannot-ship") return abort("H", `the census says CANNOT SHIP — ${cutList.join("; ") || "a must-have failed"}`);
   if (!crossed("H")) {
     return gateStep("H", {
       verdict: hv,
@@ -714,11 +746,16 @@ export function deriveNext(cwd, slug, { restart = false } = {}) {
     return abort("L4", `GATE L4 answered "hold" (census ${hv}, verdict ${shipVerdict})`);
   }
   const unapplied = [];
+  // WHERE THE RETRO'S GATE IS CROSSED. GATE COACH-1 is resolved by the kernel, with the run's own answer
+  // set, so the ledger carries a row for the decision whether or not a PO is present: exit 0 (`skip`)
+  // files nothing, exit 4 (`ask`) opens the categorization conversation. Prose alone let an unattended
+  // lane open that conversation with nobody to answer it and leave no row.
+  const retro = { resource: "resources/retro.md", gate: K(`gate --resolve COACH-1 --slug ${slug}${answersFlag}`) };
   if (settle) {
     return {
       step: "terminal.shipped", kind: "terminal", status: "shipped", reason: "the cut list shipped after a breaker",
       close_command: closeCmd("shipped", tail(`verdict=${shipVerdict} rounds=${lastRound} qa_findings=0 qa=skipped after=gate_h breaker=${settle.breaker} census=${hv} cut_list=${cutList.length}`)),
-      verdict: shipVerdict, rounds_used: lastRound, report: `shapeup/${slug}/REPORT.md`, warnings, unapplied_results: unapplied,
+      verdict: shipVerdict, rounds_used: lastRound, report: `shapeup/${slug}/REPORT.md`, retro, warnings, unapplied_results: unapplied,
     };
   }
   const graded = evalVerdict(cwd, slug, lastRound);
@@ -727,7 +764,7 @@ export function deriveNext(cwd, slug, { restart = false } = {}) {
     close_command: closeCmd("shipped", tail(`verdict=${shipVerdict} rounds=${lastRound} qa_findings=${qaFindings} qa=${qaState}`)),
     verdict: shipVerdict, rounds_used: lastRound, qa: qaState, qa_findings: qaFindings,
     dims_evaluated: graded?.found ? (readJson(join(resultsDir(cwd, slug), `evaluate-r${lastRound}.json`))?.verdict?.dimensions ?? []) : [],
-    report: `shapeup/${slug}/REPORT.md`, warnings, unapplied_results: unapplied,
+    report: `shapeup/${slug}/REPORT.md`, retro, warnings, unapplied_results: unapplied,
   };
 }
 

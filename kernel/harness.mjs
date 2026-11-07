@@ -55,7 +55,7 @@
 //                                              ATTESTED (a dispatch receipt AND a leg row or a
 //                                              WorkResult), never the order set or the T0 verdict
 //                                              set alone — the round loop's inner breaker and
-//                                              scope-hammer's census both cite it, so they cannot
+//                                              the stop step's census both cite it, so they cannot
 //                                              disagree about the same exhaustion again.
 //                                              `next` answers what the run does next — one step, derived
 //                                              from artifacts and nothing else, so the loop that drives a

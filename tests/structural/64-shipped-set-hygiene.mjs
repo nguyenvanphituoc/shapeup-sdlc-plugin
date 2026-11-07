@@ -56,7 +56,8 @@ export async function run(ctx) {
   // =============================================================================
   section("101. The shipped set names no internal defect id");
   // =============================================================================
-  // Product vocabulary carve-out: `skills/coach/SKILL.md`'s knowledge-base TEMPLATE uses `HD-001`
+  // Product vocabulary carve-out: the retro resource's (`skills/building/resources/retro.md`, which took the
+  // coach skill's craft) defect-register TEMPLATE uses `HD-001`
   // as the fill-in-the-blank example row (`<symptom observed at ship>` beside it makes the
   // placeholder-ness explicit to a reader) — that is taught craft, not a citation of this repo's
   // own defect ledger, and is the one standing exception.
@@ -75,7 +76,7 @@ export async function run(ctx) {
     const text = readFileSync(join(ROOT, rel), "utf8");
     let m;
     while ((m = ID.exec(text))) {
-      if (rel === "skills/coach/SKILL.md" && m[0] === "HD-001") continue;
+      if (rel === "skills/building/resources/retro.md" && m[0] === "HD-001") continue;
       hits.push(`${rel}: ${m[0]}`);
     }
   }

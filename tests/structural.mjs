@@ -271,7 +271,7 @@ const MODULE_FILES = [
   // 73-attested-attempts.mjs: HD-2, defect-plan-3.7 Stage 3 — a scope's spent-attempt count is
   // derived only from attested channels (a dispatch receipt plus a leg-completion row or a
   // WorkResult), never from the order set or the T0 verdict set alone; a receipted attempt with
-  // neither a leg nor a result is IN-FLIGHT and holds the breaker open, and scope-hammer's GATE H0
+  // neither a leg nor a result is IN-FLIGHT and holds the breaker open, and the stop step's census
   // census now cites the same probe the round loop would, so the two readers cannot disagree about
   // the same exhaustion again.
   "73-attested-attempts.mjs",

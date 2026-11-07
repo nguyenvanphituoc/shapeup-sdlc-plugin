@@ -45,16 +45,43 @@ export async function run(ctx) {
     if (red.decision === "ask" && red.refused === "ship" && red.census === "cannot-ship") ok("with a census saying cannot-ship, L4 refuses `ship` and names the census");
     else fail(`L4 over a cannot-ship census resolved ${JSON.stringify(red)}`);
 
-    // The census path is inside the hammer's substrate — the worker can write it under a live order.
-    const compiled = kernel("compile", "--operation", "hammer", "--slug", "f");
-    const orderPath = join(ws, ".shapeup/f/orders/hammer.json");
-    if (compiled.status === 0) {
-      const o = JSON.parse(readFileSync(orderPath, "utf8"));
-      const { matchesAny } = await import(join(ROOT, "hooks/sandbox-guard.mjs"));
-      const rel = ".shapeup/f/reports/hammer-census.json";
-      if (matchesAny(rel, o.substrate?.allowed || [])) ok("the census path lies inside the hammer order's allowed substrate — the hand that proposes may write it");
-      else fail(`the census path is outside the hammer's substrate: ${JSON.stringify(o.substrate?.allowed)}`);
-    } else fail(`compile --operation hammer failed: ${(compiled.stderr || compiled.stdout).slice(0, 200)}`);
+    // THE CENSUS IS WRITTEN BY THE LOOP, WITH NO ORDER OF ITS OWN. It used to be the one path a hammer
+    // order's substrate allowed; now the stop step names the same path and the loop's own edit tool
+    // writes it, so the question is whether the real hook lets it. Driven through the real hook, with
+    // the verdict AND the ledger's rule read back (a bare allow cannot tell "in the substrate" from
+    // "nothing is watching").
+    const GUARD = join(ROOT, "hooks/sandbox-guard.mjs");
+    const ledger = join(ws, "decisions.jsonl");
+    const ask = (rel) => {
+      const r = spawnSync("node", [GUARD], {
+        encoding: "utf8", env: { ...process.env, SHAPEUP_DECISIONS_PATH: ledger },
+        input: JSON.stringify({ tool_name: "Write", cwd: ws, tool_input: { file_path: join(ws, rel) } }),
+      });
+      let rule = null;
+      try { const rows = readFileSync(ledger, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l)); rule = rows.at(-1)?.rule ?? null; } catch { /* no ledger yet */ }
+      return { verdict: (r.stdout || "").includes('"permissionDecision":"deny"') ? "deny" : "allow", rule };
+    };
+    const rel = ".shapeup/f/reports/hammer-census.json";
+    if (hammerCensus(ws, "f").endsWith(rel)) ok("the census path is the one the stop step writes (`reports/hammer-census.json` under the run's local root)");
+    else fail(`the census path is ${hammerCensus(ws, "f")}`);
+    const main = ask(rel);
+    if (main.verdict === "allow") ok(`main path — no live order: the loop's write to the census path is allowed (rule "${main.rule}")`);
+    else fail(`main path: the census write was denied (${main.rule})`);
+    // The breaker path with a dead session's dispatch still open. Measured, and kept as a fact about the
+    // fence rather than a goal: an unanswered `evaluate` order freezes the whole run trace, the census
+    // path included, until something answers it. Re-dispatch answers it (the loop asks again before it
+    // ever reaches the stop step); an order a dead session left that nothing re-dispatches does not.
+    const live = kernel("compile", "--operation", "evaluate", "--slug", "f", "--round", "1");
+    if (live.status !== 0) fail(`could not compile a live evaluate order: ${(live.stderr || live.stdout).slice(0, 200)}`);
+    else {
+      const stuck = ask(rel);
+      if (stuck.verdict === "deny" && stuck.rule === "frozen") ok("an unanswered evaluate order still fences the census path (frozen) — a dead session's open dispatch must be answered before the stop step can write");
+      else fail(`with an unanswered evaluate order the census write resolved ${stuck.verdict}/${stuck.rule}`);
+      writeFileSync(join(ws, ".shapeup/f/results/evaluate-r1.json"), JSON.stringify({ schema_version: 1, order_id: "f/evaluate-r1", status: "failed" }));
+      const lifted = ask(rel);
+      if (lifted.verdict === "allow") ok("once the order is answered the census write is allowed again");
+      else fail(`after the evaluate order was answered the census write resolved ${lifted.verdict}/${lifted.rule}`);
+    }
   } finally {
     rmSync(ws, { recursive: true, force: true });
   }
@@ -78,7 +105,7 @@ export async function run(ctx) {
   else fail(`GATE L4 has ${l4Sites} call site(s) — a ship decision with no ledger row`);
   if (/hammer-census\.json/.test(src) && !/\.shapeup\/<slug>\/reports/.test(src)) ok("every hammer dispatch is told to write the census artifact, by a path relative to the order's substrate");
   else fail("the hammer brief does not name the census artifact, or names it by a hardcoded storage root");
-  const skill = readFileSync(join(ROOT, "skills/scope-hammer/SKILL.md"), "utf8");
-  if (/hammer-census\.json/.test(skill) && /HammerCensus/.test(skill)) ok("scope-hammer's contract documents the census artifact and its schema name");
-  else fail("scope-hammer's SKILL.md does not document the census artifact");
+  const skill = readFileSync(join(ROOT, "skills/building/resources/stop.md"), "utf8");
+  if (/hammer-census\.json/.test(skill) && /HammerCensus/.test(skill)) ok("the stop resource documents the census artifact and its schema name");
+  else fail("skills/building/resources/stop.md does not document the census artifact");
 }

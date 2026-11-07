@@ -2,22 +2,18 @@
 
 [← Back to index](README.md)
 
-## 4.1 — The eleven skills
+## 4.1 — The eight skills
 
 | Skill | Role | Behavior |
 |---|---|---|
 | `shapeup` | Shaper | Set boundaries, breadboard, spike risk, write the pitch (Shape Up steps 1–4). |
-| `translator` | Intake gate | Normalizes non-English intake to faithful English before anything downstream runs; every other skill HARD-FAILs on non-English input. |
 | `orient` | Scout | Builder-led recon (step 7): reads the real code, spikes the single riskiest area, emits a code-surface map *before any board exists*, so the board is reality-born. |
-| `building` | Loop | Drives a run in the session over the kernel's `probe next`: opens the run, does the one step the kernel names, crosses each gate with the PO, closes. Its `plan` activity is the whole of planning, done in the loop's own context with no sub-agent — requirements registry → linked DDD spec tree + board (BDD scenarios, a system flow, a derived Test Surface) → the committed wiring map at GATE L1a.5 (per use case: engine → seam → entry-point call site → affordance, resolved against `project-profile.md`) → write-whitelisted scope contracts — under a fence-only `plan` order per substep that the kernel answers from the files it finds. |
+| `building` | Loop | Drives a run in the session over the kernel's `probe next`: opens the run, does the one step the kernel names, crosses each gate with the PO, closes. Its `plan` activity is the whole of planning, done in the loop's own context with no sub-agent — requirements registry → linked DDD spec tree + board (BDD scenarios, a system flow, a derived Test Surface) → the committed wiring map at GATE L1a.5 (per use case: engine → seam → entry-point call site → affordance, resolved against `project-profile.md`) → write-whitelisted scope contracts — under a fence-only `plan` order per substep that the kernel answers from the files it finds. The same loop does three more acts itself, as sub-commands: **intake** (a non-English pitch becomes a faithful English `<name>.en.md` plus a glossary, verified before the run opens on it — every downstream step HARD-FAILs on non-English input), **stop** (GATE H: must-have census, every claim citing a kernel probe → baseline comparison, never against a perfect ideal → cut list + ship verdict, written as data GATE L4 reads; proposes only, a human promotes or ships) and **retro** (turns PO feedback at ship sign-off — or, with `--scan`, the project on disk, or with `--research`, the platform's official documentation, a source and never a verification — into knowledge-base rules filed by reader after asking the PO to categorize each one, never assumed: `task-executor`, `orient`, `qa-edge-hunter`, `plan` and `building` guidance. Guidance never decides a gate). |
 | `task-executor` | Generator | Implements a WorkOrder's acceptance criteria exactly. Zero-memory (each attempt is a fresh subagent), substrate-sandboxed, never writes boards or ledgers. |
 | `spec-evaluator` | Single judge | Verifies the running app against the committed spec. Skeptical by default; requires a T0 artifact citation on scoped specs; verdict returns as data, never edits anything. |
 | `qa-edge-hunter` | Explorer | Post-PASS exploratory hunt through six fixed lenses, outside what the evaluator already probed. Findings go to the ledger as `~`; never blocks ship, never issues a verdict. |
-| `scope-hammer` | Ship arbiter | GATE H: must-have census → baseline comparison (never against a perfect ideal) → cut list + ship verdict. Proposes only; a human promotes or ships. |
-| `coach` | RLHF loop | Turns PO feedback at ship sign-off (or, with `scan`, the project on disk; or, with `research`, the platform's official documentation — a source, never a verification) into knowledge-base rules, filed by skill after asking the PO to categorize each one — never assumed. Seven categories: six coachable workers plus `tech-lead` workflow guidance. Guidance never decides a gate. |
 | `hill-chart` | Dashboard | Renders the committed hill shards and the local run graph as one dashboard; invoked directly, not a pipeline worker. |
 | `tech-lead` | Orchestrator | Sequences all of the above through GATE L0–L4, owns the round loop, and is the sole writer of run-state. |
-| `hill-chart` | Dashboard | Not a pipeline worker — invoked directly, like `shapeup`. Renders a portfolio + per-pitch Hill Chart from committed hill shards (`shapeup/<slug>/hill/*.yml`) and the local run graph; read-only, never dispatched. |
 
 ## 4.2 — The build round, in detail
 
@@ -91,7 +87,7 @@ L1a.5 is a traceability-spine gate ✚ — present only when the spine artifacts
 ```
 ⏸ GATE L0 — Intake & Run Config
 Feature      : [slug]   (kicked-off pitch: [path] + its breadboard, when it has one)
-Intake lang  : [English | translated via /translator]
+Intake lang  : [English | translated by the loop → <name>.en.md]
 Appetite     : [~1 week | ~2 weeks | ~6 weeks | ⚠ missing]
 Spec folder  : [path]   (lens: [lite|standard])
 Model matrix : orch=[model] exec=[model] eval=[model] qa=[model]
@@ -164,7 +160,7 @@ no matter what the auto level is.
 | 2 | Run mode = `--auto` | Sub-skills run unattended internally, but the tech-lead still pauses at **L1a, L1b, L3, L4** per its own GATE L0.7 definition and the Flags table. |
 | 3 | Max-rounds exhausted (outer breaker) with FAIL | `r+1 > max_rounds` → hard stop, escalate to the PO with the residual bug list. Fires even under `--unattended` — one of only three conditions that mode stops for. |
 | 4 | Discovered tasks reconciled mid-BUILD | Any `discoveries[]` folded into new board tasks routes back to **GATE L1b** for PO approval before BUILD resumes. |
-| 5 | GATE H verdict = CANNOT SHIP | A must-have item fails scope-hammer's H1.2 → do not proceed to SHIP; escalate to the PO honestly, same spirit as a max-rounds stop. |
+| 5 | GATE H verdict = CANNOT SHIP | A must-have item fails the census's baseline comparison → do not proceed to SHIP; escalate to the PO honestly, same spirit as a max-rounds stop. |
 | 6 | Hard error | A sub-skill fails irrecoverably (spec folder gone, app won't build) → stop and report; never retry blindly. Mode-independent. |
 | 7 | Deploy authorization (standing invariant) | Even after a PASS ship, S.5 never auto-deploys. "PO says yes → deploy … otherwise → record deploy pending (PO)." Never becomes closed-loop, in any mode. |
 | 8 | User halt | In any mode where gates are live, the PO may stop at any L-gate; state is preserved for `--from` resume. |

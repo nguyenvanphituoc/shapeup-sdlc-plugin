@@ -17,7 +17,7 @@
 //       red, and leaves a round with no gate artifact exactly as before.
 //   (f) `harness probe owner` elects an owner from the contracts and reports an unowned seam.
 //   (g) The workflow runs the gate before L2 and never dispatches EVAL over a red one; the
-//       scope-hammer skill cites the probe for ownership claims.
+//       stop step's census cites the probe for ownership claims.
 
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync, existsSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
@@ -313,9 +313,9 @@ export async function run(ctx) {
     else fail(`gate ordering in shapeup-run.js: gate@${gateAt} L2@${l2At} eval@${evalAt}`);
     if (/build_gate:\s*buildGate/.test(wf) && /buildGate === "red"/.test(wf) && wf.indexOf('buildGate === "red"') < evalAt) ok("the L2/L3 blocks carry build_gate and a red gate is checked before the evaluator is dispatched");
     else fail("the workflow does not branch on a red build gate before EVAL");
-    const hammer = readFileSync(join(ROOT, "skills/scope-hammer/SKILL.md"), "utf8");
-    if (/probe owner/.test(hammer) && /H0\.0/.test(hammer)) ok("scope-hammer's census rule H0.0 cites `probe owner` for every ownership claim");
-    else fail("scope-hammer SKILL.md does not require `probe owner` for ownership claims");
+    const stopDoc = readFileSync(join(ROOT, "skills/building/resources/stop.md"), "utf8");
+    if (/probes\.owner/.test(stopDoc) && /derived/i.test(stopDoc) && /never remembered/.test(stopDoc)) ok("the stop step's census rule cites `probes.owner` for every ownership claim, derived and never remembered");
+    else fail("skills/building/resources/stop.md does not require the owner probe for ownership claims");
     const schema = JSON.parse(readFileSync(join(ROOT, "kernel/schemas/domain.schema.json"), "utf8"));
     const pp = schema.$defs.ProjectProfile.properties;
     if (pp.build_probe && pp.launch_probe && schema.$defs.RoundBuildVerdict) ok("the domain registry types build_probe, launch_probe and RoundBuildVerdict");

@@ -56,7 +56,7 @@ try {
   }
 
   // The census, or its deliberate absence. `no-census` writes nothing at all — the consumer's own
-  // state, where scope-hammer never ran.
+  // state, where the stop census never ran. (The WorkResult form below is the legacy source `censusVerdict` still reads; the census artifact itself is covered by the gate-H module.)
   if (mode !== "no-census") {
     const verdict = mode === "cannot-ship" ? "cannot-ship" : "ship-now";
     w(join(ws, ".shapeup", SLUG, "results", "hammer.json"), JSON.stringify({

@@ -40,6 +40,7 @@ import { tasksDir, localRoot, dispatchReceipts, legLedger, readRunId, qaDir } fr
 import { citationProblem, coverageProblem, dimensionsProblem, tracesProblem, verdictProblem } from "../probe/eval.mjs";
 import { huntProblem } from "../probe/hunt.mjs";
 import { planOrderFacts, planArtifacts, planStepSatisfied, planProduces } from "../lib/plan.mjs";
+import { closeCensus } from "../lib/census.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const RESULT_SCHEMA = JSON.parse(readFileSync(resolve(HERE, "../schemas/work-result.schema.json"), "utf8"));
@@ -422,7 +423,7 @@ function applyResultLocked(result, { cwd, slug }) {
 // ---------------------------------------------------------------------------
 /** The typed argv contract (see `./lib/argv.mjs`). */
 export const ARGV_SPEC = {
-  usage: "harness.mjs reduce ingest (<result.json> | --order <order.json> [--close-plan]) [--cwd <dir>] [--no-receipt-check] [--tokens-in N] [--tokens-out N] [--tokens-total N] [--cost-usd X] [--usage-source <name>]",
+  usage: "harness.mjs reduce ingest (<result.json> | --order <order.json> [--close-plan] | --close-census --slug <slug>) [--cwd <dir>] [--no-receipt-check] [--tokens-in N] [--tokens-out N] [--tokens-total N] [--cost-usd X] [--usage-source <name>]",
   _: { arity: 0, max: 1, name: "result.json" },
   order: { type: "path" },
   cwd: { type: "path" },
@@ -433,6 +434,10 @@ export const ARGV_SPEC = {
   // Close a fence-only `plan` order: write the WorkResult that answers it, then apply it like any
   // other. See `closePlanOrder`.
   "close-plan": { type: "flag" },
+  // Close the stop step: read the census file the loop wrote and record a refusal when it is not a
+  // valid census. There is no order and no WorkResult — see `lib/census.mjs`.
+  "close-census": { type: "flag" },
+  slug: { type: "str" },
   // What the host reported the dispatched leg to have used, when the dispatching session was told.
   // Recorded on the leg row; absent means "not reported", and a figure is never inferred.
   "tokens-in": { type: "int", min: 0 },
@@ -558,7 +563,7 @@ const ROUND_SUFFIX = /^(.*?)-r(\d+)(?:-a(\d+))?$/;
  *
  * @param {string} orderId - e.g. `todo-cli/foundation-r2-a1`.
  * @returns {{name:(string|null), round:(number|null), attempt:(number|null)}} Nulls for a phase
- *   order that carries no round (`orient`, `wire`, `hammer`).
+ *   order that carries no round (`orient`, `plan-*`).
  */
 export function addressOf(orderId) {
   const suffix = String(orderId ?? "").split("/").slice(1).join("/");
@@ -710,6 +715,15 @@ export function closePlanOrder(order, orderPath, cwd) {
  */
 export async function cli(rawArgv) {
   const args = runArgs(ARGV_SPEC, rawArgv);
+  if (args.closeCensus) {
+    if (!args.slug) { console.error("  ✗ --close-census names the run: pass --slug <slug>"); process.exit(2); }
+    const c = closeCensus(resolve(args.cwd || process.cwd()), args.slug);
+    if (c.ok) { console.log(`  ✓ the census is valid (verdict ${c.verdict})`); process.exit(0); }
+    console.error(c.state === "absent"
+      ? `  ✗ ${c.reason}`
+      : `  ✗ the census is refused: ${c.reason} — correct the file and close again (the step is sent back once; a second refusal stops the run)`);
+    process.exit(1);
+  }
   if (args.closePlan) {
     let planOrder = null;
     try { planOrder = args.order ? JSON.parse(readFileSync(resolve(args.order), "utf8")) : null; } catch { /* reported below */ }

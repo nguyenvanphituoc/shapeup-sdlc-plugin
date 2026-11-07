@@ -93,7 +93,7 @@ export const PRESETS = {
       "L2": { decision: "proceed", note: CI_NOTE },
       "L3": { decision: "loop", max_rounds: 3, note: "FAIL → fix round r+1, up to the run's max_rounds. The circuit breaker, not this file, ends the loop." },
       "QA": { decision: "run", note: "QA is a level-up, not a gate — it discovers, it cannot block." },
-      "H": { decision: "accept-cut-list", note: "Scope-hammer's cut list is accepted as proposed; baseline comparison still runs and is still recorded." },
+      "H": { decision: "accept-cut-list", note: "The census's cut list is accepted as proposed; baseline comparison still runs and is still recorded." },
       "L4": { decision: "ship", note: "Ship sign-off pre-approved. THIS is the one a reviewer should look at first when auditing a headless run." },
       "COACH-1": { decision: "skip", note: "No live PO to categorize feedback; retro rules are not filed from an unattended run." },
     },
@@ -169,17 +169,16 @@ export function validate(set) {
  * Returns { gate, decision, source, note, status } where status ∈ ok | ask | abort.
  * Pure: the CLI turns `status` into the exit code, nothing here exits.
  */
-/** The three verdicts `scope-hammer` may return (shapeup-run.js's HAMMER schema). */
+/** The three verdicts the stop census may carry (`HammerCensus.verdict` in the domain registry). */
 export const HAMMER_VERDICTS = ["ship-now", "ship-after-fixes", "cannot-ship"];
 
 /**
  * The census verdict on disk for one run, or null when no census has run.
  *
- * Derived from the hammer's own WorkResult rather than taken from a caller: the verdict is the
- * product of a dispatch, and a gate that accepts it as an argument accepts whatever the caller
- * believes. `null` is a real answer here — "scope-hammer has not run" — and is the state a run that
- * returned `gate_h` from a circuit breaker is in, because the breaker returns long before the
- * hammer is dispatched.
+ * Derived from the census file the stop step wrote rather than taken from a caller: the verdict is the
+ * product of a step, and a gate that accepts it as an argument accepts whatever the caller
+ * believes. `null` is a real answer here — "the census has not run" — and is the state a run that
+ * routed to GATE H from a circuit breaker is in, until the stop step has written one.
  *
  * @param {string} cwd - Project root.
  * @param {string} slug - Feature slug.
@@ -187,9 +186,9 @@ export const HAMMER_VERDICTS = ["ship-now", "ship-after-fixes", "cannot-ship"];
  */
 export function censusVerdict(cwd, slug) {
   if (!slug) return null;
-  // The census artifact — written by the hammer at a path its order's substrate permits. The
-  // WorkResult fallback below is kept for a lane that wrote one the old way; a WorkResult may not
-  // carry a verdict under the schema, so in practice the artifact is the only source.
+  // The census artifact — written by the stop step. The WorkResult fallback below is kept for a lane
+  // that wrote one the old way; a WorkResult may not carry a verdict under the schema, so in practice
+  // the artifact is the only source.
   try {
     const c = hammerCensus(cwd, slug);
     if (existsSync(c)) {
@@ -215,10 +214,10 @@ export function censusVerdict(cwd, slug) {
  * census cleared the run, so `ship` is only on the menu when a census exists and did clear it.
  *
  * Measured on a consumer: a run whose dispatch receipts carried `orient` and `task-executor` and
- * nothing else — `scope-hammer` never dispatched — recorded `H → accept-cut-list` and `L4 → ship`
+ * nothing else — no census was ever written — recorded `H → accept-cut-list` and `L4 → ship`
  * from the `ci` preset, while its own ledger read `status: escalated`, `final_verdict: ~`, every
- * requirement at `no evidence`. `shapeup-run.js` does guard this, but only after the hammer
- * dispatch, so a run that returns `gate_h` from a breaker reaches L4 by a route the guard does not
+ * requirement at `no evidence`. The run script did guard this, but only after the census
+ * step, so a run that returns `gate_h` from a breaker reaches L4 by a route the guard does not
  * cover. A check on one call site is not a property.
  *
  * Absence of a census disqualifies `ship` on its own: "no one looked" and "someone looked and it
@@ -254,8 +253,8 @@ export function narrowToEvidence(r, cwd, slug) {
   const verdict = censusVerdict(cwd, slug);
   if (verdict === "ship-now" || verdict === "ship-after-fixes") return r;
   const why = verdict === "cannot-ship"
-    ? "scope-hammer's census returned CANNOT SHIP"
-    : "scope-hammer has not run, so no census exists";
+    ? "the census returned CANNOT SHIP"
+    : "the census has not been written, so none exists";
   return {
     gate: r.gate, status: "ask", source: r.source, decision: "ask", note: r.note,
     refused: "ship", census: verdict,

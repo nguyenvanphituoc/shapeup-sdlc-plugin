@@ -957,13 +957,15 @@ export async function run(ctx) {
   // taking the generic form for an operation the table cannot resolve — that exits 2 before the
   // dispatch, and the leg's only route out is prose telling it something different.
   const { OP_OWNER } = await import(join(ROOT, "kernel/compile.mjs"));
-  // THE FIVE PLANNING LEGS THIS SCRIPT STILL DISPATCHES ARE DEAD, AND THAT IS STATED HERE, NOT HIDDEN.
+  // THE LEGS THIS SCRIPT STILL DISPATCHES THAT ARE DEAD ARE NAMED HERE, NOT HIDDEN.
   // Planning was folded into the loop's own `plan` activity (a fence-only order, no sub-agent), so the
   // operations coverage, analyze, board, wire and map-scopes — and the three planner skills they were
-  // addressed to — no longer exist. This Workflow script is the lane the single-loop plan retires; until it
-  // goes, its planning legs exit 2 at their step-1 compile and the script cannot plan (`--tiny` too). They
-  // are named below so the exemption is exactly their size: any OTHER unresolvable operation still fails.
-  const RETIRED_BY_PLAN_FOLD = new Set(["coverage", "analyze", "board", "wire", "map-scopes"]);
+  // addressed to — no longer exist; the stop census was folded in the same way, so the `hammer` operation
+  // and the skill behind it are gone too (retro and intake never had a dispatch in this script). This
+  // Workflow script is the lane the single-loop plan retires (A5); until it goes, those legs exit 2 at
+  // their step-1 compile and the script cannot plan or take its census (`--tiny` too). They are named
+  // below so the exemption is exactly their size: any OTHER unresolvable operation still fails.
+  const RETIRED_BY_PLAN_FOLD = new Set(["coverage", "analyze", "board", "wire", "map-scopes", "hammer"]);
   for (const f of files) {
     const src = readFileSync(join(abs, f), "utf8");
     if (!/compile --operation \$\{operation\}/.test(src)) continue;   // no generic-leg shape here

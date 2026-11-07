@@ -241,7 +241,7 @@ export async function run(ctx) {
     row("a green T0 with no WorkResult envelope is red, not green (the scope is released again)", (ws) => { planned(ws); t0(ws, "alpha", 1); buildOrder(ws, "alpha", 1, {}); },
       (s) => is("wait")(s) || is("build")(s));
     row("a scope that answered red and is the only scope trips the nothing-green breaker", (ws) => { planned(ws); buildOrder(ws, "alpha", 1, { result: { green: false }, applied: true }); },
-      (s) => is("dispatch", "stop.census")(s) && /breaker \(none\)|breaker \(attempt_budget\)/.test(s.reason) && JSON.parse(s.compile.split("--payload ")[1].slice(1, -1)).breaker !== undefined);
+      (s) => is("stop", "stop.census")(s) && /breaker \(none\)|breaker \(attempt_budget\)/.test(s.reason) && s.inputs.breaker !== null && s.inputs.hammer_proposals.includes("alpha"));
     row("a settled green round runs its build gate once, late-ingesting an unapplied green result first", (ws) => {
       planned(ws); declareRun(ws); buildOrder(ws, "alpha", 1, { result: { green: true } }); t0(ws, "alpha", 1);
     }, (s) => is("command", "build.r1.gate")(s) && s.command.includes("verify build --slug demo --round 1") && s.pre.some((p) => /reduce ingest/.test(p.command)));
@@ -280,14 +280,14 @@ export async function run(ctx) {
       (s) => is("build", "build.r2")(s) && /FIX ROUND/.test(s.release[0].note) && s.release[0].compile.includes("--round 2"));
     row("a FAIL answered stop goes to the census as an outer breaker — the answer is honoured on a fresh session", (ws) => {
       planned(ws); roundGreen(ws); gate(ws, "L2", { round: 1 }); gate(ws, "L3", { round: 1, decision: "stop", verdict: "fail" });
-    }, (s) => is("dispatch", "stop.census")(s) && /outer/.test(s.reason));
+    }, (s) => is("stop", "stop.census")(s) && /outer/.test(s.reason));
     row("a FAIL in the last round of the budget goes to the census as an outer breaker", (ws) => {
       planned(ws); gate(ws, "L3", { round: 1, decision: "loop", verdict: "fail" }); gate(ws, "L3", { round: 2, decision: "loop", verdict: "fail" });
-    }, (s) => is("dispatch", "stop.census")(s) && /outer/.test(s.reason));
+    }, (s) => is("stop", "stop.census")(s) && /outer/.test(s.reason));
     row("a spent wall-clock budget routes to the census before a round opens", (ws) => {
       planned(ws);
       const f = local(ws, "receipt.json"); const r = JSON.parse(readFileSync(f, "utf8")); r.started_at = "2020-01-01T00:00:00.000Z"; r.config = { ...(r.config || {}), wall_clock_budget_s: 60 }; json(f, r);
-    }, (s) => is("dispatch", "stop.census")(s) && /deadline/.test(s.reason));
+    }, (s) => is("stop", "stop.census")(s) && /deadline/.test(s.reason));
 
     // ---- QA, census, ship ---------------------------------------------------------------------------
     const passed = (ws) => { planned(ws); roundGreen(ws); gate(ws, "L2", { round: 1 }); passResult(ws); gate(ws, "L3", { round: 1, decision: "loop", verdict: "pass" }); };
@@ -299,14 +299,57 @@ export async function run(ctx) {
       order(ws, "hunt", { receipts: 1, body: { payload: { app_url: "http://localhost:1" } }, result: { status: "done" }, applied: true });
     }, (s) => is("dispatch", "qa.hunt")(s) && /Your previous result was refused/.test(s.note));
     row("QA answered skip goes to the census with no hunt", (ws) => { passed(ws); gate(ws, "QA", { round: 1, decision: "skip", verdict: "pass" }); },
-      (s) => is("dispatch", "stop.census")(s) && JSON.parse(s.compile.split("--payload ")[1].slice(1, -1)).qa_findings === 0);
+      (s) => is("stop", "stop.census")(s) && s.inputs.qa_findings === 0 && s.inputs.breaker === null);
     row("--no-qa skips the hunt even when the gate says run", (ws) => {
       passed(ws); gate(ws, "QA", { round: 1, decision: "run", verdict: "pass" });
       const f = local(ws, "run-args.json"); const a = JSON.parse(readFileSync(f, "utf8")); a.noQa = true; json(f, a);
-    }, is("dispatch", "stop.census"));
+    }, is("stop", "stop.census"));
     const reached = (ws) => { passed(ws); gate(ws, "QA", { round: 1, decision: "skip", verdict: "pass" }); };
-    row("a census that is on disk is not dispatched again — a relaunch after GATE H does not re-run the hammer", (ws) => { reached(ws); census(ws, {}); },
+    const reachedStop = reached;
+    row("a census that is on disk is not asked for again — a relaunch after GATE H does not redo the census", (ws) => { reached(ws); census(ws, {}); },
       (s) => is("gate", "gate.H")(s) && s.command.includes("--verdict ship-now"));
+    // THE STOP STEP IS AN ACTIVITY, NOT A DISPATCH. Its step names the resource, the probes every claim cites,
+    // and the file it is done on; nothing is compiled and no sub-agent is told anything.
+    row("the stop step is an activity: it names the resource, the three probe commands (one per proposal scope for attempts), the census file and its required fields, and dispatches nothing", (ws) => {
+      planned(ws); buildOrder(ws, "alpha", 1, { result: { green: false }, applied: true });
+    }, (s) => is("stop", "stop.census")(s) && s.resource === "resources/stop.md" && s.section === "Census" && !("compile" in s) && !("skill" in s)
+      && s.produces.path === ".shapeup/demo/reports/hammer-census.json" && ["schema_version", "verdict", "cut_list"].every((f) => s.produces.required.includes(f))
+      && JSON.stringify(s.produces.verdicts) === JSON.stringify(["ship-now", "ship-after-fixes", "cannot-ship"])
+      && [s.probes.owner, s.probes.requirements, ...s.probes.attempts.map((a) => a.command), s.close].every((c) => !c.includes("\n") && c.startsWith(`node "${KERNEL}"`))
+      && s.probes.owner.includes("probe owner --slug demo") && s.probes.requirements.includes("probe requirements --slug demo")
+      && s.probes.attempts.length === 1 && s.probes.attempts[0].scope === "alpha" && /probe attempts --slug demo --scope alpha --round 1 --attempt-budget 3$/.test(s.probes.attempts[0].command)
+      && s.close.endsWith("reduce ingest --close-census --slug demo") && s.pre.length === 0);
+    row("with no scope in proposal the stop step hands out no attempts probe (nothing to cite)", reachedStop, (s) => is("stop", "stop.census")(s) && s.probes.attempts.length === 0 && s.inputs.green_scopes.includes("alpha"));
+    row("a census that is on disk but not a census (a verdict outside the three) is refused: the step comes back once, with the reason, and records the refusal first", (ws) => {
+      reachedStop(ws); census(ws, { verdict: "maybe" });
+    }, (s) => is("stop", "stop.census")(s) && /Your previous census was refused/.test(s.note) && /verdict/.test(s.note) && /sent back once/.test(s.reason)
+      && s.pre.length === 1 && s.pre[0].advisory === true && s.pre[0].command.endsWith("--close-census --slug demo"));
+    row("a census with no cut_list is refused by shape, even though its verdict is one the gate would read", (ws) => {
+      reachedStop(ws); json(local(ws, "reports", "hammer-census.json"), { schema_version: 1, verdict: "ship-now" });
+    }, (s) => is("stop", "stop.census")(s) && /cut_list/.test(s.note));
+    row("a census that is not JSON is refused with that reason", (ws) => { reachedStop(ws); put(local(ws, "reports", "hammer-census.json"), "ship it\n"); },
+      (s) => is("stop", "stop.census")(s) && /not readable JSON/.test(s.note));
+    row("a census with a wrong schema_version is refused", (ws) => { reachedStop(ws); census(ws, { schema_version: 2 }); },
+      (s) => is("stop", "stop.census")(s) && /schema_version/.test(s.note));
+    row("the same refused census asked again is the same send-back, not a second refusal (the file's hash is the key)", (ws) => {
+      reachedStop(ws); census(ws, { verdict: "maybe" });
+      const text = readFileSync(local(ws, "reports", "hammer-census.json"), "utf8");
+      append(local(ws, "reports", "census-refusals.jsonl"), JSON.stringify({ at: new Date().toISOString(), run_id: RUN_ID, sha256: createHash("sha256").update(text).digest("hex"), reason: "r" }) + "\n");
+    }, (s) => is("stop", "stop.census")(s) && s.pre.length === 0 && /sent back once/.test(s.reason));
+    row("a second, different invalid census after one recorded refusal stops the run with the real reason", (ws) => {
+      reachedStop(ws); census(ws, { verdict: "maybe" });
+      append(local(ws, "reports", "census-refusals.jsonl"), JSON.stringify({ at: new Date().toISOString(), run_id: RUN_ID, sha256: "0".repeat(64), reason: "the first one" }) + "\n");
+    }, (s) => is("terminal", "abort.H")(s) && /refused twice/.test(s.reason) && /verdict/.test(s.reason));
+    row("a refusal recorded in another run does not count against this one", (ws) => {
+      reachedStop(ws); census(ws, { verdict: "maybe" });
+      append(local(ws, "reports", "census-refusals.jsonl"), JSON.stringify({ at: new Date().toISOString(), run_id: "other-20200101T000000Z-deadbeef", sha256: "0".repeat(64), reason: "an old run" }) + "\n");
+    }, (s) => is("stop", "stop.census")(s));
+    row("a refused census that was then removed is asked for again, and the note says why the last one was refused", (ws) => {
+      reachedStop(ws);
+      append(local(ws, "reports", "census-refusals.jsonl"), JSON.stringify({ at: new Date().toISOString(), run_id: RUN_ID, sha256: "0".repeat(64), reason: "cut_list must be an array" }) + "\n");
+    }, (s) => is("stop", "stop.census")(s) && /cut_list must be an array/.test(s.note));
+    row("a valid census with extra fields and a null baseline is accepted — the shape names what is required, not everything", (ws) => { reachedStop(ws); census(ws, { ship_blocking: [], breaker: null, baseline: null, extra: 1 }); },
+      (s) => is("gate", "gate.H")(s));
     row("cannot-ship on the main path aborts at H before the gate is shown", (ws) => { reached(ws); census(ws, { verdict: "cannot-ship", cut_list: ["a must-have failed"] }); },
       (s) => is("terminal", "abort.H")(s) && /CANNOT SHIP/.test(s.reason));
     row("cannot-ship after a breaker crosses H first, then escalates naming the census", (ws) => {
@@ -368,6 +411,76 @@ export async function run(ctx) {
       try { good = Boolean(c.expect(step)); } catch { good = false; }
       if (good) ok(`next: ${c.name}`);
       else fail(`next: ${c.name} — got ${JSON.stringify(step).slice(0, 360)}`);
+    }
+
+    // ---- the census refusal, driven through the real kernel -----------------------------------------
+    // The rows above plant the refusal ledger by hand; this drives the three acts for real, because the
+    // count that makes "sent back once" true is one the KERNEL writes (`reduce ingest --close-census`), and a
+    // planted row proves nothing about whether the writer writes it.
+    {
+      const ws2 = fresh(); reached(ws2);
+      const censusPath = local(ws2, "reports", "hammer-census.json");
+      const closeCensus = () => sh("reduce ingest", ["--close-census", "--slug", SLUG, "--cwd", ws2]);
+      const rows = () => { try { return readFileSync(local(ws2, "reports", "census-refusals.jsonl"), "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l)); } catch { return []; } };
+      const c0 = closeCensus();
+      if (c0.status === 1 && /no census on disk/.test(c0.stderr) && rows().length === 0) ok("census: closing with no file is exit 1 and records nothing — a missing census is not a refusal");
+      else fail(`census: closing over no file exited ${c0.status}, rows ${rows().length}: ${c0.stderr}`);
+      json(censusPath, { schema_version: 1, verdict: "maybe", cut_list: [] });
+      const c1 = closeCensus();
+      if (c1.status === 1 && /refused/.test(c1.stderr) && rows().length === 1 && rows()[0].run_id === RUN_ID) ok("census: closing over an invalid census exits 1, names the reason and records one refusal carrying the run key");
+      else fail(`census: invalid close exited ${c1.status}, rows ${JSON.stringify(rows())}: ${c1.stderr}`);
+      closeCensus();
+      if (rows().length === 1) ok("census: closing the same refused file again records nothing new");
+      else fail(`census: the same file was recorded ${rows().length} times`);
+      const afterOne = next(ws2);
+      if (is("stop", "stop.census")(afterOne) && /sent back once/.test(afterOne.reason) && afterOne.pre.length === 0) ok("census: after one recorded refusal the step comes back with the reason and no second recording");
+      else fail(`census: after one refusal got ${JSON.stringify(afterOne).slice(0, 300)}`);
+      json(censusPath, { schema_version: 1, verdict: "ship-now", cut_list: ["x"], ship_blocking: [], breaker: null, baseline: null });
+      const c2 = closeCensus();
+      const afterFix = next(ws2);
+      if (c2.status === 0 && is("gate", "gate.H")(afterFix) && afterFix.command.includes("--verdict ship-now")) ok("census: a valid census after one send-back closes exit 0 and the run goes on to GATE H");
+      else fail(`census: valid-after-refusal exited ${c2.status}, next ${JSON.stringify(afterFix).slice(0, 200)}`);
+
+      // …and the second refusal stops the run, whichever way it arrives.
+      const ws3 = fresh(); reached(ws3);
+      const cp3 = local(ws3, "reports", "hammer-census.json");
+      const close3 = () => sh("reduce ingest", ["--close-census", "--slug", SLUG, "--cwd", ws3]);
+      json(cp3, { schema_version: 1, verdict: "maybe", cut_list: [] }); close3();
+      json(cp3, { schema_version: 1, verdict: "perhaps", cut_list: [] });
+      const unclosed = next(ws3);      // the loop rewrote it and did not close: the kernel judges it itself
+      if (is("terminal", "abort.H")(unclosed) && /refused twice/.test(unclosed.reason) && /perhaps/.test(unclosed.reason)) ok("census: a second, different invalid census stops the run with the real reason — even if the loop never ran the close");
+      else fail(`census: a second invalid census got ${JSON.stringify(unclosed).slice(0, 300)}`);
+      close3();
+      if (is("terminal", "abort.H")(next(ws3))) ok("census: …and the same once the close has recorded it");
+      else fail("census: a recorded second refusal did not stop the run");
+      const gone = next(ws3);
+      if (/refused twice/.test(gone.reason ?? "")) ok("census: the abort names both the count and the reason");
+      else fail(`census: abort reason ${gone.reason}`);
+    }
+
+    // ---- the retro's gate is a command the shipped step hands out ---------------------------------------
+    {
+      const shipped = (ws, answers = null) => {
+        reached(ws); census(ws, {}); gate(ws, "H", { decision: "accept-cut-list" }); gate(ws, "L4", { decision: "ship" });
+        if (answers) { const f = local(ws, "run-args.json"); const a = JSON.parse(readFileSync(f, "utf8")); a.answers = answers; json(f, a); }
+        return next(ws);
+      };
+      const wsA = fresh(), wsB = fresh();
+      const sA = shipped(wsA, "ci"), sB = shipped(wsB);
+      if (is("terminal", "terminal.shipped")(sA) && sA.retro?.resource === "resources/retro.md" && /gate --resolve COACH-1 --slug demo --preset ci$/.test(sA.retro.gate) && sA.retro.gate.startsWith(`node "${KERNEL}"`)) ok("retro: the shipped step carries the COACH-1 gate command, with the run's own answer set, by absolute kernel path");
+      else fail(`retro: shipped step ${JSON.stringify(sA).slice(0, 300)}`);
+      const runGate = (ws, cmd) => spawnSync(cmd, { shell: true, cwd: ws, encoding: "utf8" }).status;
+      const ledgerRows = (ws) => { try { return readFileSync(local(ws, "gates.jsonl"), "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l)); } catch { return []; } };
+      const exitA = runGate(wsA, `${sA.retro.gate} --cwd ${wsA}`);
+      const rowA = ledgerRows(wsA).find((r) => r.gate === "COACH-1");
+      if (exitA === 0 && rowA?.decision === "skip" && /preset:ci/.test(rowA.source)) ok("retro: in a ci run that command resolves skip (exit 0) and ledgers it — an unattended lane files nothing and asks nobody");
+      else fail(`retro: ci COACH-1 exit ${exitA}, row ${JSON.stringify(rowA)}`);
+      if (is("terminal", "terminal.shipped")(sB) && /--preset interactive$/.test(sB.retro.gate)) ok("retro: a run with no answer set resolves COACH-1 through the interactive preset");
+      else fail(`retro: no-answers shipped step carried ${sB.retro?.gate}`);
+      const exitB = runGate(wsB, `${sB.retro.gate} --cwd ${wsB}`);
+      const rowB = ledgerRows(wsB).find((r) => r.gate === "COACH-1");
+      if (exitB === 4 && rowB?.decision === "ask" && rowB?.status === "ask") ok("retro: interactively it resolves ask (exit 4) and ledgers it — the categorization conversation is the answer");
+      else fail(`retro: interactive COACH-1 exit ${exitB}, row ${JSON.stringify(rowB)}`);
     }
 
     // ---- statelessness: the verb is read-only and repeatable --------------------------------------

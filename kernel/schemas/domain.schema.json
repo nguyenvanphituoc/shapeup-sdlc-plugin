@@ -361,20 +361,6 @@
       "ledger",
       "kb_rules_path"
     ],
-    "translator": [
-      "intake",
-      "glossary"
-    ],
-    "scope-hammer": [
-      "feature",
-      "baseline",
-      "breaker",
-      "scope_id"
-    ],
-    "coach": [
-      "feedback",
-      "stack"
-    ],
     "building": [
       "feature",
       "spec_folder",
@@ -413,24 +399,6 @@
       "assumptions",
       "deviations"
     ],
-    "translator": [
-      "files_touched",
-      "artifacts",
-      "assumptions",
-      "deviations"
-    ],
-    "scope-hammer": [
-      "files_touched",
-      "artifacts",
-      "assumptions",
-      "deviations"
-    ],
-    "coach": [
-      "files_touched",
-      "artifacts",
-      "assumptions",
-      "deviations"
-    ],
     "building": [
       "artifacts",
       "deviations"
@@ -444,14 +412,11 @@
         "task-executor",
         "spec-evaluator",
         "orient",
-        "qa-edge-hunter",
-        "translator",
-        "scope-hammer",
-        "coach"
+        "qa-edge-hunter"
       ]
     },
     "Operation": {
-      "description": "The full operation vocabulary. Replaces lifecycle flags (--tasks-only, --from-discovered, --map-scopes …): the caller knows the pipeline position; the worker never re-derives it. Ownership: execute/fix/spike = task-executor · plan = the loop itself, a fence-only order no sub-agent answers (one per planning substep: requirements, spec, wire, scopes) · evaluate = spec-evaluator · orient = orient · hunt = qa-edge-hunter · translate = translator · hammer = scope-hammer · coach/scan/research = coach (scan seeds the knowledge base from the project on disk instead of from L4 feedback; research seeds it from the platform's official documentation, aimed by a stack hint, and cross-checks the scan's rules where a scan exists; same write surface, same categorization gate).",
+      "description": "The full operation vocabulary. Replaces lifecycle flags (--tasks-only, --from-discovered, --map-scopes …): the caller knows the pipeline position; the worker never re-derives it. Ownership: execute/fix/spike = task-executor · plan = the loop itself, a fence-only order no sub-agent answers (one per planning substep: requirements, spec, wire, scopes) · evaluate = spec-evaluator · orient = orient · hunt = qa-edge-hunter. The stop census, the retro and the intake's language gate are the loop's own acts and carry no order at all.",
       "type": "string",
       "enum": [
         "execute",
@@ -460,11 +425,6 @@
         "evaluate",
         "orient",
         "hunt",
-        "translate",
-        "hammer",
-        "coach",
-        "scan",
-        "research",
         "plan"
       ]
     },
@@ -750,7 +710,7 @@
       "x-tier": "SHARED",
       "x-location": "shapeup/<slug>/scopes/<scope-id>.md",
       "x-writer": "the loop's plan activity, scopes substep (SOLE writer — a hand-edit anywhere else is a defect)",
-      "x-readers": "harness compile, sandbox-guard hook, harness verify t0, harness verify spec, spec-evaluator, scope-hammer, tech-lead",
+      "x-readers": "harness compile, sandbox-guard hook, harness verify t0, harness verify spec, spec-evaluator, the stop census, tech-lead",
       "type": "object",
       "required": [
         "scope_id"
@@ -841,7 +801,7 @@
         },
         "business_goal": {
           "type": "string",
-          "description": "What a user can do when this scope ships — the must-have trace scope-hammer's census checks against."
+          "description": "What a user can do when this scope ships — the must-have trace the stop census checks against."
         }
       }
     },
@@ -951,7 +911,7 @@
       "x-tier": "EMBEDDED (projection into the LOCAL discovery ledger)",
       "x-location": ".shapeup/<slug>/discovery/ledger.md",
       "x-writer": "harness reduce ingest",
-      "x-readers": "the plan activity (spec reconcile mode, scopes), scope-hammer (census), qa-edge-hunter (covered-territory context)",
+      "x-readers": "the plan activity (spec reconcile mode, scopes), the stop census, qa-edge-hunter (covered-territory context)",
       "type": "object",
       "required": [
         "marker",
@@ -1217,7 +1177,7 @@
       "x-tier": "LOCAL",
       "x-location": ".shapeup/<slug>/t0/verdicts/r<N>-a<M>-t<T>.json (schema_version 2; the unsuffixed r<N>-a<M>.json of schema_version 1 is still readable)",
       "x-writer": "harness verify t0",
-      "x-readers": "harness compile (next attempt), spec-evaluator (citation), tech-lead (hill derivation, GATE L2.3), scope-hammer (stall census)",
+      "x-readers": "harness compile (next attempt), spec-evaluator (citation), tech-lead (hill derivation, GATE L2.3), the stop census (stall census)",
       "type": "object",
       "properties": {
         "schema_version": {
@@ -1582,7 +1542,7 @@
       "x-tier": "SHARED",
       "x-location": "shapeup/<slug>/hill/<scope-id>.yml",
       "x-writer": "tech-lead (GATE L2 derivation)",
-      "x-readers": "tech-lead (GATE L3 hill report), scope-hammer (census), GATE L1b sequencing",
+      "x-readers": "tech-lead (GATE L3 hill report), the stop census, GATE L1b sequencing",
       "type": "object",
       "properties": {
         "scope_id": {
@@ -2346,11 +2306,7 @@
         },
         "stack": {
           "type": "string",
-          "description": "orient: stack hint aiming the code-surface sweeps (e.g. \"pnpm, Next 16 web :3000\"). coach (research): the platform and toolchain the official-documentation research is aimed at — required, since a project with nothing on disk names no stack by itself."
-        },
-        "scope_id": {
-          "type": "string",
-          "description": "scope-hammer (--breaker inner): the exhausted scope."
+          "description": "orient: stack hint aiming the code-surface sweeps (e.g. \"pnpm, Next 16 web :3000\")."
         },
         "step": {
           "type": "string",
@@ -2438,38 +2394,11 @@
         "round": {
           "type": "integer",
           "description": "the round this order is counted against."
-        },
-        "baseline": {
-          "type": "string",
-          "description": "scope-hammer: shaping/baseline.md — comparison anchor (absent → the pitch's problem statement, flagged approximate)."
-        },
-        "breaker": {
-          "type": "string",
-          "enum": [
-            "outer",
-            "inner"
-          ],
-          "description": "scope-hammer: which circuit breaker fired (absent = normal stop, all scopes FINISHED)."
-        },
-        "feedback": {
-          "type": "string",
-          "description": "coach: the PO's raw L4 feedback to distill and categorize at GATE COACH-1."
-        },
-        "intake": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "translator: source docs to normalize to English (originals never overwritten)."
-        },
-        "glossary": {
-          "type": "string",
-          "description": "translator: existing glossary.md to reuse as the base term map."
         }
       }
     },
     "HammerCensus": {
-      "description": "Scope-hammer's census as data — the proposal GATE L4's resolver reads before it lets an answer set say `ship`. Written by the hammer at `.shapeup/<slug>/reports/hammer-census.json`, the only path its order's substrate permits besides the committed report. A proposal, never a decision: promotion and shipping stay the PO's call, and ingest never acts on it.",
+      "description": "The stop census as data — the proposal GATE L4's resolver reads before it lets an answer set say `ship`. Written by the loop's stop step at `.shapeup/<slug>/reports/hammer-census.json` (the name is older than the step), checked against this shape by `reduce ingest --close-census`, and refused once, then stopped on, when it is not this shape. A proposal, never a decision: promotion and shipping stay the PO's call, and ingest never acts on it.",
       "x-tier": "LOCAL",
       "x-location": ".shapeup/<slug>/reports/hammer-census.json",
       "type": "object",
@@ -2901,7 +2830,7 @@
           "items": {
             "type": "string"
           },
-          "description": "gate_h | ok: scope ids queued for GATE H's census (scope-hammer) — an exhausted scope never blocks the round, it proposes."
+          "description": "gate_h | ok: scope ids queued for GATE H's census (the stop step) — an exhausted scope never blocks the round, it proposes."
         },
         "green_scopes": {
           "type": "array",

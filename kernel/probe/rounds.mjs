@@ -32,7 +32,7 @@ function readJson(p) {
 /**
  * The round a build-addressed order id encodes, e.g. `checkout/sc-01-r2-a1` → 2.
  * @param {*} orderId - The order's own id, whatever shape it happens to be.
- * @returns {(number|null)} The round, or null when the id carries none (`orient`, `wire`, `hammer`, …).
+ * @returns {(number|null)} The round, or null when the id carries none (`orient`, `plan-*`, …).
  */
 export function orderRound(orderId) {
   const suffix = String(orderId ?? "").split("/").slice(1).join("/");

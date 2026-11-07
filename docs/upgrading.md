@@ -35,14 +35,21 @@ curl -fsSL "https://raw.githubusercontent.com/nguyenvanphituoc/shapeup-sdlc-plug
 Three things older installs used to get automatically. Each is now a manual check, and each is
 worth making before your next run rather than at a gate.
 
-### The knowledge base is per-skill and committed
+### The knowledge base is per-reader and committed
 
-`/coach` files each rule **by skill** under committed `shapeup/knowledge-base/<skill>.md`, read
+`/retro` files each rule **by reader** under committed `shapeup/knowledge-base/<reader>.md`, read
 back by `task-executor` / `qa-edge-hunter` / `orient` at the top of their next run, and by the loop's plan step (`plan.md`, plus the `ba-pitch-analyzer.md`, `scope-architect.md` and `solution-architect.md` files you already have). If
 you still carry a single flat `.shapeup/knowledge-base.md`, it is gitignored, reaches no teammate
-and is read by nothing. Move its rules into `shapeup/knowledge-base/_INBOX.md` and run `/coach`
+and is read by nothing. Move its rules into `shapeup/knowledge-base/_INBOX.md` and run `/retro`
 to assign each one — GATE COACH-1 asks which skill owns a rule, it never assumes — then commit
 `shapeup/` so the team inherits it on `git pull`.
+
+### Three skills are gone; their commands are not
+
+`scope-hammer`, `coach` and `translator` were folded into the `building` loop: the stop census, the retro and the
+language gate are now steps and sub-commands of `/ship`. `/hammer` and `/retro` (with `--scan` and
+`--research <stack>`) keep their names. A `shapeup/knowledge-base/scope-hammer.md`, `coach.md` or
+`translator.md` is read by nothing — re-file its rules with `/retro` under one of the five categories.
 
 ### Metrics are sharded per machine, and local
 

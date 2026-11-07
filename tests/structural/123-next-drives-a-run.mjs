@@ -138,9 +138,6 @@ export async function run(ctx) {
         case "hunt":
           write(join(local("qa"), "hunt-report.md"), "# hunt\n\ncharters: 1/1\n");
           return respond(step.order_path, { artifacts: [".shapeup/envlint/qa/hunt-report.md"] });
-        case "hammer":
-          write(local("reports", "hammer-census.json"), { schema_version: 1, order_id: order.order_id, verdict: "ship-now", cut_list: [], ship_blocking: [], breaker: null, baseline: "x" });
-          return respond(step.order_path, {});
         default:
           return respond(step.order_path, {});
       }
@@ -198,6 +195,19 @@ export async function run(ctx) {
             if (ing.status !== 0) { problem = `ingest refused at ${s.step}: ${ing.stderr || ing.stdout}`; break; }
           }
           break;
+        case "stop": {
+          // What the loop does: run the probes every census claim cites, write the census the step names,
+          // close. No sub-agent, no order — the file is what the step is done on.
+          for (const cmd of [s.probes.owner, s.probes.requirements, ...s.probes.attempts.map((a) => a.command)]) {
+            const r = sh(cmd);
+            if (r.status !== 0) { problem = `a stop probe failed at ${s.step} (exit ${r.status}): ${cmd}\n${r.stderr || r.stdout}`; break; }
+          }
+          if (problem) break;
+          write(join(ws, s.produces.path), { schema_version: 1, verdict: "ship-now", cut_list: [], ship_blocking: [], breaker: s.inputs.breaker, baseline: "x" });
+          const cl = sh(s.close);
+          if (cl.status !== 0) problem = `close refused at ${s.step}: ${cl.stderr || cl.stdout}`;
+          break;
+        }
         case "command": {
           const r = sh(s.command);
           if (!(s.ok_exits || [0]).includes(r.status)) problem = `command failed at ${s.step} (exit ${r.status}): ${r.stderr || r.stdout}`;
@@ -249,6 +259,14 @@ export async function run(ctx) {
     else fail(`drive: plan steps ran as ${planSteps.join(",")}`);
     if (seen.indexOf("gate.L1a.5") > seen.indexOf("plan.wire") && seen.indexOf("gate.L1a.5") < seen.indexOf("plan.scopes")) ok("drive: GATE L1a.5 came after the wire substep and before the scopes substep");
     else fail("drive: GATE L1a.5 was not between wire and scopes");
+    if (seen.includes("stop.census") && seen.indexOf("stop.census") < seen.indexOf("gate.H")) ok("drive: the census was a stop step the loop did itself, before GATE H — and no dispatch carried it");
+    else fail(`drive: stop.census did not precede gate.H: ${seen.join(" → ")}`);
+    if (terminal.retro?.gate && /gate --resolve COACH-1 --slug envlint/.test(terminal.retro.gate)) {
+      const r = sh(terminal.retro.gate);
+      const rows = readFileSync(local("gates.jsonl"), "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l));
+      if (r.status === 4 && rows.some((g) => g.gate === "COACH-1" && g.decision === "ask")) ok("drive: the shipped step hands over the COACH-1 command, and an interactive run resolves it ask and ledgers it");
+      else fail(`drive: the retro gate exited ${r.status}, rows ${JSON.stringify(rows.filter((g) => g.gate === "COACH-1"))}`);
+    } else fail(`drive: the shipped step carries no COACH-1 command: ${JSON.stringify(terminal.retro)}`);
     const closed = readFileSync(local("harness-run.md"), "utf8");
     if (/^closed_status:\s*shipped/m.test(closed)) ok("drive: the ledger records the close as shipped");
     else fail("drive: the ledger carries no shipped close");

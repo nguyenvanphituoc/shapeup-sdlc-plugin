@@ -111,9 +111,9 @@ export const requirements = (cwd, slug) => join(sharedRoot(cwd, slug), "requirem
 export const hillDir = (cwd, slug) => join(sharedRoot(cwd, slug), "hill");
 /** The frozen ship report, written once at GATE L4. */
 export const report = (cwd, slug) => join(sharedRoot(cwd, slug), "REPORT.md");
-/** Team-shared coaching rules, read back by the coachable workers and by the tech lead at GATE L0. */
+/** Team-shared coaching rules, read back by the coachable workers, the plan activity and the loop at GATE L0. */
 export const knowledgeBaseDir = (cwd) => join(sharedDir(cwd), "knowledge-base");
-/** One worker's coaching file. */
+/** One reader's coaching file (a coachable worker, or the `plan` / `building` activity). */
 export const knowledgeBase = (cwd, skill) => join(knowledgeBaseDir(cwd), `${skill}.md`);
 // `.harness-version` and `.harness-migrations` were resolved here, committed by necessity as
 // ADR-0001's third exception. Their sole writer was the upgrade path's data-migration runner, which
@@ -296,7 +296,7 @@ export const activeOrder = (cwd) => join(localDir(cwd), "active-order");
  * close in the same act that retires the run pointers, and superseded by the next close.
  *
  * Why it exists: retiring the pointers is right (a finished run must stop fencing the checkout),
- * but the close lands BEFORE the stretch that decides the most — the scope-hammer census, the ship
+ * but the close lands BEFORE the stretch that decides the most — the stop census, the ship
  * phase, the export — and every hook decision in that stretch resolved its run through the pointer
  * that was just removed. Measured on a live run: every decision row after `closed_at` carried
  * `run_id: null`, the census dispatch included. The breadcrumb keeps that join without keeping the
@@ -305,14 +305,20 @@ export const activeOrder = (cwd) => join(localDir(cwd), "active-order");
 export const lastRun = (cwd) => join(localDir(cwd), "last-run");
 
 /**
- * Scope-hammer's census as DATA — `{verdict, cut_list, …}` — the one artifact GATE L4's resolver
- * reads before it lets an answer set say `ship`. The hammer's WorkResult may not carry a verdict
- * (its census is a proposal, never envelope data ingest acts on), and its printed H0/H1/H2 blocks
- * are prose; this file is the same proposal, written by the same hand, in a shape a gate can read.
- * Measured before it existed: a green census returned as the worker's report, and L4 could only
- * record `ask`, because nothing on disk said so.
+ * The stop step's census as DATA — `{verdict, cut_list, …}` — the one artifact GATE L4's resolver
+ * reads before it lets an answer set say `ship`. The loop's printed H0/H1/H2 blocks are prose; this
+ * file is the same proposal, written by the same hand, in a shape a gate can read. Measured before
+ * it existed: a green census returned as the worker's report, and L4 could only record `ask`,
+ * because nothing on disk said so. (The file keeps its name from when a worker wrote it.)
  */
 export const hammerCensus = (cwd, slug) => join(localRoot(cwd, slug), "reports", "hammer-census.json");
+
+/**
+ * The census refusals: one JSON row per census the kernel read and would not accept, written only by
+ * `reduce ingest --close-census`. It is what lets a stateless `probe next` say "sent back once" — the
+ * count of refusals on disk, never a counter in the loop's memory.
+ */
+export const censusRefusals = (cwd, slug) => join(localRoot(cwd, slug), "reports", "census-refusals.jsonl");
 
 /**
  * Where the run scripts are staged for launch, inside the project.
@@ -426,7 +432,7 @@ export const globShared = (slug, ...parts) => [SHARED, slug, ...parts].join("/")
 
 /**
  * The coaching file a coachable worker reads, as a repo-relative path for the WorkOrder payload.
- * @param {string} skill - A coachable worker name (`COACHABLE` in compile.mjs), or `tech-lead`.
+ * @param {string} skill - A coachable worker name (`COACHABLE` in compile.mjs), or an activity name (`plan`, `building`).
  * @returns {string} e.g. `shapeup/knowledge-base/task-executor.md`.
  */
 export const relKnowledgeBase = (skill) => [SHARED, "knowledge-base", `${skill}.md`].join("/");

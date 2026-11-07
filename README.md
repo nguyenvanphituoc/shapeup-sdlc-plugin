@@ -117,7 +117,7 @@ installer, and troubleshooting are in
 ## Agent support
 
 The harness targets **Claude Code only**. The reason is the row that never travelled when we
-compiled to other CLIs: hooks. The 11 skills, 11 slash commands and the kernel are
+compiled to other CLIs: hooks. The 8 skills, 11 slash commands and the kernel are
 portable prose and plain Node — but hook-enforced gates (envelope validation, substrate
 sandbox, safety spine, the zero-work block) are a per-CLI mechanism, and without them every gate degrades from
 **enforced** to **instructed** — the same honor system every other framework runs on
@@ -153,7 +153,7 @@ document as a whole starts at [`docs/design/`](docs/design/README.md). This diag
 full phase and gate mechanism — simpler than that per-attempt detail, but the whole pipeline:
 
 <p align="center">
-  <img src="docs/assets/workflow-mechanism.svg" alt="The shapeup-sdlc harness pipeline from raw idea to Coach Retro: Shaping produces a Pitch, the Betting Table bets into the tech-lead-orchestrated run or rejects back to raw idea, Kick-off through Ship Sign-off cross gates Intake & Config (L0), Orient Review (L1a), Wiring Review (L1a.5), Board Review (L1b), the advisory Round Close (L2), Verdict (L3), Cut-List Review (GATE H) and Ship Sign-off (L4), the Build/Evaluate round loops on FAIL, and a circuit breaker routes straight to Cut-List Review (GATE H) — bypassing QA — when the round or wall-clock budget runs out." width="900">
+  <img src="docs/assets/workflow-mechanism.svg" alt="The shapeup-sdlc harness pipeline from raw idea to Retro: Shaping produces a Pitch, the Betting Table bets into the tech-lead-orchestrated run or rejects back to raw idea, Kick-off through Ship Sign-off cross gates Intake & Config (L0), Orient Review (L1a), Wiring Review (L1a.5), Board Review (L1b), the advisory Round Close (L2), Verdict (L3), Cut-List Review (GATE H) and Ship Sign-off (L4), the Build/Evaluate round loops on FAIL, and a circuit breaker routes straight to Cut-List Review (GATE H) — bypassing QA — when the round or wall-clock budget runs out." width="900">
 </p>
 
 <p align="center"><sub>
@@ -177,14 +177,14 @@ every arm is skipped when its artifact is absent, so older specs are unaffected.
 | Phase | Skill | Version | What it does |
 |-------|-------|---------|--------------|
 | Shaping (1–4) | `shapeup` | — | Frame the problem, breadboard affordances, spike risks, write the pitch. Sub-commands: `full`, `shaping`, `spike`, `breadboarding`, `framing-doc`, `kickoff-doc`, `breadboard-reflection`. |
-| Intake (GATE L0) | `translator` | — | Normalizes non-English intake (pitch/PRD/transcript) to faithful English before planning. The harness is English-only downstream. |
+| Intake (GATE L0) | `building` | v1.0 | The `intake` sub-command, done by the loop itself: a non-English intake (pitch/PRD/transcript) becomes a faithful English `<name>.en.md` plus a persisted glossary, verified (residual-language scan, structural diff) before the run opens on it. The harness is English-only downstream. |
 | Orient (7) | `orient` | — | Builder-led recon: reads the code, spikes the single riskiest area, emits a code-surface map, spike findings, discovered-task seed, and a hill signal. Writes no production code. |
 | Plan (GATE L1a.5, L1b) | `building` | v1.0 | The loop that drives a run in your session, asking the kernel (`probe next`) what comes next. Planning is its `plan` activity, done in the loop's own context — no sub-agent — under a write fence (a fence-only `plan` order the kernel answers): requirements registry (`requirements.md`) → linked DDD spec tree + board (use cases with BDD scenarios, a system flow and a derived `## Test Surface`) → the committed wiring map (`wiring-map.md`: per-UC engine → seam → entry-point call site → affordance, resolved against `project-profile.md`) → write-whitelisted scope contracts (`scopes/*.md`). Graph math and audits are the kernel's (`harness reduce board`, `harness verify spec`, `harness verify trace`). |
 | Build (9) | `task-executor` | v2.0 | Pure worker: work order in → code out. Assumption scan, minimum-code/surgical-change discipline, Layer 1/2/3 UI rules, substrate-sandboxed, zero-memory. Never writes boards/ledgers/run-state. |
 | Evaluate (GATE L3) | `spec-evaluator` | v1.0 | The single judge (pure worker). Verifies spec-conformance, TDD surface, and integration against the running app — skeptical, files `file:line` bugs, runs exactly once per build round. Requires a T0 artifact citation, grades UI affordance-only; verdict + refuted boxes return as data. |
 | QA (post-PASS) | `qa-edge-hunter` | v1.1 | Exploratory edge hunt on the running app through six fixed lenses, charting edges *outside* what the evaluator probed. Findings go to the ledger as `~`; never blocks ship. |
-| Stop (11) | `scope-hammer` | v0.1 | GATE H (Cut-List Review): must-have census → baseline comparison (never vs. the ideal) → cut list + ship verdict. Handles the normal stop and both circuit-breaker triggers. |
-| Retro (post-L4) | `coach` | — | RLHF for the harness: turns raw PO/TL feedback at Ship Sign-off into per-skill guidelines under committed `shapeup/knowledge-base/<skill>.md`, read back by three coachable workers on their next run, by the planning activity at each plan step, and by the loop at GATE L0 — Intake & Config (workflow guidance, never a gate answer). `--scan` seeds the same files from the project on disk before the first run; `--research <stack>` seeds them from the platform's official documentation when the project has nothing to scan, and cross-checks a scan's rules when it has. GATE COACH-1 (Retro Ownership) asks the PO which skill owns each rule — never assumes; mechanism defects are filed to the harness-defect register instead. |
+| Stop (11) | `building` | v1.0 | The `stop` sub-command — GATE H (Cut-List Review), done by the loop itself as a `kind: stop` step: must-have census (every ownership, exhaustion and requirement claim cites `harness probe owner` / `attempts` / `requirements`) → baseline comparison (never vs. the ideal) → cut list + ship verdict, written as data that GATE L4 reads. Handles the normal stop and both circuit-breaker triggers. |
+| Retro (post-L4) | `building` | v1.0 | The `retro` sub-command — RLHF for the harness: turns raw PO/TL feedback at Ship Sign-off into per-reader guidelines under committed `shapeup/knowledge-base/<reader>.md` (readers: `task-executor`, `orient`, `qa-edge-hunter`, the `plan` activity, and the loop itself at GATE L0 — workflow guidance, never a gate answer). `--scan` seeds the same files from the project on disk before the first run; `--research <stack>` seeds them from the platform's official documentation when the project has nothing to scan, and cross-checks a scan's rules when it has. GATE COACH-1 (Retro Ownership) asks the PO which reader owns each rule — never assumes; mechanism defects are filed to the harness-defect register instead. |
 | Orchestrator | `tech-lead` | v1.0 | Owns the run end-to-end: PLAN once → BUILD all tasks → EVAL once per round, looping on FAIL. Three-level circuit breaker (rounds / T0 attempts / wall clock), T0-verified build rounds, mechanical hill derivation. Sole writer of run-state. |
 
 ### Commands
@@ -204,7 +204,7 @@ learnable from `/`-completion alone. Names are written short here; the real name
 | `/eval` | L3 — Verdict | The single judge. Round mode is hook-gated — see the demo above. |
 | `/qa` | post-PASS | Exploratory edge hunt; findings never block ship. |
 | `/hammer` | H — Cut-List Review | Must-have census, baseline comparison, cut list + ship verdict. |
-| `/retro` | post-L4 | File ship-gate feedback into the per-skill knowledge base. |
+| `/retro` | post-L4 | File ship-gate feedback into the per-reader knowledge base; `--scan` and `--research <stack>` seed it. |
 
 ### What is enforced, and by what
 
@@ -351,7 +351,7 @@ claude --plugin-dir .                # load this working copy without installing
 .claude-plugin/
   plugin.json         # plugin manifest
   marketplace.json    # marketplace listing (points at this repo)
-skills/<name>/SKILL.md # the 11 harness skills (+ references/, resources/ and assets/)
+skills/<name>/SKILL.md # the 8 harness skills (+ references/, resources/ and assets/)
 skills/tech-lead/workflows/shapeup-run.js # the BUILD-phase pipeline, on the native Workflow runtime
 kernel/harness.mjs    # ONE entry point for every deterministic step; the whole permission grant
 kernel/{verify,reduce,probe,init,report}/ #   its subcommands, plus compile and gate at the root

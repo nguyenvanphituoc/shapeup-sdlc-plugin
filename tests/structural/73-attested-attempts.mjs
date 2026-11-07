@@ -221,7 +221,7 @@ export async function run(ctx) {
   }
 
   // ===============================================================================================
-  section("124. probe attempts is registered, and scope-hammer's own census cites it — the two readers cannot drift apart silently");
+  section("124. probe attempts is registered, and the stop step's own census cites it — the two readers cannot drift apart silently");
   // ===============================================================================================
   {
     const { ROUTES } = await import(join(ROOT, "kernel/harness.mjs"));
@@ -229,11 +229,18 @@ export async function run(ctx) {
       ok("(a) `probe attempts` is registered in the kernel's routing table");
     } else fail(`(a) probe attempts is not wired into ROUTES: ${JSON.stringify(ROUTES?.probe)}`);
 
-    const skillPath = join(ROOT, "skills/scope-hammer/SKILL.md");
-    const skillBody = existsSync(skillPath) ? readFileSync(skillPath, "utf8") : "";
-    if (/probe attempts\b/.test(skillBody) && /attempt-budget/.test(skillBody)) {
-      ok("(b) scope-hammer's SKILL.md cites `probe attempts` for its GATE H0 census, instead of reading t0/verdicts directly");
-    } else fail("(b) scope-hammer's SKILL.md does not cite probe attempts — the census can still read exhaustion off writable T0 verdicts alone");
+    // The census used to cite the probe in a worker's SKILL.md; it is the loop's own step now, so the
+    // citation lives in two places that must agree: the stop resource's rule, and the command the stop
+    // step hands out per proposal scope (driven in the probe-next module with a planted proposal).
+    const stopPath = join(ROOT, "skills/building/resources/stop.md");
+    const stopBody = existsSync(stopPath) ? readFileSync(stopPath, "utf8") : "";
+    if (/probes\.attempts/.test(stopBody) && /derived/i.test(stopBody) && /receipt/.test(stopBody)) {
+      ok("(b) the stop resource cites `probes.attempts` for exhaustion, derived from the attested channels instead of read off t0/verdicts directly");
+    } else fail("(b) the stop resource does not cite the attempts probe — the census can still read exhaustion off writable T0 verdicts alone");
+    const nextSrc = readFileSync(join(ROOT, "kernel/probe/next.mjs"), "utf8");
+    if (/probe attempts --slug \$\{slug\} --scope \$\{scope\}[^`]*--attempt-budget \$\{attemptBudget\}/.test(nextSrc)) {
+      ok("(b) …and `probe next`'s stop step hands out `probe attempts … --attempt-budget` for each proposal scope, with the run's own budget");
+    } else fail("(b) probe next's stop step does not hand out the attempts probe with the run's attempt budget");
   }
 
   // ===============================================================================================

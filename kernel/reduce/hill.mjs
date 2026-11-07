@@ -60,7 +60,7 @@ function scopeSuffixIndex(scopes) {
 /**
  * The scope a ledger heading's order belongs to, or `null` when it belongs to none.
  *
- * Operation-level dispatches (orient, analyze, wire, evaluate, hunt, hammer) carry no scope in
+ * Operation-level dispatches (orient, evaluate, hunt, plan) carry no scope in
  * their order id by construction, so "no scope" is a real and common answer here, not a parse
  * failure — their rows are feature-wide and are deliberately credited to nobody.
  *

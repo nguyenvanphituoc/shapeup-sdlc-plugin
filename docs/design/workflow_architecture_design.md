@@ -230,11 +230,11 @@ sequenceDiagram
   end
   alt breaker trips (rounds / attempts / deadline)
     WF-->>TL: C1: {status: "gate_h", breaker, green_scopes}
-    TL->>PO: scope-hammer census + cut list
+    TL->>PO: the stop census + cut list
   else EVAL passes
     WF-->>TL: C1: {status: "shipped", verdict, report}
   end
-  TL->>PO: ⏸ GATE L4 sign-off · feedback → coach
+  TL->>PO: ⏸ GATE L4 sign-off · feedback → retro
 ```
 
 **The fast-forward algorithm (step 13)** is the same derivation `harness init run` already performs
