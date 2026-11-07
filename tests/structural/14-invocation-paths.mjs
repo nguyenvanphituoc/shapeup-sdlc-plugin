@@ -25,7 +25,7 @@
 
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { pipelineRules, mergePipelinePermissions, KERNEL_ENTRY, WORKFLOW_RULE } from "../../bin/lib/grant.mjs";
+import { pipelineRules, mergePipelinePermissions, KERNEL_ENTRY } from "../../bin/lib/grant.mjs";
 
 /**
  * Run the structural checks for documented invocation paths.
@@ -128,9 +128,9 @@ export async function run(ctx) {
   // whether the target script's marker file landed. THAT is the evidence; this is bookkeeping.
   // What is checkable here, and worth checking, is COMPLETENESS in both directions: no call site
   // without a rule, no rule without a script.
-  // The GRANT is what the installer actually writes — the Bash rules plus the optional Workflow
-  // token — not just the Bash generator's output. Asking for the merged set is what keeps the
-  // example file, the executing proof and this module comparing the same thing.
+  // The GRANT is what the installer actually writes — the two Bash rules and nothing else — read
+  // through the merge, not just the Bash generator's output. Asking for the merged set is what keeps
+  // the example file, the executing proof and this module comparing the same thing.
   const granted = {};
   mergePipelinePermissions(granted);
   const rules = granted.permissions.allow;
@@ -147,15 +147,14 @@ export async function run(ctx) {
       if (!rules.includes(want)) { fail(`the kernel entry point has no rule ${want}`); missing++; }
     }
     if (missing === 0) ok("the kernel entry point is granted in both argument shapes");
-    if (rules.includes(WORKFLOW_RULE)) ok(`the optional "${WORKFLOW_RULE}" grant is written by default (declinable with --no-native-workflow)`);
-    else fail(`the default grant omits "${WORKFLOW_RULE}" — the unattended lane cannot launch its run script`);
+    if (rules.length === 2 && pipelineRules().length === 2 && rules.every((r) => r.startsWith("Bash("))) ok("the grant is exactly the two Bash rules — the unscoped Workflow token is not part of it");
+    else fail(`the grant is ${JSON.stringify(rules)} — expected the two kernel Bash rules and nothing else`);
   }
 
   // 3b — no rule points at something that does not exist. A dead rule is a grant nobody can audit.
   {
     let dead = 0;
     for (const rule of rules) {
-      if (rule === WORKFLOW_RULE) continue;                 // a tool token, not a path
       const m = rule.match(/^Bash\(node "\*\/(kernel\/[a-z0-9-]+\.mjs)"/);
       if (!m) { fail(`rule is not in the audited shape: ${rule}`); dead++; continue; }
       if (m[1] !== KERNEL_ENTRY || !existsSync(join(ROOT, m[1]))) {

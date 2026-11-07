@@ -26,7 +26,7 @@ import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { createInterface } from "node:readline";
 import { LOCAL, LEGACY, metricsDir } from "../kernel/lib/paths.mjs";
-import { mergePipelinePermissions as mergeGrant, isWorkspaceTrusted, WORKFLOW_RULE } from "./lib/grant.mjs";
+import { mergePipelinePermissions as mergeGrant, isWorkspaceTrusted } from "./lib/grant.mjs";
 
 /** The root a project migrating off the pre-ADR-0001 layout may still be carrying. */
 const LEGACY_LOCAL = LEGACY.local;
@@ -43,24 +43,21 @@ Options:
   -d, --directory <path>   Target project directory (default: current directory)
   -o, --override           Overwrite existing files in target
   -y, --yes                Run unattended (answer yes to all prompts)
-      --no-native-workflow Do not grant the unscoped "Workflow" permission (see below)
+      --no-native-workflow Accepted and ignored (kept so existing scripts that pass it still run)
   -h, --help               Print this help
 
-The grant this writes is two Bash rules for the harness kernel, plus — unless
---no-native-workflow is given — the "Workflow" token that lets the tech-lead
-launch its run script without approving each launch. That token is UNSCOPED: it
-authorises every dynamic workflow script in the project, not only this plugin's.
-Declining it leaves the harness fully functional in an interactive session; only
-the unattended lane needs the pre-approval.`;
+The grant this writes is two Bash rules for the harness kernel, and nothing else.
+The plugin no longer asks for the unscoped "Workflow" permission and no longer
+needs it; a "Workflow" token already in your settings is yours and is left alone.`;
 
-let targetDir = ".", yes = false, override = false, nativeWorkflow = true;
+let targetDir = ".", yes = false, override = false;
 const positional = [];
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i];
   if (a === "-d" || a === "--directory") targetDir = argv[++i];
   else if (a === "-y" || a === "--yes") yes = true;
   else if (a === "-o" || a === "--override") override = true;
-  else if (a === "--no-native-workflow") nativeWorkflow = false;
+  else if (a === "--no-native-workflow") { /* accepted, ignored: the installer never writes the token */ }
   else if (a === "-h" || a === "--help") { console.log(usage); process.exit(0); }
   else if (a.startsWith("-")) { console.error(`Unknown option: ${a}\n${usage}`); process.exit(1); }
   else positional.push(a);
@@ -274,10 +271,10 @@ function installClaude() {
  * @returns {void}
  */
 function mergePipelinePermissions(settings) {
-  mergeGrant(settings, { nativeWorkflow });
-  if (!nativeWorkflow) {
-    console.log(`  [claude] --no-native-workflow: "${WORKFLOW_RULE}" not granted — launch the run`);
-    console.log("           script interactively and approve it, or re-run init without the flag.");
+  mergeGrant(settings);
+  if ((settings.permissions?.allow || []).includes("Workflow")) {
+    console.log('  [claude] your settings carry a "Workflow" permission. This plugin no longer needs it and');
+    console.log("           leaves it alone — remove it yourself if nothing else in the project uses it.");
   }
 }
 

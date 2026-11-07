@@ -9,8 +9,8 @@
 //     A settings.json carrying forty stale rules works exactly as well as a correct one.
 //   • an UPGRADE from a v1.x install purges the rules that no longer grant anything. Merging
 //     alongside them leaves a museum of dead grants in which nobody can tell which rule is live.
-//   • `--no-native-workflow` REMOVES the token a previous install added. An opt-out that is a
-//     no-op prints the same success line as one that works.
+//   • the installer writes no `Workflow` token and deletes none: a token a user already has is theirs,
+//     and `--no-native-workflow` is accepted and does nothing.
 //   • the scaffolding is idempotent. init is re-run on every plugin upgrade; a second harness
 //     block, a second import tag or a second ignore stanza all leave files that still read fine.
 //   • the kernel the project was granted actually runs from that project, at its documented exit
@@ -26,12 +26,15 @@ import { existsSync, mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
-import { mergePipelinePermissions, WORKFLOW_RULE } from "../../bin/lib/grant.mjs";
+import { mergePipelinePermissions } from "../../bin/lib/grant.mjs";
+
+/** The unscoped permission token the plugin used to add. Named here only to prove it is no longer written or removed. */
+const WORKFLOW_TOKEN = "Workflow";
 
 /** The rules the installer is expected to write — IMPORTED, never re-derived (§43's lesson). */
-function generatedGrant({ nativeWorkflow = true } = {}) {
+function generatedGrant() {
   const s = {};
-  mergePipelinePermissions(s, { nativeWorkflow });
+  mergePipelinePermissions(s);
   return s.permissions.allow;
 }
 
@@ -134,8 +137,8 @@ export async function run(ctx) {
 
         // The ceiling. v1.x enumerated every pipeline script — two rules each, regenerated on every
         // add or rename and silently wrong whenever that was missed. One entry point means the
-        // executable surface a user pre-approves is a constant a person can read by eye. The
-        // non-Bash entry is the `Workflow` tool token, which grants no command.
+        // executable surface a user pre-approves is a constant a person can read by eye, and a fresh
+        // install carries no other kind of entry at all: no `Workflow` token beside the two rules.
         const bash = got.filter((x) => x.startsWith("Bash("));
         if (bash.length <= 2) ok(`the project pre-approves ${bash.length} Bash rule(s) over one entry point`);
         else fail(`the project pre-approves ${bash.length} Bash rules — the per-script sprawl the kernel consolidation removed is back`);
@@ -225,30 +228,32 @@ export async function run(ctx) {
     }
 
     // ---------------------------------------------------------------------------------------
-    // (d) THE OPT-OUT IS REAL. `Workflow` is unscoped — it authorises every dynamic workflow
-    // script in the project, not only this plugin's — so declining it has to actually remove a
-    // token an earlier install added, in the file the user already has.
+    // (d) THE INSTALLER NEVER TOUCHES A `Workflow` TOKEN. It is unscoped and a project may rely on it
+    // for workflow scripts of its own, so the plugin neither adds it nor removes it: the token this
+    // upgrading project already carries survives the default install, survives the accepted-and-
+    // ignored `--no-native-workflow`, and a project without one is not handed one.
     // ---------------------------------------------------------------------------------------
-    if (allow.has(WORKFLOW_RULE)) {
-      ok(`the default install grants "${WORKFLOW_RULE}" (the unattended lane needs it)`);
+    if (!WANT.includes(WORKFLOW_TOKEN) && !allow.has(WORKFLOW_TOKEN)) ok("a project that never had a Workflow token is not given one by the install");
+    else fail("the install wrote a Workflow token into a project that did not have one");
+    {
+      const f = join(upgraded.proj, ".claude", "settings.json");
+      const cur = JSON.parse(readFileSync(f, "utf8"));
+      cur.permissions.allow = [...cur.permissions.allow, WORKFLOW_TOKEN];
+      writeFileSync(f, JSON.stringify(cur, null, 2));
+      const again = install(ROOT, upgraded.proj);
+      const afterDefault = new Set(allowIn(upgraded.proj) || []);
+      if (again.status === 0 && afterDefault.has(WORKFLOW_TOKEN)) ok(`a user's own "${WORKFLOW_TOKEN}" token survives a re-install — it is theirs, not the plugin's`);
+      else fail(`re-installing deleted the user's "${WORKFLOW_TOKEN}" token (exit ${again.status})`);
+      if (/Workflow/.test(again.stdout) && /leaves it alone/.test(again.stdout)) ok("the installer says it saw the token and left it alone");
+      else fail("the installer was silent about a Workflow token it left in place");
       const off = install(ROOT, upgraded.proj, ["--no-native-workflow"]);
       const afterOff = new Set(allowIn(upgraded.proj) || []);
-      if (off.status !== 0) fail(`bin/init.mjs --no-native-workflow exited ${off.status}`);
-      else if (afterOff.has(WORKFLOW_RULE)) fail(`--no-native-workflow left "${WORKFLOW_RULE}" granted — the documented opt-out is a no-op`);
-      else ok(`--no-native-workflow removes "${WORKFLOW_RULE}" from a project that already had it`);
-
-      const kernelRules = generatedGrant({ nativeWorkflow: false });
-      if (kernelRules.every((x) => afterOff.has(x))) ok("declining the Workflow token leaves the kernel grant intact — the harness still runs interactively");
-      else fail("declining the Workflow token also dropped the kernel grant — the opt-out disables the harness");
-
-      const back = install(ROOT, upgraded.proj);
-      if (back.status === 0 && new Set(allowIn(upgraded.proj) || []).has(WORKFLOW_RULE)) {
-        ok(`re-running init without the flag restores "${WORKFLOW_RULE}"`);
-      } else {
-        fail(`re-running init without --no-native-workflow did not restore "${WORKFLOW_RULE}" — the opt-out is one-way`);
-      }
-    } else {
-      fail(`the default install did not grant "${WORKFLOW_RULE}"`);
+      if (off.status === 0) ok("--no-native-workflow is still accepted (a no-op), so scripts that pass it keep running");
+      else fail(`--no-native-workflow is rejected (exit ${off.status}) — an existing script that passes it would break`);
+      if (afterOff.has(WORKFLOW_TOKEN)) ok("…and it removes nothing: the user's token is still there");
+      else fail("--no-native-workflow removed the user's Workflow token");
+      if (WANT.every((x) => afterOff.has(x))) ok("the kernel grant is intact after every one of those runs");
+      else fail("an install run dropped part of the kernel grant");
     }
   } finally { rmSync(upgraded.box, { recursive: true, force: true }); }
 

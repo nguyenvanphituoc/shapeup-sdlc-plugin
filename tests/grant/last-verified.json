@@ -1,9 +1,9 @@
 {
-  "cli_version": "2.1.235 (Claude Code)",
-  "plugin_version": "2.0.0",
+  "cli_version": "2.1.318 (Claude Code)",
+  "plugin_version": "3.18.4",
   "entry_point": "kernel/harness.mjs",
-  "git_sha": "7c35a79756f14ebd81f3823575ab74bdc29bec7a",
-  "rules": 3,
+  "git_sha": "497f96ff888801245f3c49f543098a3a349e8f8f",
+  "rules": 2,
   "cases": [
     {
       "label": "marketplace layout, quoted + args",

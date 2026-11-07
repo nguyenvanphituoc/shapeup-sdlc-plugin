@@ -48,10 +48,10 @@
 // verify by eye. Scope is unchanged in kind and narrower in fact: one dependency-free, network-free
 // script that ships with the plugin. It grants no general `Bash(node:*)`.
 //
-// THE WORKFLOW GRANT is separate and optional (see {@link workflowRule}). The `Workflow` permission
-// token is UNSCOPED — it authorises every dynamic workflow script in the project, not just this
-// plugin's — so the installer states that plainly and lets `--no-native-workflow` decline it. A
-// project that declines runs the harness interactively, approving the launch each time.
+// NO `Workflow` TOKEN. The run is driven by the loop in the session, not launched as a script, so
+// nothing here needs the unscoped `Workflow` permission and the installer does not add it. It does not
+// remove it either: a project may rely on that token for workflow scripts of its own, so a token already
+// in a user's settings is the user's, and the merge below leaves it exactly where it is.
 
 import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -59,14 +59,6 @@ import { homedir } from "node:os";
 
 /** The kernel's path inside the installed plugin — the one executable the grant has to cover. */
 export const KERNEL_ENTRY = "kernel/harness.mjs";
-
-/**
- * The unscoped permission token that lets the tech-lead launch its Workflow script.
- *
- * Opt-in at install. Named here rather than spelled at each call site so the installer, the docs
- * check and the structural suite all mean the same string.
- */
-export const WORKFLOW_RULE = "Workflow";
 
 /**
  * The `permissions.allow` rules for the harness kernel.
@@ -127,19 +119,16 @@ export function isWorkspaceTrusted(projectDir) {
 /**
  * Merge the harness grant into a parsed settings object, in place.
  *
+ * Adds the two kernel rules and drops only the rules this plugin itself once wrote and superseded;
+ * every other entry — a user's own rule, a `Workflow` token — is left alone.
+ *
  * @param {object} settings - Parsed settings.json.
- * @param {object} [opts] - Options.
- * @param {boolean} [opts.nativeWorkflow=true] - Also grant the unscoped `Workflow` token, which is
- *   what lets the tech-lead launch its run script without a per-launch approval. `false` removes it
- *   if a previous install added it, so `--no-native-workflow` is a real opt-out and not a no-op.
  * @returns {void}
  */
-export function mergePipelinePermissions(settings, { nativeWorkflow = true } = {}) {
+export function mergePipelinePermissions(settings) {
   settings.permissions = settings.permissions || {};
   const allow = new Set(settings.permissions.allow || []);
   for (const r of [...allow]) if (isSupersededRule(r)) allow.delete(r);
   for (const r of pipelineRules()) allow.add(r);
-  if (nativeWorkflow) allow.add(WORKFLOW_RULE);
-  else allow.delete(WORKFLOW_RULE);
   settings.permissions.allow = [...allow].sort();
 }
