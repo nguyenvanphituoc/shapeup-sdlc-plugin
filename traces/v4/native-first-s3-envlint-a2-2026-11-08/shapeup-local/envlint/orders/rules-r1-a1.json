@@ -1,0 +1,133 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/rules-r1-a1",
+  "kernel": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.plugin-under-test/plugin-e-a2/kernel/harness.mjs",
+  "run_id": "envlint-20261107T203949Z-063897fa",
+  "compiled_at": "2026-11-07T20:46:11.757Z",
+  "worker": "task-executor",
+  "mode": "orchestrated",
+  "operation": "execute",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "src/rules.mjs",
+      "test/rules.test.mjs",
+      ".shapeup/envlint/spikes/**"
+    ],
+    "shared": [],
+    "frozen": [
+      ".shapeup/envlint/**"
+    ],
+    "own": [
+      ".shapeup/envlint/results/rules-r1-a1.json",
+      ".shapeup/envlint/tasks/TASK-*.md",
+      ".shapeup/envlint/discovery/**",
+      ".shapeup/envlint/spikes/**"
+    ]
+  },
+  "payload": {
+    "scope_contract": {
+      "scope_id": "rules",
+      "topology_type": "ICEBERG",
+      "use_cases": [
+        "UC-EvaluateRules"
+      ],
+      "covers": [
+        "REQ-1",
+        "REQ-7",
+        "REQ-17",
+        "REQ-18",
+        "REQ-19",
+        "REQ-20",
+        "REQ-21",
+        "REQ-27"
+      ],
+      "depends_on": [],
+      "allowed_file_substrate": [
+        "src/rules.mjs",
+        "test/rules.test.mjs"
+      ],
+      "shared_substrate": [],
+      "affordance_manifest": [],
+      "e2e_verification_fixtures": [
+        "node --test test/rules.test.mjs"
+      ],
+      "hill_phase": "UPHILL_UNKNOWN"
+    },
+    "tasks": [
+      {
+        "id": "TASK-002",
+        "title": "Implement the pure schema rules in src/rules.mjs",
+        "status": "ready",
+        "priority": 1,
+        "depends_on": [],
+        "use_case_refs": [
+          "UC-EvaluateRules"
+        ],
+        "scope_id": "",
+        "body_path": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.shapeup/envlint/tasks/TASK-002-rules-module.md",
+        "acceptance_criteria": [
+          {
+            "text": "`src/rules.mjs` exports `checkRules(pairs, schema)` returning `{findings, schemaErrors}`; `node --test test/rules.test.mjs` exits 0 (covers: REQ-20)",
+            "covers": [
+              "REQ-20"
+            ]
+          },
+          {
+            "text": "a schema of the form `{KEY: {required?, type?, enum?}}` is accepted; any other shape (not an object, unknown field, unknown type, non-string-array enum) yields non-empty `schemaErrors` and `findings: []` (covers: REQ-1)",
+            "covers": [
+              "REQ-1"
+            ]
+          },
+          {
+            "text": "`required: true` with the key absent yields `{key, line: null, rule: \"required\"}`; `K=` counts as present (covers: REQ-17)",
+            "covers": [
+              "REQ-17"
+            ]
+          },
+          {
+            "text": "`type` `string` always passes; `int` accepts `^-?[0-9]+$`; `bool` accepts exactly `true`/`false`; a failing value yields `rule: \"type\"` with the pair's line (covers: REQ-18)",
+            "covers": [
+              "REQ-18"
+            ]
+          },
+          {
+            "text": "`type: url` accepts `https://x.com/p` and `postgres://u@h:5432/db`, and rejects `foo:bar`, `localhost:3000`, `http://` and `not a url` (covers: REQ-27)",
+            "covers": [
+              "REQ-27"
+            ]
+          },
+          {
+            "text": "`enum` rejects a value not in the list, with `rule: \"enum\"` (covers: REQ-19)",
+            "covers": [
+              "REQ-19"
+            ]
+          },
+          {
+            "text": "`src/rules.mjs` has no import of a parse module and no `http`/`https`/`net`/`fetch` use; a test asserts this by reading the file (covers: REQ-21)",
+            "covers": [
+              "REQ-21"
+            ]
+          },
+          {
+            "text": "`int`: `\"0\"`, `\"-3\"` pass; `\"\"`, `\"1.5\"`, `\"+1\"` fail (covers: REQ-18)",
+            "covers": [
+              "REQ-18"
+            ]
+          },
+          {
+            "text": "`checkRules([], null)`, `checkRules([], [])` and `checkRules([], \"x\")` return schemaErrors without throwing (covers: REQ-7)",
+            "covers": [
+              "REQ-7"
+            ]
+          }
+        ]
+      }
+    ],
+    "spec_folder": "shapeup/envlint/spec",
+    "feature": "envlint",
+    "kb_rules_path": "shapeup/knowledge-base/task-executor.md"
+  }
+}

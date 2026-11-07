@@ -25,7 +25,7 @@ to a native mechanism; the plan and its execution record say what was done and w
    lives in `sandbox-guard` and refuses the same write with the same words. `hill-chart` renders from the committed hill shards alone.
 3. **Kept, against the plan:** `safety-spine` (it is the only record of which programs a worker ran, and a deny rule is weaker and
    cannot be verified for `rm -rf ~`); `compile`, `reduce ingest`, `reduce board` and `probe next` (the engine's inputs and outputs; the
-   measurement that could remove them was not run to a verdict, and the fixture cannot see the chains the engine exists for);
+   comparison on the three-scope `envlint` pitch had the engine shipping 2 of 2 and the prose-loop variant 0 of 1, at 59 % higher cost);
    `lib/contract.mjs` and Markdown on disk (ADR-0001).
 4. **Rejected:** `isolation: worktree` for build agents (the run trace is gitignored and a worktree checkout does not contain it) and
    `maxTurns` (no run says what a legitimate worker needs).
@@ -36,5 +36,5 @@ to a native mechanism; the plan and its execution record say what was done and w
 - The reachability oracle, the run graph and the exported fact tables are gone; the round build gate's probes and the evaluator carry
   the first question, and `legs.jsonl` and `gates.jsonl` are the per-dispatch and per-gate records.
 - A worker's craft is bound to its agent definition. A plugin whose agent does not preload its skill is refused at `init run`.
-- The engine and the suite that pins it stay. A smaller plugin needs the engine's removal, and that needs an eval that exercises
-  breakers, send-backs and concurrent scopes.
+- The engine and the suite that pins it stay. The measurement that could have removed them came out against removal; a smaller plugin
+  from here is a smaller engine, not a loop that carries its rules in prose.

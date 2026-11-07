@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/rules-r1-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-002",
+      "status": "done",
+      "ac_results": [
+        {"ac": "`src/rules.mjs` exports `check(pairs, schema)` returning an array of `{key, line, message}`; `node --test test/rules.test.mjs` exits 0 (covers: REQ-25)", "result": "pass", "evidence": "node --test test/rules.test.mjs → 10/10 pass; T0 green"},
+        {"ac": "`check([], {A:{required:true}})` returns one finding for `A` with `line: null` (covers: REQ-19)", "result": "pass", "evidence": "test 'missing required key' passes"},
+        {"ac": "`type: string` accepts any value (covers: REQ-20)", "result": "pass", "evidence": "test 'type string accepts any value' passes"},
+        {"ac": "`type: int` flags `80x` and accepts `80` and `-1` (covers: REQ-21)", "result": "pass", "evidence": "test 'type int' passes"},
+        {"ac": "`type: bool` flags `yes` and accepts `true` and `false` (covers: REQ-22)", "result": "pass", "evidence": "test 'type bool' passes"},
+        {"ac": "`type: url` flags `foo`, `http://`, `a:b`, `mailto:x@y` and accepts `https://example.com` (covers: REQ-23, REQ-33)", "result": "pass", "evidence": "test 'type url' passes"},
+        {"ac": "`enum: [\"dev\",\"prod\"]` flags `qa` and accepts `dev` (covers: REQ-24)", "result": "pass", "evidence": "test 'enum' passes"},
+        {"ac": "`src/rules.mjs` contains no `import` statement — a test reads the file and asserts it (covers: REQ-27, REQ-25)", "result": "pass", "evidence": "test 'rules module has no import statement' passes"},
+        {"ac": "with `globalThis.fetch` replaced by a function that throws, `type: url` checks still pass and fetch is never called (covers: REQ-32)", "result": "pass", "evidence": "test 'url check never touches fetch' passes"},
+        {"ac": "`check([], {})` returns `[]`; `check([], {A:{}})` returns `[]`; never throws (covers: REQ-7)", "result": "pass", "evidence": "test 'empty schemas never throw' passes"}
+      ]
+    }
+  ],
+  "files_touched": [
+    {"path": "src/rules.mjs", "change": "created"},
+    {"path": "test/rules.test.mjs", "change": "created"}
+  ],
+  "discoveries": [],
+  "assumptions": [
+    "Duplicate keys in pairs: the last pair wins (parser contract says last assignment wins)",
+    "A key breaking both type and enum yields two findings (one per broken rule, per UC steps 3-7)",
+    "Findings sort stably by line; missing-key findings follow in schema order"
+  ],
+  "deviations": []
+}

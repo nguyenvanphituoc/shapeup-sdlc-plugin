@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/parsing-r1-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-001",
+      "status": "done",
+      "ac_results": [
+        {"ac": "`src/parse.mjs` exports `parseEnv(text)` returning `{pairs: {key,value,line}[], problems: {line,message}[]}`; `node --test test/parse.test.mjs` exits 0 (covers: REQ-16)", "result": "pass", "evidence": "node --test test/parse.test.mjs -> 10/10; T0 green r1-a1-t1"},
+        {"ac": "`KEY=value` lines become pairs with 1-based `line`, key and value trimmed (covers: REQ-10)", "result": "pass", "evidence": "test 'KEY=value with line numbers and trimming'"},
+        {"ac": "lines whose first non-space char is `#` are ignored (covers: REQ-11)", "result": "pass", "evidence": "test 'comments ignored'"},
+        {"ac": "blank and whitespace-only lines are ignored (covers: REQ-12)", "result": "pass", "evidence": "test 'blank lines ignored'"},
+        {"ac": "`export KEY=value` yields the pair `KEY=value` (covers: REQ-13)", "result": "pass", "evidence": "test 'export prefix'"},
+        {"ac": "`S='a b'` and `D=\"c d\"` yield values `a b` and `c d`, with no escape processing (covers: REQ-14)", "result": "pass", "evidence": "test 'quotes, no escapes'"},
+        {"ac": "a line with no `=`, an invalid key or an unterminated quote yields a problem carrying its 1-based line number, and the line is skipped (covers: REQ-15)", "result": "pass", "evidence": "test 'problems carry line and skip'"},
+        {"ac": "`src/parse.mjs` has no `import` of a rules module; a test asserts this by reading the file (covers: REQ-21)", "result": "pass", "evidence": "test 'no rules import' reads the source"},
+        {"ac": "`A=${HOME}` yields the literal value `${HOME}` (covers: REQ-24)", "result": "pass", "evidence": "test 'no interpolation'"},
+        {"ac": "`parseEnv(\"\")` and a comments-only text return `{pairs: [], problems: []}` (covers: REQ-6)", "result": "pass", "evidence": "test 'empty and comments-only'"},
+        {"ac": "`parseEnv` never throws for any string, tested over `\"\"`, `\"=\"`, a lone quote and non-UTF8-ish text (covers: REQ-7)", "result": "pass", "evidence": "test 'never throws'"}
+      ]
+    }
+  ],
+  "files_touched": [
+    {"path": "src/parse.mjs", "change": "created"},
+    {"path": "test/parse.test.mjs", "change": "created"}
+  ],
+  "discoveries": [],
+  "assumptions": [
+    "a quoted value must end with the same quote char as it starts with; otherwise it is an unterminated-quote problem",
+    "the export prefix is the literal 'export ' followed by the key; whitespace around key and '=' is trimmed",
+    "a lone '=' line yields an invalid-key problem (empty key)"
+  ],
+  "deviations": []
+}

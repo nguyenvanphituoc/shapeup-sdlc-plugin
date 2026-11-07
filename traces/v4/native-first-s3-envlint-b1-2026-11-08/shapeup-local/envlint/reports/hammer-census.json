@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "verdict": "cannot-ship",
+  "cut_list": [],
+  "ship_blocking": [
+    "UC-LintEnvFile INV-03 (REQ-25, pitch boundary 'no colors'): round 1 EVAL graded it FAIL; the round 2 fix is built and T0-green (cli r2-a1) but no EVAL has graded round 2 — the run stopped below the session's USD budget before the round 2 evaluation, so the only verdict on record is FAIL"
+  ],
+  "breaker": "deadline",
+  "baseline": null
+}

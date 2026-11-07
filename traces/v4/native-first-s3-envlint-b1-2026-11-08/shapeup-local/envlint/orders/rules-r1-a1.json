@@ -1,0 +1,121 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/rules-r1-a1",
+  "kernel": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.plugin-under-test/plugin-e-b1/kernel/harness.mjs",
+  "run_id": "envlint-20261107T201828Z-fffef5ce",
+  "compiled_at": "2026-11-07T20:25:36.987Z",
+  "worker": "task-executor",
+  "mode": "orchestrated",
+  "operation": "execute",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "src/rules.mjs",
+      "test/rules.test.mjs",
+      ".shapeup/envlint/spikes/**"
+    ],
+    "shared": [],
+    "frozen": [
+      ".shapeup/envlint/**"
+    ],
+    "own": [
+      ".shapeup/envlint/results/rules-r1-a1.json",
+      ".shapeup/envlint/tasks/TASK-*.md",
+      ".shapeup/envlint/discovery/**",
+      ".shapeup/envlint/spikes/**"
+    ]
+  },
+  "payload": {
+    "scope_contract": {
+      "scope_id": "rules",
+      "topology_type": "ICEBERG",
+      "use_cases": [
+        "UC-CheckRules"
+      ],
+      "covers": [
+        "REQ-1",
+        "REQ-17",
+        "REQ-18",
+        "REQ-19",
+        "REQ-20",
+        "REQ-22",
+        "REQ-26"
+      ],
+      "depends_on": [],
+      "allowed_file_substrate": [
+        "src/rules.mjs",
+        "test/rules.test.mjs"
+      ],
+      "shared_substrate": [],
+      "affordance_manifest": [],
+      "e2e_verification_fixtures": [
+        "node --test test/rules.test.mjs"
+      ],
+      "hill_phase": "UPHILL_UNKNOWN"
+    },
+    "tasks": [
+      {
+        "id": "TASK-002",
+        "title": "Implement the pure schema rules module",
+        "status": "ready",
+        "priority": 1,
+        "depends_on": [],
+        "use_case_refs": [
+          "UC-CheckRules"
+        ],
+        "scope_id": "",
+        "body_path": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.shapeup/envlint/tasks/TASK-002-rules-module.md",
+        "acceptance_criteria": [
+          {
+            "text": "`src/rules.mjs` exports `checkSchema` and `check`; `node --test test/rules.test.mjs` passes with at least one test (covers: REQ-20)",
+            "covers": [
+              "REQ-20"
+            ]
+          },
+          {
+            "text": "`src/rules.mjs` imports neither `node:fs`, network modules, nor `src/parse.mjs` (TS-INV-01) (covers: REQ-22)",
+            "covers": [
+              "REQ-22"
+            ]
+          },
+          {
+            "text": "`checkSchema` accepts a `KEY → {required,type,enum}` object and returns reasons for `[]`, `{A:1}`, `{A:{type:\"float\"}}`, `{A:{enum:\"x\"}}` (TS-ERR-SCHEMA_INVALID) (covers: REQ-1)",
+            "covers": [
+              "REQ-1"
+            ]
+          },
+          {
+            "text": "a `required: true` key with no pair yields a `required` finding with `line: null` (TS-ERR-RULE_REQUIRED) (covers: REQ-17)",
+            "covers": [
+              "REQ-17"
+            ]
+          },
+          {
+            "text": "`type` int/bool/url/string: `1.5`, `yes`, `localhost` each yield a `type` finding with the pair's line; `-3`, `true`, `https://x.y` and any string yield none (TS-ERR-RULE_TYPE) (covers: REQ-18)",
+            "covers": [
+              "REQ-18"
+            ]
+          },
+          {
+            "text": "a value outside `enum` yields an `enum` finding; a listed value yields none (TS-ERR-RULE_ENUM) (covers: REQ-19)",
+            "covers": [
+              "REQ-19"
+            ]
+          },
+          {
+            "text": "`url` is judged by `new URL()` only and opens no connection (TS-INV-02) (covers: REQ-26)",
+            "covers": [
+              "REQ-26"
+            ]
+          },
+          "with duplicate keys the last occurrence is judged (TS-REQ-duplicate-last)"
+        ]
+      }
+    ],
+    "spec_folder": "shapeup/envlint/spec",
+    "feature": "envlint",
+    "kb_rules_path": "shapeup/knowledge-base/task-executor.md"
+  }
+}

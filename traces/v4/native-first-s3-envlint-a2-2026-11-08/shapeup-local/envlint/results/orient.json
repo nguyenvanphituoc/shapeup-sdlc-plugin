@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/orient",
+  "worker": "orient",
+  "status": "done",
+  "artifacts": [
+    ".shapeup/envlint/orient/code-surface.md",
+    ".shapeup/envlint/orient/spike-url-and-args.md",
+    ".shapeup/envlint/orient/discovered-seed.md",
+    ".shapeup/envlint/orient/hill-signal.md"
+  ],
+  "assumptions": [
+    "Greenfield: bin/, src/ and test/ are empty; no breadboard exists, so elements come from the pitch prose."
+  ],
+  "deviations": [
+    "Pitch leaves exit codes, output format, bool/int syntax and the parse-to-rules pairs shape unspecified; left for the spec."
+  ]
+}

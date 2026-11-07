@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/cli-r2-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-003",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "stdout and stderr carry no ANSI escapes and the CLI never reads stdin (TS-INV-03) (covers: REQ-25)",
+          "result": "pass",
+          "evidence": "BUG-1 fixed: bin/envlint.mjs adds visible() which prints C0/DEL/C1 control chars as literal \\xHH, applied at the stdout print site and both stderr print sites. New test 'TS-INV-03: ESC in an env value, env key or schema key never reaches the output raw' (ESC in value, env key -> PARSE_BAD_KEY line, schema key -> missing-key line) asserts 3 stdout lines, no raw control bytes, and literal '\\x1b[31mred'. node --test test/cli.test.mjs test/cli-edges.test.mjs -> 13/13 pass; harness verify t0 cli --round 2 --attempt 1 -> green 2/2"
+        }
+      ]
+    }
+  ],
+  "files_touched": [
+    { "path": "bin/envlint.mjs", "change": "modified" },
+    { "path": "test/cli.test.mjs", "change": "modified" }
+  ],
+  "discoveries": [],
+  "assumptions": [
+    "Control characters are rendered as a literal \\xHH escape (e.g. ESC -> \\x1b); the spec fixes no escape format, only that no ANSI escape reaches the output.",
+    "The whole C0 range (including TAB), DEL and C1 are escaped, not only ESC, since C1 0x9b (CSI) is an ANSI introducer too and the fix hint names C0/C1."
+  ],
+  "deviations": [
+    "Sanitization was also applied to the stderr print sites (fail() and the unexpected-error catch), which the BUG-1 'actual' does not cite; the AC names stderr too, and env/schema paths from argv reach stderr, so it is the same defect at the sibling print site. Only the TS-INV-03 AC is reported because operation is fix; other ACs were not touched."
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "verdict": "ship-now",
+  "cut_list": [
+    "QA-001 — inline comment `A=5 # c` kept as the value — QA — matches the spec decision 'no inline-comment stripping'; nice-to-have",
+    "QA-002 — `A=\"x\"y` reported as 'unterminated quote' — QA — still flagged as a problem at the right line; message wording only",
+    "QA-003 — no `--` end-of-options or `-` stdin — QA — the pitch fixes the argv form; a dash-led file name is an edge"
+  ],
+  "ship_blocking": [],
+  "breaker": null,
+  "baseline": null,
+  "notes": {
+    "baseline": "baseline not first-class — comparison is approximate (pitch problem statement: .env files are not validated today)",
+    "owner_probe": "3 scope(s) read · 0 unowned path(s) · 0 not on disk",
+    "requirements_probe": "32/33 PASS · 1 no evidence (REQ-8 ← pitch.gate.md §The pitch). The AC that covers REQ-8 also covers REQ-1, which the verdict graded PASS; the judge anchored no criterion to REQ-8 itself. An evidence gap, not a ship-blocker.",
+    "carry_forward": ["QA-001", "QA-002", "QA-003", "REQ-8 evidence anchoring"]
+  }
+}

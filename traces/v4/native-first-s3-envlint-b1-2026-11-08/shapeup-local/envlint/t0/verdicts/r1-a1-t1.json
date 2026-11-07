@@ -1,0 +1,65 @@
+{
+  "schema_version": 2,
+  "round": 1,
+  "attempt": 1,
+  "trial": 1,
+  "at": "2026-11-07T20:26:27.219Z",
+  "run_id": "envlint-20261107T201828Z-fffef5ce",
+  "scope_id": "parsing",
+  "env": {
+    "schema_version": 1,
+    "host": {
+      "platform": "darwin",
+      "arch": "arm64",
+      "os_release": "27.0.0",
+      "node": "v24.15.0",
+      "hostname_sha256": "fc7b2e355cd153f2742755036cef7a85840bc651258026e69764f044a4fbdbb9"
+    },
+    "cwd": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer",
+    "tree": {
+      "head": "b8a18120b78f8f6be5f13681f4f9b973729cff15",
+      "dirty": true,
+      "branch": "master"
+    },
+    "toolchain": [
+      {
+        "bin": "node",
+        "path": "/Users/liberty/.nvm/versions/node/v24.15.0/bin/node"
+      }
+    ],
+    "lockfiles": [],
+    "caches": null,
+    "env": {
+      "allowlist": [
+        "PATH",
+        "NODE_ENV",
+        "CI",
+        "LANG",
+        "TZ"
+      ],
+      "sha256": "6ff7b1e0d4469e07ec19c54eaab65b8c4b4ca81a2873e74ef8e050351cfc4dd6"
+    },
+    "env_sha256": "b0f15cd24a6a372bb7de415f5c48810603436528917a5b95c8dd823d627bf10d"
+  },
+  "fixtures": [
+    {
+      "cmd": "node --test test/parse.test.mjs",
+      "exit": 0,
+      "pass": true,
+      "stdout_tail": "✔ parse returns { pairs, problems } (1.225084ms)\n✔ TS-INV-01: pure — no node:fs or rules import, deterministic (0.357125ms)\n✔ TS-REQ-text-forms: assignments, comments, blanks, export, quotes, CRLF (0.0985ms)\n✔ comment lines produce no pair and no problem (0.064166ms)\n✔ blank and whitespace-only lines produce no pair and no problem (0.058625ms)\n✔ export KEY=value yields {key:'KEY', value:'value'} (0.074875ms)\n✔ inline # after = is part of the value (PD-5) (0.058166ms)\n✔ duplicates are kept in order (PD-6) (0.069041ms)\n✔ TS-ERR-PARSE_UNCLOSED_QUOTE (0.073542ms)\n✔ TS-ERR-PARSE_NO_EQUALS (0.107ms)\n✔ TS-ERR-PARSE_BAD_KEY (0.057541ms)\n✔ every pair carries its 1-based line (0.051ms)\n✔ TS-INV-02: never throws on malformed input (0.168167ms)\n✔ TS-NOGO-01: no ${VAR} interpolation (0.051333ms)\n✔ empty string → {pairs: [], problems: []} (0.046292ms)\n✔ CRLF text parses identically to LF text (0.072541ms)\nℹ tests 16\nℹ suites 0\nℹ pass 16\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 50.775375\n"
+    }
+  ],
+  "db_probe": null,
+  "fixtures_green": true,
+  "db_probe_green": true,
+  "overall": "green",
+  "score": {
+    "fixtures_passed": 1,
+    "fixtures_total": 1,
+    "db_probe": null
+  },
+  "discovered_tasks": [],
+  "check_files": {
+    "test/parse.test.mjs": "98d95d5a5da17cdea168407f19d1d8a90e8ad569e73abf3e9b4cc720acf26d6d"
+  }
+}

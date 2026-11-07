@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/parsing-r1-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-001",
+      "status": "done",
+      "ac_results": [
+        {"ac": "`src/parse.mjs` exports `parse(text)` returning `{ pairs, problems }`; `node --test test/parse.test.mjs` exits 0 (covers: REQ-10, REQ-18)", "result": "pass", "evidence": "node --test test/parse.test.mjs -> 12/12; T0 green"},
+        {"ac": "`parse(\"A=1\")` yields pair `{key:\"A\", value:\"1\", line:1}` (covers: REQ-11)", "result": "pass", "evidence": "test 'simple pair' deepEqual"},
+        {"ac": "a line starting with `#` yields no pair and no problem (covers: REQ-12)", "result": "pass", "evidence": "test 'comment line yields nothing'"},
+        {"ac": "blank lines yield no pair and no problem, and later line numbers still count them (covers: REQ-13)", "result": "pass", "evidence": "test 'blank lines...' line 3"},
+        {"ac": "`parse(\"export A=1\")` yields pair `A`=`1` (covers: REQ-14)", "result": "pass", "evidence": "test 'export prefix'"},
+        {"ac": "`parse(\"A='x y'\")` yields value `x y` (covers: REQ-15)", "result": "pass", "evidence": "test 'single quotes'"},
+        {"ac": "`parse('A=\"x # y\"')` yields value `x # y` (covers: REQ-16)", "result": "pass", "evidence": "test 'double quotes keep #'"},
+        {"ac": "`parse(\"A=1\\nJUNK\")` yields problem `{line: 2}`; `1BAD=x` and `A=\"open` each yield a problem at their 1-based line (covers: REQ-17)", "result": "pass", "evidence": "test 'problems carry 1-based lines'"},
+        {"ac": "`src/parse.mjs` contains no `import` statement — a test reads the file and asserts it (covers: REQ-27, REQ-18)", "result": "pass", "evidence": "test 'parse.mjs has no import statement'"},
+        {"ac": "`parse(\"A=${B}\")` yields the literal value `${B}` (covers: REQ-29)", "result": "pass", "evidence": "test 'no interpolation'"},
+        {"ac": "`parse(\"\")` and `parse(\"# only\\n\\n\")` return `{pairs: [], problems: []}` (covers: REQ-6)", "result": "pass", "evidence": "test 'empty inputs'"},
+        {"ac": "`parse` never throws on `\"=\"`, `\"\\0\\n'\"`, or a long random string — asserted in the test (covers: REQ-7)", "result": "pass", "evidence": "test 'never throws'"}
+      ]
+    }
+  ],
+  "files_touched": [
+    {"path": "src/parse.mjs", "change": "created"},
+    {"path": "test/parse.test.mjs", "change": "created"}
+  ],
+  "discoveries": [],
+  "assumptions": [
+    "A duplicate key removes the earlier pair and appends the later one (last wins, carrying the later line)",
+    "A quoted value must end with the same quote as its opener; trailing text after a closing quote counts as unterminated"
+  ],
+  "deviations": []
+}

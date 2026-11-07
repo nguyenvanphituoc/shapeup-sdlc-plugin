@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "verdict": "ship-now",
+  "cut_list": [
+    "QA-001 — CR-only line endings fold the file into one line — QA ~ — nice-to-have: CRLF and LF work; classic-Mac CR files are rare",
+    "QA-002 — url accepts http:///x, a://b, mailto://x — QA ~ — nice-to-have: the scheme://host shape check holds for the spike's cases; tightening is a refinement",
+    "QA-003 — --help exits 2 with parseArgs wording — QA ~ — nice-to-have: no help flag is in the pitch, and exit 2 + usage line is the specified contract",
+    "QA-004 — inline '# comment' after an unquoted value stays in the value — QA ~ — nice-to-have: the pitch names '#' comment lines only",
+    "QA-005 — empty enum array gives 'expected one of , got ...' — QA ~ — nice-to-have: degenerate schema; message cosmetics",
+    "QA-006 — control bytes in values echoed raw to stdout — QA ~ — nice-to-have: the tool adds no colour itself (REQ-26 PASS); escaping user bytes is hardening",
+    "REQ-1 — schema describes required keys and value shape — requirement (no anchored evidence) — nice-to-have gap: schema shape exercised by REQ-17/18/19 PASS rows and TS-ERR-SCHEMA_INVALID_SHAPE PASS",
+    "REQ-8 — both files passed as arguments, envlint --schema <schema.json> <envfile> — requirement (no anchored evidence) — nice-to-have gap: every UC-LintEnvFile process row PASSed driving exactly that invocation; REQ-9 PASS",
+    "REQ-20 — rules pure, data in, findings out — requirement (no anchored evidence) — nice-to-have gap: REQ-21 PASS (no cross import, no network) and UC-EvaluateRules rows PASS as direct function calls",
+    "REQ-25 — no dotenv-compatible loading — requirement (no anchored evidence) — nice-to-have gap: REQ-23 PASS on the same AC; no process.env loading observed"
+  ],
+  "ship_blocking": [],
+  "breaker": null,
+  "baseline": null
+}

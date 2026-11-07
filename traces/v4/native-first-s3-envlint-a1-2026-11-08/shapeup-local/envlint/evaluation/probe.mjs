@@ -1,0 +1,17 @@
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+const BIN = "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/bin/envlint.mjs";
+const d = mkdtempSync(join(tmpdir(), "ev-"));
+const f = (n, c) => { const p = join(d, n); writeFileSync(p, c); return p; };
+const run = (a) => { const r = spawnSync("node", [BIN, ...a], { encoding: "utf8", input: "" }); console.log(JSON.stringify(a.map(x=>x.replace(d,"<d>"))), r.status, JSON.stringify(r.stdout.replaceAll(d,"<d>")), JSON.stringify(r.stderr.replaceAll(d,"<d>"))); };
+const e1 = f("e1", "PORT=abc\nJUNK"), s1 = f("s1", '{"PORT":{"type":"int"},"DB":{"required":true}}');
+run(["--schema", s1, e1]); run([]); run(["--schema", s1]); run([e1]);
+run(["--schema", f("s2", '{"A":{"type":"float"}}'), e1]);
+run(["--schema", f("s3", "{not json"), e1]); run(["--schema", join(d, "nope"), e1]); run(["--schema", s1, "missing.env"]);
+const e3 = f("e3", "U=foo\nV=http://\nW=a:b\nX=mailto:x@y\nY=https://example.com\nZ=-1\nD=yes\nE=qa\nP=80x\n");
+const s3 = f("s3b", JSON.stringify({U:{type:"url"},V:{type:"url"},W:{type:"url"},X:{type:"url"},Y:{type:"url"},Z:{type:"int"},D:{type:"bool"},E:{enum:["dev","prod"]},P:{type:"int"}}));
+run(["--schema", s3, e3]);
+run(["--schema", s1, f("e4", "")]); run(["--schema", f("s5","{}"), f("e5","")]);
+run(["--schema", f("s6","[]"), f("bin", Buffer.from([0,255,254,1,2,0x80,10,0xc3,0x28,0,61,255]))]);

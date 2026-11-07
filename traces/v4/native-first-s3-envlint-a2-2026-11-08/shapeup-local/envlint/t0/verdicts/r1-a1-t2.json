@@ -1,0 +1,65 @@
+{
+  "schema_version": 2,
+  "round": 1,
+  "attempt": 1,
+  "trial": 2,
+  "at": "2026-11-07T20:46:58.786Z",
+  "run_id": "envlint-20261107T203949Z-063897fa",
+  "scope_id": "rules",
+  "env": {
+    "schema_version": 1,
+    "host": {
+      "platform": "darwin",
+      "arch": "arm64",
+      "os_release": "27.0.0",
+      "node": "v24.15.0",
+      "hostname_sha256": "fc7b2e355cd153f2742755036cef7a85840bc651258026e69764f044a4fbdbb9"
+    },
+    "cwd": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer",
+    "tree": {
+      "head": "b8a18120b78f8f6be5f13681f4f9b973729cff15",
+      "dirty": true,
+      "branch": "master"
+    },
+    "toolchain": [
+      {
+        "bin": "node",
+        "path": "/Users/liberty/.nvm/versions/node/v24.15.0/bin/node"
+      }
+    ],
+    "lockfiles": [],
+    "caches": null,
+    "env": {
+      "allowlist": [
+        "PATH",
+        "NODE_ENV",
+        "CI",
+        "LANG",
+        "TZ"
+      ],
+      "sha256": "e698935b9c22a2ed2e89d693ec65829aac5c8e637239372dcb4105497541a932"
+    },
+    "env_sha256": "c22711878a98992a4ef22175183f54b9206bb19ff813061746033c4a8b023588"
+  },
+  "fixtures": [
+    {
+      "cmd": "node --test test/rules.test.mjs",
+      "exit": 0,
+      "pass": true,
+      "stdout_tail": "✔ exports checkRules returning findings and schemaErrors (0.806916ms)\n✔ bad schema shapes yield schemaErrors and no findings (0.498875ms)\n✔ required (0.08925ms)\n✔ type string/bool and line (0.132334ms)\n✔ int boundaries (0.136375ms)\n✔ url (0.113209ms)\n✔ enum (0.066375ms)\n✔ last duplicate wins (0.050083ms)\n✔ null/array/string schema returns schemaErrors without throwing (0.079875ms)\n✔ rules.mjs is pure: no parse import, no network (0.846833ms)\nℹ tests 10\nℹ suites 0\nℹ pass 10\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 50.415542\n"
+    }
+  ],
+  "db_probe": null,
+  "fixtures_green": true,
+  "db_probe_green": true,
+  "overall": "green",
+  "score": {
+    "fixtures_passed": 1,
+    "fixtures_total": 1,
+    "db_probe": null
+  },
+  "discovered_tasks": [],
+  "check_files": {
+    "test/rules.test.mjs": "359245002788611b243e61e31a179907849030e3a19a02b6edbd17a10d41dcdd"
+  }
+}

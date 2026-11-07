@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/cli-r1-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-003",
+      "status": "done",
+      "ac_results": [
+        {"ac": "`bin/envlint.mjs` starts with `#!/usr/bin/env node` and `node --test` exits 0 (covers: REQ-26)", "result": "pass", "evidence": "shebang test + verify t0 green (1/1 fixture, node --test test/cli.test.mjs)"},
+        {"ac": "`envlint --schema s.json e.env` reads exactly those two fixture files (covers: REQ-1, REQ-8)", "result": "pass", "evidence": "test 'reads exactly the two named files'; CLI reads only the two argv paths"},
+        {"ac": "run in a temp dir holding its own `.env`, pointed at a fixture elsewhere, only the fixture's problems are reported and the dir listing is unchanged afterwards (covers: REQ-9, REQ-28, REQ-30)", "result": "pass", "evidence": "test 'ignores a .env in the cwd and leaves the dir unchanged'"},
+        {"ac": "env `PORT=abc\\nJUNK` with schema `{\"PORT\":{\"type\":\"int\"},\"DB\":{\"required\":true}}` prints `<f>:1: PORT: expected int, got \"abc\"`, `<f>:2: expected KEY=value`, `<f>: DB: required key is missing` and exits 1 (covers: REQ-2, REQ-3)", "result": "pass", "evidence": "test 'findings in spec order'"},
+        {"ac": "a valid env file satisfying its schema exits 0 with empty stdout and stderr (covers: REQ-3)", "result": "pass", "evidence": "test 'clean file is silent'"},
+        {"ac": "no args, only `--schema s.json`, or only an env path → exit 2 with the usage line on stderr (covers: REQ-26)", "result": "pass", "evidence": "test 'usage errors'"},
+        {"ac": "a missing env file → exit 2, stderr names the path, no `    at ` stack frame (covers: REQ-4)", "result": "pass", "evidence": "test 'missing env file'"},
+        {"ac": "a missing schema, a schema `{not json`, and a schema `{\"A\":{\"type\":\"float\"}}` → exit 2, stderr names the schema, no stack frame (covers: REQ-5)", "result": "pass", "evidence": "test 'unreadable schemas'"},
+        {"ac": "a binary-garbage env file with a valid schema exits 1 or 0 with no stack frame (covers: REQ-7)", "result": "pass", "evidence": "test 'binary garbage env file does not crash'"},
+        {"ac": "stdout of a findings run contains no `\\x1b[` and the process exits with stdin left open and unused (covers: REQ-31)", "result": "pass", "evidence": "test 'no ANSI and does not wait on open stdin' (piped stdin never closed)"},
+        {"ac": "an empty env file with a one-required-key schema exits 1 with the missing-key line; with a schema of no required keys it exits 0 (covers: REQ-6)", "result": "pass", "evidence": "test 'empty env file'"}
+      ]
+    }
+  ],
+  "files_touched": [
+    {"path": "bin/envlint.mjs", "change": "created"},
+    {"path": "test/cli.test.mjs", "change": "created"}
+  ],
+  "discoveries": [],
+  "assumptions": [
+    "Output order: parse problems and located findings merged by line number, then unlocated (missing-key) findings",
+    "Schema shape validation lives in the CLI (rules.mjs is outside this substrate): object of rule objects; required boolean; type in string|int|bool|url; enum string[]",
+    "Unknown options and a repeated --schema or second positional are usage errors"
+  ],
+  "deviations": ["Could not set the executable bit on bin/envlint.mjs (chmod needs approval); not required by any AC"]
+}

@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/cli-r1-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-003",
+      "status": "done",
+      "ac_results": [
+        { "ac": "`bin/envlint.mjs` exists with a `#!/usr/bin/env node` shebang and `node --check bin/envlint.mjs` exits 0 (covers: REQ-21)", "result": "pass", "evidence": "node --check bin/envlint.mjs exit 0; test 'REQ-21: shebang present and node --check passes' passes" },
+        { "ac": "`envlint --schema <schema.json> <envfile>` reads both files from argv; `--schema=x` and a schema after the env file also work (TS-REQ-schema-position) (covers: REQ-8)", "result": "pass", "evidence": "test 'TS-REQ-schema-position' passes: `app.env --schema=s.json`, `--schema=s.json app.env`, `app.env --schema s.json` give identical status and stdout to `--schema s.json app.env`" },
+        { "ac": "a `.env` in the working directory is never read (TS-NOGO-01) (covers: REQ-9)", "result": "pass", "evidence": "test 'TS-NOGO-01' passes: temp cwd with a failing .env, clean.env passed → exit 0, empty stdout" },
+        { "ac": "usage errors (no args, `--schema` with no value, no env file, two env files, unknown option) exit 2 with `envlint:` and `usage:` on stderr (TS-ERR-USAGE) (covers: REQ-21)", "result": "pass", "evidence": "test 'TS-ERR-USAGE' passes for [], [a.env --schema], [--schema s.json], two env files, --bogus, --schema= : exit 2, stderr ^envlint: and contains usage:" },
+        { "ac": "findings and parse problems print one stdout line each, `<envfile>:<line>: <key>: <message>` (TS-ERR-FINDINGS) (covers: REQ-2)", "result": "pass", "evidence": "test 'TS-ERR-FINDINGS' passes: env `A=x\\nGARBAGE`, schema {A:int,B:required} → exit 1, lines `app.env:1: A: …`, `app.env:2: …`, `app.env: B: …`" },
+        { "ac": "exit 1 when anything is printed, exit 0 with empty stdout when clean (TS-REQ-clean) (covers: REQ-3)", "result": "pass", "evidence": "tests 'TS-REQ-clean' (exit 0, stdout '') and 'TS-ERR-FINDINGS' (exit 1) pass" },
+        { "ac": "stdout and stderr carry no ANSI escapes and the CLI never reads stdin (TS-INV-03) (covers: REQ-25)", "result": "pass", "evidence": "test 'TS-INV-03' passes: stdin 'ignore', process exits within timeout, no \\x1b[ in stdout+stderr, bin source has no process.stdin reference" },
+        { "ac": "`node --test test/cli.test.mjs` passes, driving the binary with `spawnSync` over temp-dir fixtures", "result": "pass", "evidence": "node --test test/cli.test.mjs test/cli-edges.test.mjs → 12/12 pass; T0 verify r1-a1 overall green, fixtures 2/2" }
+      ]
+    },
+    {
+      "task_id": "TASK-004",
+      "status": "done",
+      "ac_results": [
+        { "ac": "a missing env file or missing schema exits 2 with `envlint: cannot read <path>`, no stack trace (TS-ERR-IO) (covers: REQ-4)", "result": "pass", "evidence": "test 'TS-ERR-IO: missing env file or schema…' passes: exit 2, stderr ^envlint: cannot read nope.env / nope.json, no `at ` frames" },
+        { "ac": "a schema that is a directory, not valid JSON, or fails `checkSchema` exits 2 with `envlint:` on stderr (TS-ERR-IO, TS-ERR-SCHEMA) (covers: REQ-5)", "result": "pass", "evidence": "test 'TS-ERR-IO / TS-ERR-SCHEMA' passes: dir schema → `envlint: cannot read schemadir`; `{not json` and {A:{type:float}} → exit 2 `envlint: invalid schema <path>`" },
+        { "ac": "an empty or comments-only env file exits 0 with no required keys and exits 1 naming the key when one is required (TS-REQ-empty-file) (covers: REQ-6)", "result": "pass", "evidence": "test 'TS-REQ-empty-file' passes for empty.env and comments.env: exit 0 with optional schema, exit 1 with `<env>: A: …` when A required" },
+        { "ac": "a binary-garbage env file and a `null` schema never produce a stack trace (TS-INV-02) (covers: REQ-7)", "result": "pass", "evidence": "test 'TS-INV-02' passes: garbage bytes env → exit 1/2 no stack frames; `null` schema → exit 2 `envlint: invalid schema null.json`" },
+        { "ac": "the fixture directory is unchanged after every run (TS-INV-01) (covers: REQ-23)", "result": "pass", "evidence": "test 'TS-INV-01' passes: directory listing + base64 contents identical after clean (0), findings (1) and bad-schema (2) runs" },
+        { "ac": "`node --test test/cli-edges.test.mjs` passes, and `npm test` runs more than 0 tests", "result": "pass", "evidence": "node --test test/cli-edges.test.mjs → 5/5 pass; `node --test` from project root (the npm test script body) → 37 tests, 37 pass. `npm test` itself was not run: the permission layer required approval for it" }
+      ]
+    }
+  ],
+  "files_touched": [
+    { "path": "bin/envlint.mjs", "change": "created" },
+    { "path": "test/cli.test.mjs", "change": "created" },
+    { "path": "test/cli-edges.test.mjs", "change": "created" }
+  ],
+  "discoveries": [],
+  "assumptions": [
+    "Output ordering: parse problems and findings merged and stable-sorted by line; missing-key findings (line null) last, in schema order (UC-LintEnvFile step 8)",
+    "Finding line text uses the finding's `message` field (e.g. `expected int, got \"x\"`), not its `rule` name",
+    "SCHEMA error reason is the first checkSchema reason (or the JSON.parse error message); stderr stays one `envlint:` line",
+    "A schema path that is a directory is reported as IO (`cannot read <path>`), per the Error Cases table",
+    "`--schema=` (empty value) is treated as a usage error, like a missing --schema",
+    "Paths are printed exactly as given on argv (no resolution to absolute)",
+    "Usage message text: `envlint: <what is wrong>` followed by `usage: envlint --schema <schema.json> <envfile>`; parseArgs error text is reused (first line) for unknown option / missing value"
+  ],
+  "deviations": []
+}

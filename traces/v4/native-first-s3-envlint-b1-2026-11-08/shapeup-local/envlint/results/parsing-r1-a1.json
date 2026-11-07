@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/parsing-r1-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-001",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "`src/parse.mjs` exports `parse(text)` returning `{ pairs, problems }`; `node --test test/parse.test.mjs` passes with at least one test (covers: REQ-16)",
+          "result": "pass",
+          "evidence": "node --test test/parse.test.mjs -> 16/16 pass; test 'parse returns { pairs, problems }'; harness verify t0 r1 a1 -> overall green, fixtures 1/1"
+        },
+        {
+          "ac": "`src/parse.mjs` imports neither `node:fs` nor `src/rules.mjs` (TS-INV-01) (covers: REQ-22)",
+          "result": "pass",
+          "evidence": "src/parse.mjs has zero import statements; test 'TS-INV-01' scans its import lines for fs/rules and asserts parse(text) deep-equals a second call -> pass"
+        },
+        {
+          "ac": "`KEY=value`, `# comment` lines and blank lines: pairs for assignments only, comments and blanks skipped (TS-REQ-text-forms) (covers: REQ-10)",
+          "result": "pass",
+          "evidence": "test 'TS-REQ-text-forms': KEY=value, # comment, blank, whitespace-only, export K=v, 'single', \"double\" over CRLF -> 4 pairs at lines 1/5/6/7, problems [] -> pass"
+        },
+        {
+          "ac": "`# comment` lines produce no pair and no problem (covers: REQ-11)",
+          "result": "pass",
+          "evidence": "test 'comment lines produce no pair and no problem' (incl. indented #) -> {pairs:[],problems:[]} -> pass"
+        },
+        {
+          "ac": "blank and whitespace-only lines produce no pair and no problem (covers: REQ-12)",
+          "result": "pass",
+          "evidence": "test 'blank and whitespace-only lines ...' on \"\\n   \\n\\t\\n\" -> {pairs:[],problems:[]} -> pass"
+        },
+        {
+          "ac": "`export KEY=value` yields pair `{key:\"KEY\", value:\"value\"}` (covers: REQ-13)",
+          "result": "pass",
+          "evidence": "test 'export KEY=value yields ...' -> pairs[0].key KEY, pairs[0].value value, no problems -> pass"
+        },
+        {
+          "ac": "`'single'` and `\"double\"` quoted values come back with the quotes stripped; an unclosed quote is a problem (TS-ERR-PARSE_UNCLOSED_QUOTE) (covers: REQ-14)",
+          "result": "pass",
+          "evidence": "test 'TS-REQ-text-forms' asserts S=single, D=double stripped; test 'TS-ERR-PARSE_UNCLOSED_QUOTE': A=\"open, A='open, mismatched quotes, lone quote -> one problem at line 1, no pair -> pass"
+        },
+        {
+          "ac": "a line with no `=` or an invalid key is a problem carrying its 1-based line, and every pair carries its 1-based `line` (TS-ERR-PARSE_NO_EQUALS, TS-ERR-PARSE_BAD_KEY) (covers: REQ-15)",
+          "result": "pass",
+          "evidence": "tests 'TS-ERR-PARSE_NO_EQUALS' (A=1\\nGARBAGE\\n -> problems at [2], pairs [A]), 'TS-ERR-PARSE_BAD_KEY' (1BAD=x -> problem line 1, no pairs), 'every pair carries its 1-based line' (lines [2,4]) -> pass"
+        },
+        {
+          "ac": "`parse` never throws on malformed input, including `\"\"`, `\"=x\"`, `\"A\"` (TS-INV-02) (covers: REQ-7)",
+          "result": "pass",
+          "evidence": "test 'TS-INV-02': \"\", \"=x\", \"A\", \"\\u0000\", \"export\", \"export =\", \"  =  \", lone quote, multi-line -> no throw, every problem line an integer >= 1; =x and A -> problem at line 1 -> pass"
+        },
+        {
+          "ac": "`parse(\"A=${B}\")` returns the literal value `${B}` (TS-NOGO-01) (covers: REQ-24)",
+          "result": "pass",
+          "evidence": "test 'TS-NOGO-01': parse(\"A=${B}\").pairs deep-equals [{key:\"A\",value:\"${B}\",line:1}] -> pass"
+        },
+        {
+          "ac": "empty string → `{pairs: [], problems: []}` (covers: REQ-6)",
+          "result": "pass",
+          "evidence": "test 'empty string -> {pairs: [], problems: []}': parse(\"\") deep-equals {pairs:[],problems:[]} -> pass"
+        },
+        {
+          "ac": "CRLF text parses identically to LF text (no `\\r` in values)",
+          "result": "pass",
+          "evidence": "test 'CRLF text parses identically to LF text': parse(crlf) deep-equals parse(lf) and no pair value contains \\r -> pass"
+        }
+      ]
+    }
+  ],
+  "files_touched": [
+    { "path": "src/parse.mjs", "change": "created" },
+    { "path": "test/parse.test.mjs", "change": "created" }
+  ],
+  "discoveries": [
+    { "marker": "+", "line": "non-string input to parse is coerced with String(text ?? \"\") rather than rejected; the spec only promises no-throw on string input" }
+  ],
+  "assumptions": [
+    "ParseProblem.message is the error code (PARSE_NO_EQUALS / PARSE_BAD_KEY / PARSE_UNCLOSED_QUOTE) followed by a short description; the spec fixes no message text",
+    "the export prefix is the literal 'export ' (one space) after trimming the line; a bare 'export' line with no = is a PARSE_NO_EQUALS problem",
+    "a value counts as quoted only when its first character after trimming is a quote; a quote mid-value (a\"b) is literal",
+    "a lone quote as the whole value (A=\") is an unclosed quote",
+    "no escape processing inside quotes and inline # after = kept in the value (PD-4, PD-5)",
+    "the test file reads src/parse.mjs with node:fs to check its imports; the purity invariant applies to the module, not to its test"
+  ],
+  "deviations": []
+}

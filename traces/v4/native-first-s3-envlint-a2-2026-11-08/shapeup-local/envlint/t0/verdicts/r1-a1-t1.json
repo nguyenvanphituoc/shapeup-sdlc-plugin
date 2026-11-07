@@ -1,0 +1,65 @@
+{
+  "schema_version": 2,
+  "round": 1,
+  "attempt": 1,
+  "trial": 1,
+  "at": "2026-11-07T20:46:45.530Z",
+  "run_id": "envlint-20261107T203949Z-063897fa",
+  "scope_id": "parsing",
+  "env": {
+    "schema_version": 1,
+    "host": {
+      "platform": "darwin",
+      "arch": "arm64",
+      "os_release": "27.0.0",
+      "node": "v24.15.0",
+      "hostname_sha256": "fc7b2e355cd153f2742755036cef7a85840bc651258026e69764f044a4fbdbb9"
+    },
+    "cwd": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer",
+    "tree": {
+      "head": "b8a18120b78f8f6be5f13681f4f9b973729cff15",
+      "dirty": true,
+      "branch": "master"
+    },
+    "toolchain": [
+      {
+        "bin": "node",
+        "path": "/Users/liberty/.nvm/versions/node/v24.15.0/bin/node"
+      }
+    ],
+    "lockfiles": [],
+    "caches": null,
+    "env": {
+      "allowlist": [
+        "PATH",
+        "NODE_ENV",
+        "CI",
+        "LANG",
+        "TZ"
+      ],
+      "sha256": "e698935b9c22a2ed2e89d693ec65829aac5c8e637239372dcb4105497541a932"
+    },
+    "env_sha256": "c22711878a98992a4ef22175183f54b9206bb19ff813061746033c4a8b023588"
+  },
+  "fixtures": [
+    {
+      "cmd": "node --test test/parse.test.mjs",
+      "exit": 0,
+      "pass": true,
+      "stdout_tail": "✔ KEY=value with line numbers and trimming (0.821834ms)\n✔ comments ignored (0.072959ms)\n✔ blank lines ignored (0.130125ms)\n✔ export prefix (0.078334ms)\n✔ quotes, no escapes (0.085625ms)\n✔ problems carry line and skip (0.085542ms)\n✔ no rules import (0.260833ms)\n✔ no interpolation (0.068667ms)\n✔ empty and comments-only (0.089625ms)\n✔ never throws (0.26375ms)\nℹ tests 10\nℹ suites 0\nℹ pass 10\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 51.2335\n"
+    }
+  ],
+  "db_probe": null,
+  "fixtures_green": true,
+  "db_probe_green": true,
+  "overall": "green",
+  "score": {
+    "fixtures_passed": 1,
+    "fixtures_total": 1,
+    "db_probe": null
+  },
+  "discovered_tasks": [],
+  "check_files": {
+    "test/parse.test.mjs": "1b01371e8112c0a25622b35019cdb354c26939799d27e1e966228e8b58dcd1c4"
+  }
+}

@@ -1,0 +1,60 @@
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+const E = "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/bin/envlint.mjs";
+const d = mkdtempSync(join(tmpdir(), "hunt-"));
+const w = (n, c) => (writeFileSync(join(d, n), c), join(d, n));
+const run = (label, args) => {
+  const r = spawnSync("node", [E, ...args], { encoding: "utf8", cwd: d });
+  console.log(`## ${label}\n  rc=${r.status} out=${JSON.stringify(r.stdout)} err=${JSON.stringify(r.stderr)}`);
+};
+const S = (o) => w("s" + Math.random() + ".json", typeof o === "string" ? o : JSON.stringify(o));
+const sInt = S({ A: { type: "int" } });
+const ok = w("ok.env", "A=1\n");
+
+run("help", ["--help"]);
+run("ctor required", ["--schema", S({ constructor: { required: true } }), ok]);
+run("proto/ctor env keys", ["--schema", S('{"__proto__":{"required":true},"toString":{"type":"int"}}'), w("p.env", "constructor=x\n__proto__=y\n")]);
+run("proto json key vs env", ["--schema", S('{"__proto__":{"type":"int"}}'), w("px.env", "__proto__=abc\n")]);
+run("type toString", ["--schema", S({ A: { type: "toString" } }), ok]);
+run("type constructor", ["--schema", S({ A: { type: "constructor" } }), ok]);
+run("BOM", ["--schema", sInt, w("bom.env", "\uFEFFA=x\n")]);
+run("CR only", ["--schema", sInt, w("cr.env", "A=1\rB=2\r")]);
+run("dir as env", ["--schema", sInt, d]);
+run("null schema", ["--schema", S("null"), ok]);
+run("array schema", ["--schema", S("[]"), ok]);
+run("quotes", ["--schema", S({ A: { type: "string" }, C: { type: "int" }, D: { type: "int" } }), w("q.env", 'A="x"y"\nB="\nC=1 # c\nD=" 5 "\n')]);
+run("huge int", ["--schema", sInt, w("h.env", "A=99999999999999999999999\n")]);
+run("arabic digits", ["--schema", sInt, w("u.env", "A=١٢٣\n")]);
+const su = S({ U: { type: "url" } });
+for (const u of ["http://", "http:///x", "file:///etc/passwd", "a://b", "http://exa mple.com", "x://:80", "http://[::1]", "://x", "mailto://x", "http://a b", "HTTP://X", "ht tp://x"])
+  run("url " + u, ["--schema", su, w("u2.env", `U=${u}\n`)]);
+run("CR mid-line", ["--schema", sInt, w("crm.env", "A=1\r2\n")]);
+run("-- positional", ["--schema", sInt, "--", "-x.env"]);
+run("--schema=", ["--schema=" + sInt, ok]);
+run("extra positional", ["--schema", sInt, ok, "extra"]);
+run("ANSI in value", ["--schema", sInt, w("ansi.env", "A=\x1b[31mred\n")]);
+run("export edges", ["--schema", S({ A: { required: true } }), w("ex.env", "export\nexport  A=1\nexportA=1\nexport export=2\n")]);
+run("empty required+int", ["--schema", S({ A: { required: true, type: "int" } }), w("em.env", "A=\n")]);
+run("dup last wins", ["--schema", S({ M: { enum: ["dev"] } }), w("d.env", "M=bad\nM=dev\n")]);
+run("rule null", ["--schema", S('{"A":null}'), ok]);
+run("empty file", ["--schema", sInt, w("empty.env", "")]);
+run("key with space", ["--schema", sInt, w("sp.env", "A B=1\nA =5\n")]);
+run("unicode key", ["--schema", sInt, w("uk.env", "Ä=1\n")]);
+run("quote-only values", ["--schema", S({ A: { type: "string", enum: [""] } }), w("qq.env", 'A=""\nB=\'\'\nC="\nD=\'\n')]);
+run("single quote char value", ["--schema", S({ A: { type: "string" } }), w("sq.env", 'A="\n')]);
+run("newline in path", ["--schema", sInt, join(d, "no\nsuch.env")]);
+run("schema dup keys / required string", ["--schema", S('{"A":{"required":"yes"}}'), ok]);
+run("enum empty array", ["--schema", S({ A: { enum: [] } }), ok]);
+run("nul byte in env", ["--schema", sInt, w("nul.env", "A=1\x00\n")]);
+run("invalid utf8", ["--schema", sInt, (writeFileSync(join(d, "bin.env"), Buffer.from([0x41, 0x3d, 0xff, 0xfe, 0x0a])), join(d, "bin.env"))]);
+// perf
+let big = "";
+for (let i = 0; i < 300000; i++) big += `K${i}=v\n`;
+const t = Date.now();
+run("big file", ["--schema", S({ K1: { required: true } }), w("big.env", big)]);
+console.log("ms", Date.now() - t);
+let long = "A=" + "x".repeat(5_000_000) + "\n";
+run("5MB value int", ["--schema", sInt, w("long.env", long)].map((x) => x));

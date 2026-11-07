@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/cli-r1-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-003",
+      "status": "done",
+      "ac_results": [
+        {"ac": "`bin/envlint.mjs` has a `#!/usr/bin/env node` shebang and `node --check bin/envlint.mjs` exits 0", "result": "pass", "evidence": "shebang on line 1; T0 fixture node --check green (2/2)"},
+        {"ac": "`envlint --schema <schema.json> <envfile>` reads exactly those two paths, with no implicit `./.env` lookup (covers: REQ-8) (covers: REQ-9)", "result": "pass", "evidence": "only readFileSync on the two argv paths; cli.test 'only given files are read' green"},
+        {"ac": "missing `--schema`, `--schema` with no value, an unknown option, or anything other than one positional → exit 2, stderr `envlint: …` plus a `usage:` line (covers: REQ-22)", "result": "pass", "evidence": "cli.test 'usage errors exit 2 with a usage line' green"},
+        {"ac": "findings and parse problems print one per line to stdout, in line order, as `<envfile>:<line>: <KEY>: <message>`, `<envfile>:<line>: <message>` or `<envfile>: <KEY>: <message>` (covers: REQ-2)", "result": "pass", "evidence": "cli.test scenario prints the three specified lines in order"},
+        {"ac": "exit 0 when nothing is printed, exit 1 when any problem or finding is printed (covers: REQ-3)", "result": "pass", "evidence": "cli.test no-assignments (0) and findings (1)"},
+        {"ac": "the CLI never writes any file and does no dotenv-style loading into `process.env` (covers: REQ-23) (covers: REQ-25)", "result": "pass", "evidence": "no write APIs or process.env use in bin/envlint.mjs; cwd listing unchanged in test"},
+        {"ac": "output has no ANSI escape codes and the CLI never reads stdin (covers: REQ-26)", "result": "pass", "evidence": "no stdin read; test asserts no \\x1b[ in stdout/stderr"}
+      ]
+    },
+    {
+      "task_id": "TASK-004",
+      "status": "done",
+      "ac_results": [
+        {"ac": "`test/cli.test.mjs` spawns `node bin/envlint.mjs` with fixture files written under `os.tmpdir()`; `npm test` exits 0", "result": "pass", "evidence": "T0 fixture node --test test/cli.test.mjs green (2/2)"},
+        {"ac": "a missing env file → exit 2, stderr names the path, no stack trace (covers: REQ-4)", "result": "pass", "evidence": "cli.test 'missing env file'"},
+        {"ac": "a missing schema file, a non-JSON schema and a schema with an unknown `type` → exit 2, stderr names the schema path, no stack trace (covers: REQ-5)", "result": "pass", "evidence": "cli.test 'bad schemas name the schema path'"},
+        {"ac": "an env file of only comments and blank lines → exit 0 with no required keys; exit 1 with exactly the required-missing line when one key is required (covers: REQ-6)", "result": "pass", "evidence": "cli.test 'no assignments'"},
+        {"ac": "malformed env input (a line with no `=`, an unterminated quote, binary garbage) never yields a stack trace or an exit code outside {0,1,2} (covers: REQ-7)", "result": "pass", "evidence": "cli.test 'malformed input never crashes'"},
+        {"ac": "run from a temp cwd containing its own `.env`, the output reflects only the given files and no file in the cwd is created or modified (covers: REQ-9) (covers: REQ-23)", "result": "pass", "evidence": "cli.test 'only given files are read; cwd untouched'"}
+      ]
+    }
+  ],
+  "files_touched": [
+    {"path": "bin/envlint.mjs", "change": "created"},
+    {"path": "test/cli.test.mjs", "change": "created"}
+  ],
+  "discoveries": [],
+  "assumptions": [
+    "Output rows sort by line; problems before findings on a tie; missing-required (no line) last",
+    "Unreadable schema file reports 'invalid schema <path>: cannot read file'"
+  ],
+  "deviations": ["chmod +x on bin/envlint.mjs was not permitted in this session; file has the shebang but may lack the exec bit"]
+}

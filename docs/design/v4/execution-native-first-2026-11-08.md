@@ -130,7 +130,7 @@ are the branches of `probe next` (about 800 lines) that a phase table would have
 nothing about them. So the comparison can refute the engine's removal and cannot confirm it. The plan's rule was "holds ⇒ delete,
 does not hold ⇒ keep, record why", and a result that cannot hold is the second branch.
 
-**Decision: the engine stays.** `probe next`, `probe resume`, `probe eval`, `probe owner`, `probe attempts`, `probe hunt`, `verify
+**Decision: the engine stays** (and see "S3, completed on envlint" below, which replaced the personal-site fixture with the plan's own). `probe next`, `probe resume`, `probe eval`, `probe owner`, `probe attempts`, `probe hunt`, `verify
 build`, `compile`, `reduce ingest` and `reduce board` are kept, with the 40-odd tests that pin them. V4-REQ-13 is not run to a verdict.
 What a valid measurement needs: a pitch that drives a breaker, a send-back and two dependent scopes in one run; two repetitions per
 arm on one model and one day; and a usage budget for roughly ten nested runs. This session spent about $20 across its six
@@ -162,7 +162,7 @@ deleted).
 |---|---|---|
 | S1 | real run ships with the baseline's gate rows | **met** — launch 4; one fewer duplicate `L0` row |
 | S2 | agents resolve; a receipt per dispatch; real run ships | **met for what remained in scope** — see the re-scoping table for the rows not done |
-| S3 | measurement, then delete or keep | **kept, not measured to a verdict** (usage limit; fixture cannot see the chains) |
+| S3 | measurement, then delete or keep | **measured on the plan's own pitch; does not hold; the engine is kept** (see below) |
 | S4 | about 10 files, at most 2,500 lines | **not met** — 110 files, 19,911 lines; the rule was applied, the target needs the engine gone |
 
 Shipped executable set: 18,736 → 16,513 lines and 52 → 46 files; subcommands 29 → 24 (the plan, the visual and `analysis/04` said
@@ -205,3 +205,41 @@ Fixed in the receipt hook: an accepted background launch (`run_in_background` tr
 is attested by the name the call carried, with null usage; the leg row stays null unless the loop passes the total from the completion
 notice. Tests cover the object and the text form of the result and the two cases that must mint nothing. Both repetitions are
 contaminated by the defect and are kept as evidence of it, not as measurements; the comparison was restarted on the fixed tree.
+
+## S3, completed on envlint
+
+The personal-site fixture could not see the engine's chains, so the comparison was redone on the pitch the plan named: `envlint`, three
+scopes (parsing and rules independent, the CLI depending on both), with its No-gos stated as plain sentences so the coverage defect
+above does not decide the outcome. Same model, same day, same grant (`Bash(node *)` allowed for the workers), cap $12 per launch.
+The receipt defect in the section above was found by the first pair and fixed; these are the repetitions on the fixed tree.
+
+| | A1 (`probe next`) | A2 (`probe next`) | B1 (phase table, no `probe next`) |
+|---|---|---|---|
+| closed | shipped, PASS, 1 round | shipped, PASS, 1 round | **escalated**, verdict FAIL, 2 rounds |
+| scopes with a green T0 | 3 of 3 | 3 of 3 | 3 of 3 |
+| leg rows | 10 | 10 | 10 (the tenth is the round-2 builder) |
+| orders dispatched twice | 0 | 0 | 0 |
+| results never applied | 0 | 0 | 0 |
+| gate sequence | L0 L0 L1a L1a.5 L1b L2 L3 QA H L4 COACH-1 | the same | L0 L0 L1a L1a.5 L1b L2 L3 H L4 — no QA, no COACH-1 |
+| cost as the host reported | $5.41 | $5.27 | $8.62 |
+
+Archives: `traces/v4/native-first-s3-envlint-a1-2026-11-08/`, `...-a2-...`, `...-b1-...`. The two earlier launches on the defective tree are
+kept beside them as `...-receipt-defect-...` and are not counted.
+
+**Reading it by the plan's rule** — a change holds if it completes at least as many tasks as the baseline and none gets worse:
+A completed both repetitions; B1 did not complete. B's second repetition was not run: the account's usage limit refused it. It could
+not change the outcome, because with B1 failed B can complete at most one of two against A's two. B does not hold.
+
+**What the B1 run shows beyond the verdict.** The evaluator's FAIL (41 of 42 criteria; terminal escapes reaching the output) may be
+run-to-run variance in what the builder wrote, and one repetition cannot separate that from the loop. Two things do not look like
+variance. B spent 59 % more than A for the same three scopes. And B stopped on its own: told it had $12, it judged that a second
+evaluation would not fit once round 1's evaluation and the fix round had cost most of it, went to the census at `cannot-ship`, and the
+ship gate correctly refused. A loop that has to carry sequencing, send-back and breaker rules in prose spends turns re-deriving them,
+which is the "cost creep" the kit's break map names. The kernel's `probe next` answers the same questions for the price of one call.
+
+**Decision, recorded:** the engine is kept — `probe next`, `probe resume`, `probe eval`, `probe owner`, `probe attempts`, `probe hunt`,
+`verify build`, `compile`, `reduce ingest` and `reduce board`, with the tests that pin them. V4-REQ-13 is measured and not met.
+Variant B stays out of the product. The S4 target (about 10 files, at most 2,500 lines) was conditional on the engine going and does not
+apply to a plugin that keeps it; the suite was reduced by the rule that does apply (V4-REQ-17), to 110 files and 19,911 lines.
+
+Cost of the whole plan as the host reported it: about $55 across the gate launches, the A/B launches (the defective pair, a third launch killed part-way, and the fixed trio) and three experiments.

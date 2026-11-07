@@ -1,0 +1,160 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/cli-r1-a1",
+  "kernel": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.plugin-under-test/plugin-e-a1/kernel/harness.mjs",
+  "run_id": "envlint-20261107T200500Z-db1688fa",
+  "compiled_at": "2026-11-07T20:11:45.743Z",
+  "worker": "task-executor",
+  "mode": "orchestrated",
+  "operation": "execute",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "bin/envlint.mjs",
+      "test/cli.test.mjs",
+      ".shapeup/envlint/spikes/**"
+    ],
+    "shared": [],
+    "frozen": [
+      ".shapeup/envlint/**"
+    ],
+    "own": [
+      ".shapeup/envlint/results/cli-r1-a1.json",
+      ".shapeup/envlint/tasks/TASK-*.md",
+      ".shapeup/envlint/discovery/**",
+      ".shapeup/envlint/spikes/**"
+    ]
+  },
+  "payload": {
+    "scope_contract": {
+      "scope_id": "cli",
+      "topology_type": "LAYER_CAKE",
+      "use_cases": [
+        "UC-LintEnvFile"
+      ],
+      "covers": [
+        "REQ-1",
+        "REQ-2",
+        "REQ-3",
+        "REQ-4",
+        "REQ-5",
+        "REQ-6",
+        "REQ-7",
+        "REQ-8",
+        "REQ-9",
+        "REQ-26",
+        "REQ-28",
+        "REQ-30",
+        "REQ-31"
+      ],
+      "depends_on": [
+        "parsing",
+        "rules"
+      ],
+      "allowed_file_substrate": [
+        "bin/envlint.mjs",
+        "test/cli.test.mjs"
+      ],
+      "shared_substrate": [],
+      "affordance_manifest": [],
+      "e2e_verification_fixtures": [
+        "node --test test/cli.test.mjs"
+      ],
+      "hill_phase": "UPHILL_UNKNOWN"
+    },
+    "tasks": [
+      {
+        "id": "TASK-003",
+        "title": "Wire the envlint CLI and its process tests",
+        "status": "ready",
+        "priority": 2,
+        "depends_on": [
+          "TASK-001",
+          "TASK-002"
+        ],
+        "use_case_refs": [
+          "UC-LintEnvFile"
+        ],
+        "scope_id": "",
+        "body_path": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.shapeup/envlint/tasks/TASK-003-cli.md",
+        "acceptance_criteria": [
+          {
+            "text": "`bin/envlint.mjs` starts with `#!/usr/bin/env node` and `node --test` exits 0 (covers: REQ-26)",
+            "covers": [
+              "REQ-26"
+            ]
+          },
+          {
+            "text": "`envlint --schema s.json e.env` reads exactly those two fixture files (covers: REQ-1, REQ-8)",
+            "covers": [
+              "REQ-1",
+              "REQ-8"
+            ]
+          },
+          {
+            "text": "run in a temp dir holding its own `.env`, pointed at a fixture elsewhere, only the fixture's problems are reported and the dir listing is unchanged afterwards (covers: REQ-9, REQ-28, REQ-30)",
+            "covers": [
+              "REQ-9",
+              "REQ-28",
+              "REQ-30"
+            ]
+          },
+          {
+            "text": "env `PORT=abc\\nJUNK` with schema `{\"PORT\":{\"type\":\"int\"},\"DB\":{\"required\":true}}` prints `<f>:1: PORT: expected int, got \"abc\"`, `<f>:2: expected KEY=value`, `<f>: DB: required key is missing` and exits 1 (covers: REQ-2, REQ-3)",
+            "covers": [
+              "REQ-2",
+              "REQ-3"
+            ]
+          },
+          {
+            "text": "a valid env file satisfying its schema exits 0 with empty stdout and stderr (covers: REQ-3)",
+            "covers": [
+              "REQ-3"
+            ]
+          },
+          {
+            "text": "no args, only `--schema s.json`, or only an env path → exit 2 with the usage line on stderr (covers: REQ-26)",
+            "covers": [
+              "REQ-26"
+            ]
+          },
+          {
+            "text": "a missing env file → exit 2, stderr names the path, no `    at ` stack frame (covers: REQ-4)",
+            "covers": [
+              "REQ-4"
+            ]
+          },
+          {
+            "text": "a missing schema, a schema `{not json`, and a schema `{\"A\":{\"type\":\"float\"}}` → exit 2, stderr names the schema, no stack frame (covers: REQ-5)",
+            "covers": [
+              "REQ-5"
+            ]
+          },
+          {
+            "text": "a binary-garbage env file with a valid schema exits 1 or 0 with no stack frame (covers: REQ-7)",
+            "covers": [
+              "REQ-7"
+            ]
+          },
+          {
+            "text": "stdout of a findings run contains no `\\x1b[` and the process exits with stdin left open and unused (covers: REQ-31)",
+            "covers": [
+              "REQ-31"
+            ]
+          },
+          {
+            "text": "an empty env file with a one-required-key schema exits 1 with the missing-key line; with a schema of no required keys it exits 0 (covers: REQ-6)",
+            "covers": [
+              "REQ-6"
+            ]
+          }
+        ]
+      }
+    ],
+    "spec_folder": "shapeup/envlint/spec",
+    "feature": "envlint",
+    "kb_rules_path": "shapeup/knowledge-base/task-executor.md"
+  }
+}

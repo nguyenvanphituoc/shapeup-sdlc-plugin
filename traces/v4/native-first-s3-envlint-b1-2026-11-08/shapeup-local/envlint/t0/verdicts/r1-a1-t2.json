@@ -1,0 +1,65 @@
+{
+  "schema_version": 2,
+  "round": 1,
+  "attempt": 1,
+  "trial": 2,
+  "at": "2026-11-07T20:26:33.598Z",
+  "run_id": "envlint-20261107T201828Z-fffef5ce",
+  "scope_id": "rules",
+  "env": {
+    "schema_version": 1,
+    "host": {
+      "platform": "darwin",
+      "arch": "arm64",
+      "os_release": "27.0.0",
+      "node": "v24.15.0",
+      "hostname_sha256": "fc7b2e355cd153f2742755036cef7a85840bc651258026e69764f044a4fbdbb9"
+    },
+    "cwd": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer",
+    "tree": {
+      "head": "b8a18120b78f8f6be5f13681f4f9b973729cff15",
+      "dirty": true,
+      "branch": "master"
+    },
+    "toolchain": [
+      {
+        "bin": "node",
+        "path": "/Users/liberty/.nvm/versions/node/v24.15.0/bin/node"
+      }
+    ],
+    "lockfiles": [],
+    "caches": null,
+    "env": {
+      "allowlist": [
+        "PATH",
+        "NODE_ENV",
+        "CI",
+        "LANG",
+        "TZ"
+      ],
+      "sha256": "6ff7b1e0d4469e07ec19c54eaab65b8c4b4ca81a2873e74ef8e050351cfc4dd6"
+    },
+    "env_sha256": "b0f15cd24a6a372bb7de415f5c48810603436528917a5b95c8dd823d627bf10d"
+  },
+  "fixtures": [
+    {
+      "cmd": "node --test test/rules.test.mjs",
+      "exit": 0,
+      "pass": true,
+      "stdout_tail": "✔ exports checkSchema and check (0.414458ms)\n✔ TS-INV-01: rules.mjs imports no fs, network or parse module (0.297708ms)\n✔ TS-ERR-SCHEMA_INVALID: invalid shapes return reasons, valid returns [] (1.248875ms)\n✔ TS-ERR-RULE_REQUIRED: missing required key → required finding, line null (0.116625ms)\n✔ TS-ERR-RULE_TYPE: bad values yield type findings with the pair line (0.217167ms)\n✔ TS-ERR-RULE_ENUM: value outside enum → enum finding; listed value → none (0.073625ms)\n✔ TS-INV-02: url judged by new URL() only, synchronously, no connection (0.138167ms)\n✔ TS-REQ-duplicate-last: the last occurrence of a key is judged (0.06425ms)\n✔ keys not in schema are ignored; findings follow schema key order (0.129459ms)\nℹ tests 9\nℹ suites 0\nℹ pass 9\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 53.416375\n"
+    }
+  ],
+  "db_probe": null,
+  "fixtures_green": true,
+  "db_probe_green": true,
+  "overall": "green",
+  "score": {
+    "fixtures_passed": 1,
+    "fixtures_total": 1,
+    "db_probe": null
+  },
+  "discovered_tasks": [],
+  "check_files": {
+    "test/rules.test.mjs": "93fd3b2e5d7eddf21f8e98e372ffbedf4b3b7e2aa75e60667e10dcdabfe6db71"
+  }
+}

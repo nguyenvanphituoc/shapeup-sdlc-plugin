@@ -1,0 +1,147 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/parsing-r1-a1",
+  "kernel": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.plugin-under-test/plugin-e-b1/kernel/harness.mjs",
+  "run_id": "envlint-20261107T201828Z-fffef5ce",
+  "compiled_at": "2026-11-07T20:25:36.929Z",
+  "worker": "task-executor",
+  "mode": "orchestrated",
+  "operation": "execute",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "src/parse.mjs",
+      "test/parse.test.mjs",
+      ".shapeup/envlint/spikes/**"
+    ],
+    "shared": [],
+    "frozen": [
+      ".shapeup/envlint/**"
+    ],
+    "own": [
+      ".shapeup/envlint/results/parsing-r1-a1.json",
+      ".shapeup/envlint/tasks/TASK-*.md",
+      ".shapeup/envlint/discovery/**",
+      ".shapeup/envlint/spikes/**"
+    ]
+  },
+  "payload": {
+    "scope_contract": {
+      "scope_id": "parsing",
+      "topology_type": "ICEBERG",
+      "use_cases": [
+        "UC-ParseEnv"
+      ],
+      "covers": [
+        "REQ-10",
+        "REQ-11",
+        "REQ-12",
+        "REQ-13",
+        "REQ-14",
+        "REQ-15",
+        "REQ-16",
+        "REQ-22",
+        "REQ-24"
+      ],
+      "depends_on": [],
+      "allowed_file_substrate": [
+        "src/parse.mjs",
+        "test/parse.test.mjs"
+      ],
+      "shared_substrate": [],
+      "affordance_manifest": [],
+      "e2e_verification_fixtures": [
+        "node --test test/parse.test.mjs"
+      ],
+      "hill_phase": "UPHILL_UNKNOWN"
+    },
+    "tasks": [
+      {
+        "id": "TASK-001",
+        "title": "Implement the pure .env parse module",
+        "status": "ready",
+        "priority": 1,
+        "depends_on": [],
+        "use_case_refs": [
+          "UC-ParseEnv"
+        ],
+        "scope_id": "",
+        "body_path": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.shapeup/envlint/tasks/TASK-001-parse-module.md",
+        "acceptance_criteria": [
+          {
+            "text": "`src/parse.mjs` exports `parse(text)` returning `{ pairs, problems }`; `node --test test/parse.test.mjs` passes with at least one test (covers: REQ-16)",
+            "covers": [
+              "REQ-16"
+            ]
+          },
+          {
+            "text": "`src/parse.mjs` imports neither `node:fs` nor `src/rules.mjs` (TS-INV-01) (covers: REQ-22)",
+            "covers": [
+              "REQ-22"
+            ]
+          },
+          {
+            "text": "`KEY=value`, `# comment` lines and blank lines: pairs for assignments only, comments and blanks skipped (TS-REQ-text-forms) (covers: REQ-10)",
+            "covers": [
+              "REQ-10"
+            ]
+          },
+          {
+            "text": "`# comment` lines produce no pair and no problem (covers: REQ-11)",
+            "covers": [
+              "REQ-11"
+            ]
+          },
+          {
+            "text": "blank and whitespace-only lines produce no pair and no problem (covers: REQ-12)",
+            "covers": [
+              "REQ-12"
+            ]
+          },
+          {
+            "text": "`export KEY=value` yields pair `{key:\"KEY\", value:\"value\"}` (covers: REQ-13)",
+            "covers": [
+              "REQ-13"
+            ]
+          },
+          {
+            "text": "`'single'` and `\"double\"` quoted values come back with the quotes stripped; an unclosed quote is a problem (TS-ERR-PARSE_UNCLOSED_QUOTE) (covers: REQ-14)",
+            "covers": [
+              "REQ-14"
+            ]
+          },
+          {
+            "text": "a line with no `=` or an invalid key is a problem carrying its 1-based line, and every pair carries its 1-based `line` (TS-ERR-PARSE_NO_EQUALS, TS-ERR-PARSE_BAD_KEY) (covers: REQ-15)",
+            "covers": [
+              "REQ-15"
+            ]
+          },
+          {
+            "text": "`parse` never throws on malformed input, including `\"\"`, `\"=x\"`, `\"A\"` (TS-INV-02) (covers: REQ-7)",
+            "covers": [
+              "REQ-7"
+            ]
+          },
+          {
+            "text": "`parse(\"A=${B}\")` returns the literal value `${B}` (TS-NOGO-01) (covers: REQ-24)",
+            "covers": [
+              "REQ-24"
+            ]
+          },
+          {
+            "text": "empty string → `{pairs: [], problems: []}` (covers: REQ-6)",
+            "covers": [
+              "REQ-6"
+            ]
+          },
+          "CRLF text parses identically to LF text (no `\\r` in values)"
+        ]
+      }
+    ],
+    "spec_folder": "shapeup/envlint/spec",
+    "feature": "envlint",
+    "kb_rules_path": "shapeup/knowledge-base/task-executor.md"
+  }
+}

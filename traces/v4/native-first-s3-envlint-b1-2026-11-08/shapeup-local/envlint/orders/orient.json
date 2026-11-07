@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/orient",
+  "kernel": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.plugin-under-test/plugin-e-b1/kernel/harness.mjs",
+  "run_id": "envlint-20261107T201828Z-fffef5ce",
+  "compiled_at": "2026-11-07T20:18:49.142Z",
+  "worker": "orient",
+  "mode": "orchestrated",
+  "operation": "orient",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      ".shapeup/envlint/orient/**"
+    ],
+    "frozen": [
+      "shapeup/envlint/spec/**"
+    ],
+    "own": [
+      ".shapeup/envlint/results/orient.json"
+    ]
+  },
+  "payload": {
+    "pitch": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.shapeup/envlint/intake.md",
+    "feature": "envlint",
+    "spec_folder": "shapeup/envlint/spec/",
+    "kb_rules_path": "shapeup/knowledge-base/orient.md"
+  }
+}

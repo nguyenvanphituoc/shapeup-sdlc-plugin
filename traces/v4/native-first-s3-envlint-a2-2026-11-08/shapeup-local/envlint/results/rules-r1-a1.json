@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/rules-r1-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-002",
+      "status": "done",
+      "ac_results": [
+        { "ac": "`src/rules.mjs` exports `checkRules(pairs, schema)` returning `{findings, schemaErrors}`; `node --test test/rules.test.mjs` exits 0 (covers: REQ-20)", "result": "pass", "evidence": "node --test test/rules.test.mjs -> 10/10 pass; T0 green" },
+        { "ac": "a schema of the form `{KEY: {required?, type?, enum?}}` is accepted; any other shape (not an object, unknown field, unknown type, non-string-array enum) yields non-empty `schemaErrors` and `findings: []` (covers: REQ-1)", "result": "pass", "evidence": "test 'bad schema shapes yield schemaErrors and no findings'" },
+        { "ac": "`required: true` with the key absent yields `{key, line: null, rule: \"required\"}`; `K=` counts as present (covers: REQ-17)", "result": "pass", "evidence": "test 'required'" },
+        { "ac": "`type` `string` always passes; `int` accepts `^-?[0-9]+$`; `bool` accepts exactly `true`/`false`; a failing value yields `rule: \"type\"` with the pair's line (covers: REQ-18)", "result": "pass", "evidence": "tests 'type string/bool and line', 'int boundaries'" },
+        { "ac": "`type: url` accepts `https://x.com/p` and `postgres://u@h:5432/db`, and rejects `foo:bar`, `localhost:3000`, `http://` and `not a url` (covers: REQ-27)", "result": "pass", "evidence": "test 'url'" },
+        { "ac": "`enum` rejects a value not in the list, with `rule: \"enum\"` (covers: REQ-19)", "result": "pass", "evidence": "test 'enum'" },
+        { "ac": "`src/rules.mjs` has no import of a parse module and no `http`/`https`/`net`/`fetch` use; a test asserts this by reading the file (covers: REQ-21)", "result": "pass", "evidence": "test 'rules.mjs is pure'" },
+        { "ac": "`int`: `\"0\"`, `\"-3\"` pass; `\"\"`, `\"1.5\"`, `\"+1\"` fail (covers: REQ-18)", "result": "pass", "evidence": "test 'int boundaries'" },
+        { "ac": "`checkRules([], null)`, `checkRules([], [])` and `checkRules([], \"x\")` return schemaErrors without throwing (covers: REQ-7)", "result": "pass", "evidence": "test 'null/array/string schema returns schemaErrors without throwing'" }
+      ]
+    }
+  ],
+  "files_touched": [
+    { "path": "src/rules.mjs", "change": "created" },
+    { "path": "test/rules.test.mjs", "change": "created" }
+  ],
+  "discoveries": [],
+  "assumptions": [
+    "pairs have shape {key, value, line} per UC-EvaluateRules; non-array pairs treated as empty",
+    "schema key whose rule is not an object is a schema error"
+  ],
+  "deviations": []
+}

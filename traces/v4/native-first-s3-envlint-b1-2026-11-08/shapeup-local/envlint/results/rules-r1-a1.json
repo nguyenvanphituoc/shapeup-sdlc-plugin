@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/rules-r1-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-002",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "`src/rules.mjs` exports `checkSchema` and `check`; `node --test test/rules.test.mjs` passes with at least one test (covers: REQ-20)",
+          "result": "pass",
+          "evidence": "node --test test/rules.test.mjs → 9/9 pass; harness verify t0 rules r1 a1 → overall green, fixtures 1/1 (.shapeup/envlint/t0/verdicts/r1-a1-t2.json)"
+        },
+        {
+          "ac": "`src/rules.mjs` imports neither `node:fs`, network modules, nor `src/parse.mjs` (TS-INV-01) (covers: REQ-22)",
+          "result": "pass",
+          "evidence": "src/rules.mjs has zero import statements; test 'TS-INV-01' scans import specifiers for fs/http/https/net/tls/dns and parse, and require/fetch → pass"
+        },
+        {
+          "ac": "`checkSchema` accepts a `KEY → {required,type,enum}` object and returns reasons for `[]`, `{A:1}`, `{A:{type:\"float\"}}`, `{A:{enum:\"x\"}}` (TS-ERR-SCHEMA_INVALID) (covers: REQ-1)",
+          "result": "pass",
+          "evidence": "test 'TS-ERR-SCHEMA_INVALID': each of the four (plus null, 'x', non-boolean required, non-string enum entry) returns non-empty reasons; {} and a full valid rule return [] → pass"
+        },
+        {
+          "ac": "a `required: true` key with no pair yields a `required` finding with `line: null` (TS-ERR-RULE_REQUIRED) (covers: REQ-17)",
+          "result": "pass",
+          "evidence": "test 'TS-ERR-RULE_REQUIRED': check([], {A:{required:true}}) → [{key:'A',line:null,rule:'required',message}] → pass"
+        },
+        {
+          "ac": "`type` int/bool/url/string: `1.5`, `yes`, `localhost` each yield a `type` finding with the pair's line; `-3`, `true`, `https://x.y` and any string yield none (TS-ERR-RULE_TYPE) (covers: REQ-18)",
+          "result": "pass",
+          "evidence": "test 'TS-ERR-RULE_TYPE': 1.5/yes/localhost → one type finding each with line 7; -3, true, false, https://x.y, string values → [] → pass"
+        },
+        {
+          "ac": "a value outside `enum` yields an `enum` finding; a listed value yields none (TS-ERR-RULE_ENUM) (covers: REQ-19)",
+          "result": "pass",
+          "evidence": "test 'TS-ERR-RULE_ENUM': {E:{enum:['a','b']}} value c → one enum finding line 3; value a → [] → pass"
+        },
+        {
+          "ac": "`url` is judged by `new URL()` only and opens no connection (TS-INV-02) (covers: REQ-26)",
+          "result": "pass",
+          "evidence": "test 'TS-INV-02': https://nonexistent.invalid → [] returned synchronously (array, not promise); isUrl uses only try { new URL(value) }; module has no imports → pass"
+        },
+        {
+          "ac": "with duplicate keys the last occurrence is judged (TS-REQ-duplicate-last)",
+          "result": "pass",
+          "evidence": "test 'TS-REQ-duplicate-last': A=x(l1),A=1(l2) with type int → []; reversed order → one finding at line 2 → pass"
+        }
+      ]
+    }
+  ],
+  "files_touched": [
+    { "path": "src/rules.mjs", "change": "created" },
+    { "path": "test/rules.test.mjs", "change": "created" }
+  ],
+  "discoveries": [
+    { "marker": "+", "line": "knowledge-base file shapeup/knowledge-base/task-executor.md named by kb_rules_path does not exist" }
+  ],
+  "assumptions": [
+    "Finding message texts are free-form (spec pins no wording): 'required key is missing', 'expected <type>, got \"<value>\"', 'expected one of <list>, got \"<value>\"'",
+    "checkSchema rejects null and non-object primitives as well as arrays (PD-7 'any other shape')",
+    "When a value fails both type and enum, both findings are emitted (type first) for that key",
+    "check() trusts its schema already passed checkSchema (UC precondition) and does not re-validate it",
+    "required:false or absent with no pair yields no finding; type/enum are judged only when the pair is present"
+  ],
+  "deviations": []
+}

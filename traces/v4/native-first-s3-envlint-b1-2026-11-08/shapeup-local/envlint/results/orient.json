@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/orient",
+  "worker": "orient",
+  "status": "done",
+  "artifacts": [
+    ".shapeup/envlint/orient/code-surface.md",
+    ".shapeup/envlint/orient/spike-cli-fixture-harness.md",
+    ".shapeup/envlint/orient/discovered-seed.md",
+    ".shapeup/envlint/orient/hill-signal.md"
+  ],
+  "assumptions": [
+    "The intake file is headed 'Raw idea' but carries appetite (small batch, one round) and boundaries, so it was treated as a kicked-off pitch.",
+    "No payload.breadboard and no Places/affordance tables in the pitch, so elements were extracted from the pitch's three pieces and edge cases (E1-E5), with no P/U/N ids.",
+    "No payload.stack; the dispatch note (zero-dependency Node ESM, node --test) and package.json were used as the stack hint.",
+    "kb_rules_path shapeup/knowledge-base/orient.md does not exist, so no team guidelines were applied."
+  ],
+  "deviations": [
+    "Pitch gap: the exit-code numbers are unspecified. It requires non-zero on findings but does not distinguish findings from usage/IO errors (proposed: 0 clean / 1 findings / 2 usage-IO).",
+    "Pitch gap: the schema JSON structure is unspecified (per-key object vs a top-level required list), and no owner is named for a schema that parses but has the wrong shape.",
+    "Pitch gap: the finding output line format is unspecified, as is the stdout/stderr split.",
+    "Pitch gap: parse semantics for escapes inside double quotes, unterminated quotes, inline # after an unquoted value, CRLF and duplicate keys are unspecified. So are accepted bool spellings, int sign/leading zeros, and whether url requires a scheme.",
+    "Pitch gap: the Parsing-to-Rules pair shape (whether pairs carry a line number) is the one cross-piece contract and must be pinned in the spec so the two concurrent scopes do not invent it separately.",
+    "Spike method: the throwaway probe was written inside the orient substrate (scratchpad writes were fenced) and deleted after running. Only the four artifacts remain."
+  ]
+}

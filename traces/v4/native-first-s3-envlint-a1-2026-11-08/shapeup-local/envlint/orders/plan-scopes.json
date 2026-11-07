@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/plan-scopes",
+  "kernel": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.plugin-under-test/plugin-e-a1/kernel/harness.mjs",
+  "run_id": "envlint-20261107T200500Z-db1688fa",
+  "compiled_at": "2026-11-07T20:10:04.857Z",
+  "worker": "building",
+  "mode": "standalone",
+  "operation": "plan",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "shapeup/envlint/scopes/*.md",
+      "shapeup/envlint/scope-board.md"
+    ],
+    "frozen": [
+      "shapeup/envlint/spec/domain-model.md",
+      "shapeup/envlint/spec/usecases/*.md#Steps",
+      "shapeup/envlint/spec/contracts/**",
+      "shapeup/envlint/spec/ux-behavior.md",
+      ".shapeup/envlint/tasks/**",
+      ".shapeup/envlint/intake.md",
+      ".shapeup/envlint/breadboard.md",
+      "shapeup/envlint/project-profile.md",
+      ".shapeup/envlint/orders/**",
+      ".shapeup/envlint/results/**",
+      ".shapeup/envlint/receipts/**",
+      ".shapeup/envlint/legs.jsonl",
+      ".shapeup/envlint/t0/verdicts/**"
+    ]
+  },
+  "payload": {
+    "step": "scopes",
+    "spec_folder": "shapeup/envlint/spec",
+    "feature": "envlint",
+    "kb_rules_paths": [
+      "shapeup/knowledge-base/plan.md",
+      "shapeup/knowledge-base/ba-pitch-analyzer.md",
+      "shapeup/knowledge-base/scope-architect.md",
+      "shapeup/knowledge-base/solution-architect.md"
+    ]
+  }
+}

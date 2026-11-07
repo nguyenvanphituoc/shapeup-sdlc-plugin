@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/evaluate-r1",
+  "kernel": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.plugin-under-test/plugin-e-a2/kernel/harness.mjs",
+  "run_id": "envlint-20261107T203949Z-063897fa",
+  "compiled_at": "2026-11-07T20:48:40.655Z",
+  "worker": "spec-evaluator",
+  "mode": "orchestrated",
+  "operation": "evaluate",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [],
+    "frozen": [
+      "shapeup/envlint/spec/**",
+      ".shapeup/envlint/**"
+    ],
+    "own": [
+      ".shapeup/envlint/evaluation/**",
+      ".shapeup/envlint/results/evaluate-r1.json"
+    ]
+  },
+  "payload": {
+    "trial_history": [
+      {
+        "schema_version": 1,
+        "trial": 1,
+        "round": 1,
+        "attempt": 1,
+        "scope_id": "parsing",
+        "score": {
+          "fixtures_passed": 1,
+          "fixtures_total": 1,
+          "db_probe": null
+        },
+        "status": "kept",
+        "delta": "baseline",
+        "digest": []
+      },
+      {
+        "schema_version": 1,
+        "trial": 1,
+        "round": 1,
+        "attempt": 1,
+        "scope_id": "rules",
+        "score": {
+          "fixtures_passed": 1,
+          "fixtures_total": 1,
+          "db_probe": null
+        },
+        "status": "kept",
+        "delta": "baseline",
+        "digest": []
+      },
+      {
+        "schema_version": 1,
+        "trial": 1,
+        "round": 1,
+        "attempt": 1,
+        "scope_id": "cli",
+        "score": {
+          "fixtures_passed": 2,
+          "fixtures_total": 2,
+          "db_probe": null
+        },
+        "status": "kept",
+        "delta": "baseline",
+        "digest": []
+      }
+    ],
+    "round": 1,
+    "spec_folder": "shapeup/envlint/spec",
+    "feature": "envlint",
+    "t0_artifacts": [
+      ".shapeup/envlint/t0/verdicts/r1-a1-t3.json",
+      ".shapeup/envlint/t0/verdicts/r1-a1-t1.json",
+      ".shapeup/envlint/t0/verdicts/r1-a1-t2.json"
+    ],
+    "dimensions": [
+      "spec-conformance",
+      "tdd-surface",
+      "completeness",
+      "test-surface-conformance"
+    ],
+    "build_gate": ".shapeup/envlint/build/r1-t1.json"
+  }
+}

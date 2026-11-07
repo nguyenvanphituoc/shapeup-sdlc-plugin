@@ -1,0 +1,144 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/rules-r1-a1",
+  "kernel": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.plugin-under-test/plugin-e-a1/kernel/harness.mjs",
+  "run_id": "envlint-20261107T200500Z-db1688fa",
+  "compiled_at": "2026-11-07T20:10:39.821Z",
+  "worker": "task-executor",
+  "mode": "orchestrated",
+  "operation": "execute",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "src/rules.mjs",
+      "test/rules.test.mjs",
+      ".shapeup/envlint/spikes/**"
+    ],
+    "shared": [],
+    "frozen": [
+      ".shapeup/envlint/**"
+    ],
+    "own": [
+      ".shapeup/envlint/results/rules-r1-a1.json",
+      ".shapeup/envlint/tasks/TASK-*.md",
+      ".shapeup/envlint/discovery/**",
+      ".shapeup/envlint/spikes/**"
+    ]
+  },
+  "payload": {
+    "scope_contract": {
+      "scope_id": "rules",
+      "topology_type": "ICEBERG",
+      "use_cases": [
+        "UC-CheckRules"
+      ],
+      "covers": [
+        "REQ-7",
+        "REQ-19",
+        "REQ-20",
+        "REQ-21",
+        "REQ-22",
+        "REQ-23",
+        "REQ-24",
+        "REQ-25",
+        "REQ-27",
+        "REQ-32",
+        "REQ-33"
+      ],
+      "depends_on": [],
+      "allowed_file_substrate": [
+        "src/rules.mjs",
+        "test/rules.test.mjs"
+      ],
+      "shared_substrate": [],
+      "affordance_manifest": [],
+      "e2e_verification_fixtures": [
+        "node --test test/rules.test.mjs"
+      ],
+      "hill_phase": "UPHILL_UNKNOWN"
+    },
+    "tasks": [
+      {
+        "id": "TASK-002",
+        "title": "Implement the pure schema rules check",
+        "status": "ready",
+        "priority": 1,
+        "depends_on": [],
+        "use_case_refs": [
+          "UC-CheckRules"
+        ],
+        "scope_id": "",
+        "body_path": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.shapeup/envlint/tasks/TASK-002-rules.md",
+        "acceptance_criteria": [
+          {
+            "text": "`src/rules.mjs` exports `check(pairs, schema)` returning an array of `{key, line, message}`; `node --test test/rules.test.mjs` exits 0 (covers: REQ-25)",
+            "covers": [
+              "REQ-25"
+            ]
+          },
+          {
+            "text": "`check([], {A:{required:true}})` returns one finding for `A` with `line: null` (covers: REQ-19)",
+            "covers": [
+              "REQ-19"
+            ]
+          },
+          {
+            "text": "`type: string` accepts any value (covers: REQ-20)",
+            "covers": [
+              "REQ-20"
+            ]
+          },
+          {
+            "text": "`type: int` flags `80x` and accepts `80` and `-1` (covers: REQ-21)",
+            "covers": [
+              "REQ-21"
+            ]
+          },
+          {
+            "text": "`type: bool` flags `yes` and accepts `true` and `false` (covers: REQ-22)",
+            "covers": [
+              "REQ-22"
+            ]
+          },
+          {
+            "text": "`type: url` flags `foo`, `http://`, `a:b`, `mailto:x@y` and accepts `https://example.com` (covers: REQ-23, REQ-33)",
+            "covers": [
+              "REQ-23",
+              "REQ-33"
+            ]
+          },
+          {
+            "text": "`enum: [\"dev\",\"prod\"]` flags `qa` and accepts `dev` (covers: REQ-24)",
+            "covers": [
+              "REQ-24"
+            ]
+          },
+          {
+            "text": "`src/rules.mjs` contains no `import` statement — a test reads the file and asserts it (covers: REQ-27, REQ-25)",
+            "covers": [
+              "REQ-27",
+              "REQ-25"
+            ]
+          },
+          {
+            "text": "with `globalThis.fetch` replaced by a function that throws, `type: url` checks still pass and fetch is never called (covers: REQ-32)",
+            "covers": [
+              "REQ-32"
+            ]
+          },
+          {
+            "text": "`check([], {})` returns `[]`; `check([], {A:{}})` returns `[]`; never throws (covers: REQ-7)",
+            "covers": [
+              "REQ-7"
+            ]
+          }
+        ]
+      }
+    ],
+    "spec_folder": "shapeup/envlint/spec",
+    "feature": "envlint",
+    "kb_rules_path": "shapeup/knowledge-base/task-executor.md"
+  }
+}

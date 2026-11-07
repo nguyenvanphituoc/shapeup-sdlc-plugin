@@ -1,0 +1,158 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/parsing-r1-a1",
+  "kernel": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.plugin-under-test/plugin-e-a1/kernel/harness.mjs",
+  "run_id": "envlint-20261107T200500Z-db1688fa",
+  "compiled_at": "2026-11-07T20:10:38.532Z",
+  "worker": "task-executor",
+  "mode": "orchestrated",
+  "operation": "execute",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "src/parse.mjs",
+      "test/parse.test.mjs",
+      ".shapeup/envlint/spikes/**"
+    ],
+    "shared": [],
+    "frozen": [
+      ".shapeup/envlint/**"
+    ],
+    "own": [
+      ".shapeup/envlint/results/parsing-r1-a1.json",
+      ".shapeup/envlint/tasks/TASK-*.md",
+      ".shapeup/envlint/discovery/**",
+      ".shapeup/envlint/spikes/**"
+    ]
+  },
+  "payload": {
+    "scope_contract": {
+      "scope_id": "parsing",
+      "topology_type": "ICEBERG",
+      "use_cases": [
+        "UC-ParseEnvText"
+      ],
+      "covers": [
+        "REQ-6",
+        "REQ-7",
+        "REQ-10",
+        "REQ-11",
+        "REQ-12",
+        "REQ-13",
+        "REQ-14",
+        "REQ-15",
+        "REQ-16",
+        "REQ-17",
+        "REQ-18",
+        "REQ-27",
+        "REQ-29"
+      ],
+      "depends_on": [],
+      "allowed_file_substrate": [
+        "src/parse.mjs",
+        "test/parse.test.mjs"
+      ],
+      "shared_substrate": [],
+      "affordance_manifest": [],
+      "e2e_verification_fixtures": [
+        "node --test test/parse.test.mjs"
+      ],
+      "hill_phase": "UPHILL_UNKNOWN"
+    },
+    "tasks": [
+      {
+        "id": "TASK-001",
+        "title": "Implement the pure .env parser",
+        "status": "ready",
+        "priority": 1,
+        "depends_on": [],
+        "use_case_refs": [
+          "UC-ParseEnvText"
+        ],
+        "scope_id": "",
+        "body_path": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.shapeup/envlint/tasks/TASK-001-parse.md",
+        "acceptance_criteria": [
+          {
+            "text": "`src/parse.mjs` exports `parse(text)` returning `{ pairs, problems }`; `node --test test/parse.test.mjs` exits 0 (covers: REQ-10, REQ-18)",
+            "covers": [
+              "REQ-10",
+              "REQ-18"
+            ]
+          },
+          {
+            "text": "`parse(\"A=1\")` yields pair `{key:\"A\", value:\"1\", line:1}` (covers: REQ-11)",
+            "covers": [
+              "REQ-11"
+            ]
+          },
+          {
+            "text": "a line starting with `#` yields no pair and no problem (covers: REQ-12)",
+            "covers": [
+              "REQ-12"
+            ]
+          },
+          {
+            "text": "blank lines yield no pair and no problem, and later line numbers still count them (covers: REQ-13)",
+            "covers": [
+              "REQ-13"
+            ]
+          },
+          {
+            "text": "`parse(\"export A=1\")` yields pair `A`=`1` (covers: REQ-14)",
+            "covers": [
+              "REQ-14"
+            ]
+          },
+          {
+            "text": "`parse(\"A='x y'\")` yields value `x y` (covers: REQ-15)",
+            "covers": [
+              "REQ-15"
+            ]
+          },
+          {
+            "text": "`parse('A=\"x # y\"')` yields value `x # y` (covers: REQ-16)",
+            "covers": [
+              "REQ-16"
+            ]
+          },
+          {
+            "text": "`parse(\"A=1\\nJUNK\")` yields problem `{line: 2}`; `1BAD=x` and `A=\"open` each yield a problem at their 1-based line (covers: REQ-17)",
+            "covers": [
+              "REQ-17"
+            ]
+          },
+          {
+            "text": "`src/parse.mjs` contains no `import` statement — a test reads the file and asserts it (covers: REQ-27, REQ-18)",
+            "covers": [
+              "REQ-27",
+              "REQ-18"
+            ]
+          },
+          {
+            "text": "`parse(\"A=${B}\")` yields the literal value `${B}` (covers: REQ-29)",
+            "covers": [
+              "REQ-29"
+            ]
+          },
+          {
+            "text": "`parse(\"\")` and `parse(\"# only\\n\\n\")` return `{pairs: [], problems: []}` (covers: REQ-6)",
+            "covers": [
+              "REQ-6"
+            ]
+          },
+          {
+            "text": "`parse` never throws on `\"=\"`, `\"\\0\\n'\"`, or a long random string — asserted in the test (covers: REQ-7)",
+            "covers": [
+              "REQ-7"
+            ]
+          }
+        ]
+      }
+    ],
+    "spec_folder": "shapeup/envlint/spec",
+    "feature": "envlint",
+    "kb_rules_path": "shapeup/knowledge-base/task-executor.md"
+  }
+}

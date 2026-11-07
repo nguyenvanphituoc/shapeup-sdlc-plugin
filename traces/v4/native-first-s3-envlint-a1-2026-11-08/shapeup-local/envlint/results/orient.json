@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/orient",
+  "worker": "orient",
+  "status": "done",
+  "artifacts": [
+    ".shapeup/envlint/orient/code-surface.md",
+    ".shapeup/envlint/orient/spike-not-needed.md",
+    ".shapeup/envlint/orient/discovered-seed.md",
+    ".shapeup/envlint/orient/hill-signal.md"
+  ],
+  "assumptions": [
+    "Greenfield: bin/, src/ and test/ are empty, so every element is NEW."
+  ],
+  "deviations": [
+    "Pitch does not specify finding/problem object shape, exit-code values or url protocol policy; left as open unknowns in hill-signal.md.",
+    "Knowledge-base file shapeup/knowledge-base/orient.md does not exist; none applied."
+  ]
+}

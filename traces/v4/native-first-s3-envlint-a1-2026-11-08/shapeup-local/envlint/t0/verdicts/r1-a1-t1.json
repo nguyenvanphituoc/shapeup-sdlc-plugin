@@ -1,0 +1,65 @@
+{
+  "schema_version": 2,
+  "round": 1,
+  "attempt": 1,
+  "trial": 1,
+  "at": "2026-11-07T20:11:14.001Z",
+  "run_id": "envlint-20261107T200500Z-db1688fa",
+  "scope_id": "parsing",
+  "env": {
+    "schema_version": 1,
+    "host": {
+      "platform": "darwin",
+      "arch": "arm64",
+      "os_release": "27.0.0",
+      "node": "v24.15.0",
+      "hostname_sha256": "fc7b2e355cd153f2742755036cef7a85840bc651258026e69764f044a4fbdbb9"
+    },
+    "cwd": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer",
+    "tree": {
+      "head": "b8a18120b78f8f6be5f13681f4f9b973729cff15",
+      "dirty": true,
+      "branch": "master"
+    },
+    "toolchain": [
+      {
+        "bin": "node",
+        "path": "/Users/liberty/.nvm/versions/node/v24.15.0/bin/node"
+      }
+    ],
+    "lockfiles": [],
+    "caches": null,
+    "env": {
+      "allowlist": [
+        "PATH",
+        "NODE_ENV",
+        "CI",
+        "LANG",
+        "TZ"
+      ],
+      "sha256": "1d1e5a8620fb0ccc1a8af77abcac33bf8dc379ac928151bcd0cf1e9de0cc332a"
+    },
+    "env_sha256": "6ea8060be400d7a30e66145786ba235d8961ce9ba544eb3945ba6107ed49d1c1"
+  },
+  "fixtures": [
+    {
+      "cmd": "node --test test/parse.test.mjs",
+      "exit": 0,
+      "pass": true,
+      "stdout_tail": "✔ exports parse returning { pairs, problems } (0.553459ms)\n✔ simple pair (0.758792ms)\n✔ comment line yields nothing (0.078ms)\n✔ blank lines yield nothing but count (0.085875ms)\n✔ export prefix (0.065042ms)\n✔ single quotes (0.056917ms)\n✔ double quotes keep # (0.054708ms)\n✔ problems carry 1-based lines (0.072542ms)\n✔ parse.mjs has no import statement (0.245541ms)\n✔ no interpolation (0.103459ms)\n✔ empty inputs (0.072584ms)\n✔ never throws (0.431875ms)\nℹ tests 12\nℹ suites 0\nℹ pass 12\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 52.688\n"
+    }
+  ],
+  "db_probe": null,
+  "fixtures_green": true,
+  "db_probe_green": true,
+  "overall": "green",
+  "score": {
+    "fixtures_passed": 1,
+    "fixtures_total": 1,
+    "db_probe": null
+  },
+  "discovered_tasks": [],
+  "check_files": {
+    "test/parse.test.mjs": "41ea7fcd539db1e1f3f38e0bfc4bce7a577ab83d1e4e9f3559ba38c2b673c8c8"
+  }
+}

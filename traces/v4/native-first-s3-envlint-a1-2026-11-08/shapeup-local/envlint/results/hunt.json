@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/hunt",
+  "worker": "qa-edge-hunter",
+  "status": "done",
+  "artifacts": ["qa/hunt-report.md"],
+  "discoveries": [
+    {
+      "marker": "~",
+      "lens": "①boundary",
+      "line": "[QA-001] [UC-ParseEnvText] Inline comment `A=5 # c` is parsed as value \"5 # c\" (int rule then fails)",
+      "repro": "1. printf 'A=5 # c\\n' > e; echo '{\"A\":{\"type\":\"int\"}}' > s.json\n2. node bin/envlint.mjs --schema s.json e\n3. observe: e:1: A: expected int, got \"5 # c\"",
+      "severity_hint": "ux-degradation",
+      "test_gap": "unit"
+    },
+    {
+      "marker": "~",
+      "lens": "①boundary",
+      "line": "[QA-002] [UC-ParseEnvText] `A=\"x\"y` reports \"unterminated quote\" though the quote is terminated",
+      "repro": "1. printf 'A=\"x\"y\\n' > e\n2. node bin/envlint.mjs --schema s.json e\n3. observe: e:1: unterminated quote",
+      "severity_hint": "ux-degradation",
+      "test_gap": "unit"
+    },
+    {
+      "marker": "~",
+      "lens": "⑤no-go",
+      "line": "[QA-003] [UC-LintEnvFile] `--` and `-` are not accepted; env file named with leading dash or stdin cannot be linted",
+      "repro": "1. node bin/envlint.mjs --schema s.json -- e1\n2. observe usage line on stderr, exit 2\n3. echo A=1 | node bin/envlint.mjs --schema s.json -  -> same usage line",
+      "severity_hint": "cosmetic",
+      "test_gap": "unit"
+    }
+  ]
+}

@@ -1,0 +1,72 @@
+{
+  "schema_version": 2,
+  "round": 1,
+  "attempt": 1,
+  "trial": 3,
+  "at": "2026-11-07T20:28:47.926Z",
+  "run_id": "envlint-20261107T201828Z-fffef5ce",
+  "scope_id": "cli",
+  "env": {
+    "schema_version": 1,
+    "host": {
+      "platform": "darwin",
+      "arch": "arm64",
+      "os_release": "27.0.0",
+      "node": "v24.15.0",
+      "hostname_sha256": "fc7b2e355cd153f2742755036cef7a85840bc651258026e69764f044a4fbdbb9"
+    },
+    "cwd": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer",
+    "tree": {
+      "head": "b8a18120b78f8f6be5f13681f4f9b973729cff15",
+      "dirty": true,
+      "branch": "master"
+    },
+    "toolchain": [
+      {
+        "bin": "node",
+        "path": "/Users/liberty/.nvm/versions/node/v24.15.0/bin/node"
+      }
+    ],
+    "lockfiles": [],
+    "caches": null,
+    "env": {
+      "allowlist": [
+        "PATH",
+        "NODE_ENV",
+        "CI",
+        "LANG",
+        "TZ"
+      ],
+      "sha256": "6ff7b1e0d4469e07ec19c54eaab65b8c4b4ca81a2873e74ef8e050351cfc4dd6"
+    },
+    "env_sha256": "b0f15cd24a6a372bb7de415f5c48810603436528917a5b95c8dd823d627bf10d"
+  },
+  "fixtures": [
+    {
+      "cmd": "node --check bin/envlint.mjs",
+      "exit": 0,
+      "pass": true
+    },
+    {
+      "cmd": "node --test test/cli.test.mjs test/cli-edges.test.mjs",
+      "exit": 0,
+      "pass": true,
+      "stdout_tail": "✔ TS-ERR-IO: missing env file or schema exits 2 with cannot read <path> (69.831875ms)\n✔ TS-ERR-IO / TS-ERR-SCHEMA: directory, bad JSON, or invalid shape schema exits 2 (100.392167ms)\n✔ TS-REQ-empty-file: empty and comments-only env files (136.903459ms)\n✔ TS-INV-02: binary garbage env file and a null schema never stack-trace (66.770792ms)\n✔ TS-INV-01: the fixture directory is unchanged after every run (100.657375ms)\n✔ REQ-21: shebang present and node --check passes (31.636667ms)\n✔ TS-ERR-FINDINGS: one stdout line per problem/finding, exit 1 (35.706625ms)\n✔ TS-REQ-clean: exit 0 with empty stdout (34.946667ms)\n✔ TS-REQ-schema-position: --schema=x and schema after the env file give the same result (136.397625ms)\n✔ TS-NOGO-01: a .env in the working directory is never read (33.656375ms)\n✔ TS-ERR-USAGE: usage errors exit 2 with envlint: and usage: on stderr (201.633167ms)\n✔ TS-INV-03: no ANSI escapes, exits with stdin closed (67.436459ms)\nℹ tests 12\nℹ suites 0\nℹ pass 12\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 586.825875\n"
+    }
+  ],
+  "db_probe": null,
+  "fixtures_green": true,
+  "db_probe_green": true,
+  "overall": "green",
+  "score": {
+    "fixtures_passed": 2,
+    "fixtures_total": 2,
+    "db_probe": null
+  },
+  "discovered_tasks": [],
+  "check_files": {
+    "bin/envlint.mjs": "a3303f4ed4ba7a45fa15e5be3d19593c04a86d0cd14a06c6cd55f88c26163382",
+    "test/cli.test.mjs": "e84e7523508909b1c5c6a6283a3c58453ae72a9c9427fb1135b89cde2a217b88",
+    "test/cli-edges.test.mjs": "63ded647dc638eb6b13fb412f84990284cb8bf3e0b19873a8fb16db8ad04ae9c"
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "schema_version": 2,
+  "round": 1,
+  "attempt": 1,
+  "trial": 3,
+  "at": "2026-11-07T20:12:39.895Z",
+  "run_id": "envlint-20261107T200500Z-db1688fa",
+  "scope_id": "cli",
+  "env": {
+    "schema_version": 1,
+    "host": {
+      "platform": "darwin",
+      "arch": "arm64",
+      "os_release": "27.0.0",
+      "node": "v24.15.0",
+      "hostname_sha256": "fc7b2e355cd153f2742755036cef7a85840bc651258026e69764f044a4fbdbb9"
+    },
+    "cwd": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer",
+    "tree": {
+      "head": "b8a18120b78f8f6be5f13681f4f9b973729cff15",
+      "dirty": true,
+      "branch": "master"
+    },
+    "toolchain": [
+      {
+        "bin": "node",
+        "path": "/Users/liberty/.nvm/versions/node/v24.15.0/bin/node"
+      }
+    ],
+    "lockfiles": [],
+    "caches": null,
+    "env": {
+      "allowlist": [
+        "PATH",
+        "NODE_ENV",
+        "CI",
+        "LANG",
+        "TZ"
+      ],
+      "sha256": "1d1e5a8620fb0ccc1a8af77abcac33bf8dc379ac928151bcd0cf1e9de0cc332a"
+    },
+    "env_sha256": "6ea8060be400d7a30e66145786ba235d8961ce9ba544eb3945ba6107ed49d1c1"
+  },
+  "fixtures": [
+    {
+      "cmd": "node --test test/cli.test.mjs",
+      "exit": 0,
+      "pass": true,
+      "stdout_tail": "✔ shebang first line (1.322042ms)\n✔ reads exactly the two named files (36.420625ms)\n✔ ignores a .env in the cwd and leaves the dir unchanged (33.648667ms)\n✔ findings in spec order (32.086ms)\n✔ clean file is silent (31.817334ms)\n✔ usage errors (126.873083ms)\n✔ missing env file (31.794625ms)\n✔ unreadable schemas (94.932542ms)\n✔ binary garbage env file does not crash (31.896083ms)\n✔ no ANSI and does not wait on open stdin (34.461125ms)\n✔ empty env file (64.714458ms)\nℹ tests 11\nℹ suites 0\nℹ pass 11\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 566.05875\n"
+    }
+  ],
+  "db_probe": null,
+  "fixtures_green": true,
+  "db_probe_green": true,
+  "overall": "green",
+  "score": {
+    "fixtures_passed": 1,
+    "fixtures_total": 1,
+    "db_probe": null
+  },
+  "discovered_tasks": [],
+  "check_files": {
+    "test/cli.test.mjs": "7f6b1763c9718d7b53e4f93cf564bc4250e97e881379d1800464faab948dc850"
+  }
+}
