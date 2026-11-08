@@ -329,7 +329,7 @@ tools/                # repo-only: demo/
 tests/structural.mjs, tests/structural/*.mjs   # Tier 0 — ten modules, zero LLM calls
 docs/install.md, upgrading.md, glossary.md
 docs/design/          # the design document (pipeline, gates, circuit breaker, ERD) + adr/
-docs/visualize/       # rendered views of the tree and the pipeline
+docs/visualize/       # the before-and-after view of the v4 loop
 .github/workflows/    # CI + release (release publishes to npm via OIDC)
 ```
 

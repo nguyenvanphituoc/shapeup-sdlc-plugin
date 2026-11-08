@@ -69,7 +69,7 @@ export async function run(ctx) {
   // A record of what was true when it was written names paths that are supposed to stop existing; a
   // changelog, an execution record, a superseded plan. Holding those to the tree would demand editing history.
   const isRecord = (rel) => /(^|\/)changelog[^/]*\.md$/i.test(rel) || /^docs\/design\/v4\/(execution|plan|review|proposal|constraints)-/.test(rel)
-    || rel.startsWith("docs/design/v4/analysis/") || rel.startsWith("docs/design/plans/");
+    || rel.startsWith("docs/design/v4/analysis/");
   const living = ["README.md", "CONTRIBUTING.md", "SECURITY.md", ...docsUnder("docs")].filter((r) => !isRecord(r));
   const historical = (l) => /\*\*Supersedes\*\*|Superseded by|Renamed from|\bWas `/.test(l);
   const pathRe = /(?:^|[\s`("'>])((?:hooks|skills|tests|commands|docs|tools|oracles)\/[A-Za-z0-9._/-]+\.(?:mjs|json|js|md|sh|html))(?![A-Za-z0-9])/g;
