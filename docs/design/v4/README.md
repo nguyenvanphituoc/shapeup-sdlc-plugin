@@ -18,6 +18,7 @@ to an ADR and this folder is retired (the rule in ADR-0002; the ADR is
 | [`execution-2026-11-07.md`](execution-2026-11-07.md) | how far the plan got, what stopped it, and what each done-when stands at |
 | [`plan-2026-11-07-native-first.md`](plan-2026-11-07-native-first.md) | the second plan: minimal scripts and tests, the host's harness for the rest — stages S1 to S4, each gated on a real run |
 | [`execution-native-first-2026-11-08.md`](execution-native-first-2026-11-08.md) | how far that plan got: S1 and S2 gated on real runs, S3 measured against the engine, and the engine removed afterwards on the PO's instruction |
+| [`report-v4-2026-11-08.md`](report-v4-2026-11-08.md) | the whole of v4 in one place: the cuts, the numbers, the measured runs, what the PO still has to decide |
 
 ## Method and rules
 

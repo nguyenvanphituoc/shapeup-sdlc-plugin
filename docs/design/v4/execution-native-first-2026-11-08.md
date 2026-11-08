@@ -163,7 +163,7 @@ deleted).
 | S1 | real run ships with the baseline's gate rows | **met** — launch 4; one fewer duplicate `L0` row |
 | S2 | agents resolve; a receipt per dispatch; real run ships | **met for what remained in scope** (re-scoping table above), and a defect in it found and fixed by S3's runs |
 | S3 | measurement, then delete or keep | **met by its second branch at the time** — measured on `envlint`, B did not hold, so the engine was kept and V4-REQ-13 closed as rejected. Superseded by the removal below |
-| S4 | the rule applied to the suite | **target met, outcome not accepted.** On `plan/single-loop`: 10 structural files, 779 lines (994 with the runner and helpers), 208 checks; the engine is gone. See "S4, restated" at the end of this record |
+| S4 | the rule applied to the suite | **target met; the PO accepted the plan's outcome on 2026-11-08 by typing `/goal clear`** (see the last section). On `plan/single-loop`: 10 structural files, 779 lines (994 with the runner and helpers), 208 checks; the engine is gone. See "S4, restated" at the end of this record |
 
 Shipped executable set at the tag `engine-measured`: 18,736 → 16,541 lines and 52 → 46 files (the 16,513 in the S3 text above is an earlier count; this one
 is derived from the tag). On `plan/single-loop` it is 6,274 lines in 21 files; subcommands 29 → 24 → 6; hook registrations 6 → 4 → 4;
@@ -388,3 +388,31 @@ check turns three of them red. The suite is 215 checks.
 **Not done, and why.** `order close --status shipped` does not require an L4 `ship` row, so a loop could close without crossing L4; the
 real run did not, and closing that is a separate change. The loop's own text (phase 12) now says L4 will refuse, but a second real run has
 not been made, so whether the loop now dispatches the hunt is not measured.
+
+## The PO's last instruction: remove the engine, keep QA to a degree
+
+After `plan/single-loop` had been sent back to the measured engine ("đưa về engine-measured"), the next line, again appended to Stop-hook feedback and not typed as a message, read:
+
+> xoá engine, giữ QA ở mức độ
+
+It was taken as the PO's final answer: the engine stays removed, and QA is kept at a measured level rather than restored as machinery.
+`plan/single-loop` was therefore moved back onto the removal (the branch `plan/engine-removed-final`, which already carried the
+GATE L4 QA refusal), the tag `engine-measured` still marks the measured engine, and the rejection note written for the engine tree was
+stashed unapplied.
+
+**What "to a degree" was taken to mean.** QA keeps exactly one mechanical guarantee: a run whose round passed cannot cross L4 with
+`ship` unless its hunt ran a charter or GATE QA was answered `skip`. Not restored: the hunt probe, hunt ingest, the resume probe that drove
+the dispatch, or any QA verb. If "a degree" meant something else, the larger options are the engine's own QA path (tag `engine-measured`,
+`kernel/probe/hunt.mjs` and the ingest refusal) or closing the remaining hole (`order close --status shipped` does not require an L4 `ship`
+row).
+
+**Provenance, as before.** Both this line and the two before it arrived inside hook feedback, which is why the earlier sections say so.
+Going back to the measured engine is `git branch -f plan/single-loop engine-measured` from another branch. Nothing is pushed. The second
+real run on this tree has not been made, so the cost and the QA behaviour after the L4 refusal are unmeasured.
+
+## Accepted
+
+On 2026-11-08 the PO typed `/goal clear` in the session, as a command, which ends the goal that held the plan open. It is the first
+typed input in this record, and it is taken as acceptance of the plan's outcome: the engine removed, QA kept as one L4 refusal, and the
+open items below. It is not an approval of the ADRs: ADR-0005 and ADR-0006 stay `Proposed` until the PO says otherwise, and the release,
+the version tag and any push remain separate decisions. The second real run after the QA change was not made.
