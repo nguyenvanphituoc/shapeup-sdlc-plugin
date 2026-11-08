@@ -6,7 +6,7 @@
 // scratch project with no `claude` on the path, so it exercises the file work (the permission grant,
 // the harness block, the ignore rules) without registering anything with the host.
 import { join } from "node:path";
-import { readFileSync } from "node:fs";
+import { readFileSync, rmSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { scratch, put, kernel, json, slurp, existsSync } from "../lib/fixture.mjs";
 import { pipelineRules, mergePipelinePermissions } from "../../bin/lib/grant.mjs";
@@ -52,6 +52,11 @@ export async function run(ctx) {
     const again = init(["--slug", "w", "--intake-text", "something else entirely", "--max-rounds", "9"]);
     check(again.status === 3 && /ALREADY OPEN/.test(again.err), "a run that is already open is refused (exit 3)");
     check(json(join(cwd, ".shapeup/w/run-args.json")).budgets.maxRounds === 2, "…and keeps the launch record it has: the switches typed to the refused call do nothing");
+
+    put(cwd, ".shapeup/w/close.json", { status: "shipped", cause: "verdict=pass", at: "2026-11-08T00:00:00Z" });
+    const closedRefusal = init(["--slug", "w", "--intake-text", "Add a widgets page"]);
+    check(closedRefusal.status === 3 && /CLOSED as "shipped"/.test(closedRefusal.err), "a run that has closed is refused as CLOSED, with its recorded ending, not as open");
+    rmSync(join(cwd, ".shapeup/w/close.json"));
 
     section("init run --force — the unwedge");
     put(cwd, ".shapeup/w/orders/build-r1-a1.json", { schema_version: 1, order_id: "w/build-r1-a1", worker: "task-executor", mode: "orchestrated", operation: "execute", payload: {} });

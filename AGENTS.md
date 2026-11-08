@@ -115,7 +115,7 @@ Betting Table: PO decides; rejected pitches loop back to raw idea.
 
 **Planning runs under its own write fence.** Each of the four **plan** substeps is opened by an order that stamps that substep's write contract — nothing is dispatched. While one is open, the staged pitch and breadboard, the project profile, the run's receipts and ledgers and the order and result files are frozen, and each substep may write only its own artifact.
 
-✧ **Two refusals, before anything is spent.** Opening a run refuses outright when the worker skills are not on disk — the roster comes from the schema that defines it, so it cannot drift from a hand-kept list — and when the `exec` or `eval` model is below the floor (sonnet or above; `qa` is not checked, and `eval` is not under `--no-eval`).
+✧ **Two refusals, before anything is spent.** Opening a run refuses outright when the worker skills are not on disk — the roster comes from the schema that defines it, so it cannot drift from a hand-kept list — and when the launch record's `exec` or `eval` model is below the floor (sonnet or above; `qa` is not checked, and `eval` is not under `--no-eval`). A worker agent inherits the session's model, so the record states what was asked for and the dispatch receipts name the model that ran.
 
 ### QA Edge Hunt (`/qa-edge-hunter`, post-PASS, pre-ship)
 **Q0** Preflight → **Q1** Charter (6 lenses − EVAL-covered) → **Hunt** (repro required, findings `~` → ledger) → report (no verdict, no score). Skip with `--no-qa`. A hunt that reached the app and ran no charter is a failed hunt: the loop sends it back once, and the report says `not-hunted`, never that QA ran.

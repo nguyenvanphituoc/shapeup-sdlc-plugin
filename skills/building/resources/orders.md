@@ -42,10 +42,12 @@ re-opened with `--force` or the result lands.
 | `execute` / `fix` | the scope contract's `allowed_file_substrate` plus `.shapeup/<slug>/spikes/**`; `shared` = its `shared_substrate` | `.shapeup/<slug>/**` | `results/<stem>.json`, `.shapeup/<slug>/tasks/TASK-*.md`, `.shapeup/<slug>/discovery/**`, `.shapeup/<slug>/spikes/**` |
 | `evaluate` | none | `shapeup/<slug>/spec/**`, `.shapeup/<slug>/**` | `.shapeup/<slug>/evaluation/**`, `results/evaluate-r<R>.json` |
 | `hunt` | none | `shapeup/<slug>/spec/**`, `.shapeup/<slug>/**` | `.shapeup/<slug>/qa/**`, `results/hunt.json` |
-| `plan` (`requirements`) | `shapeup/<slug>/requirements.md` | the spec's domain model, use-case Steps, contracts, UX file; the run's intake, orders, results, receipts and T0 verdicts | — |
-| `plan` (`spec`) | `shapeup/<slug>/spec/**`, `.shapeup/<slug>/tasks/**`, `.shapeup/<slug>/working/**` | the intake, project profile, orders, results, receipts, T0 verdicts | — |
-| `plan` (`wire`) | `shapeup/<slug>/wiring-map.md` | as `requirements`, plus `shapeup/<slug>/scopes/**` | — |
-| `plan` (`scopes`) | `shapeup/<slug>/scopes/*.md`, `shapeup/<slug>/scope-board.md` | as `requirements`, plus `.shapeup/<slug>/tasks/**` | — |
+| `plan` (`requirements`) | `shapeup/<slug>/requirements.md` | the spec's domain model, use-case Steps, contracts, UX file; the run's intake, orders, results, receipts and T0 verdicts | `results/plan-requirements.json` |
+| `plan` (`spec`) | `shapeup/<slug>/spec/**`, `.shapeup/<slug>/tasks/**`, `.shapeup/<slug>/working/**` | the intake, project profile, orders, results, receipts, T0 verdicts | `results/plan-spec.json` |
+| `plan` (`wire`) | `shapeup/<slug>/wiring-map.md` | as `requirements`, plus `shapeup/<slug>/scopes/**` | `results/plan-wire.json` |
+| `plan` (`scopes`) | `shapeup/<slug>/scopes/*.md`, `shapeup/<slug>/scope-board.md` | as `requirements`, plus `.shapeup/<slug>/tasks/**` | `results/plan-scopes.json` |
+
+**Answer an order before you write the next one.** An order with no result is live, and a live `plan` order freezes `orders/**` — so writing the next order while the last is unanswered is refused by the fence. Write the result first, then the next order.
 
 A needed file outside the table is the PO's decision, not yours: widen a scope's substrate by amending its contract, then write the order again.
 Do not widen an order to make a worker's escalation go away.

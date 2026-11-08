@@ -63,6 +63,15 @@ export async function run(ctx) {
     r = write("other/x.js");
     check(denied(r), "an answered order whose stamp was typed a thousand years ahead no longer permits writes (it would, if the stamp had been kept)");
 
+    // A plan order freezes the run's results yet must be able to write its own: the loop answers it itself.
+    const plan = order("plan-spec", { allowed: ["shapeup/demo/spec/**"], frozen: [`.shapeup/${SLUG}/results/**`, `.shapeup/${SLUG}/orders/**`], own: [`.shapeup/${SLUG}/results/plan-spec.json`] });
+    kernel(ROOT, ["order", "open", "--slug", SLUG, "--order", plan], { cwd: root });
+    check(!denied(write(`.shapeup/${SLUG}/results/plan-spec.json`, "{}")), "a plan order writes its own result although the results directory is frozen");
+    check(denied(write(`.shapeup/${SLUG}/results/plan-wire.json`, "{}")), "…and no other result");
+    check(denied(write(`.shapeup/${SLUG}/orders/plan-scopes.json`, "{}")), "a live plan order freezes the next order until it is answered");
+    put(root, `.shapeup/${SLUG}/results/plan-spec.json`, "{}");
+    kernel(ROOT, ["order", "open", "--slug", SLUG, "--order", path], { cwd: root });
+
     // The two ways the fence lifts, distinguished by rule.
     put(root, `.shapeup/${SLUG}/results/build-r1-a1.json`, "{}");
     r = write("lib/outside.js");

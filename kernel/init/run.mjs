@@ -231,8 +231,9 @@ export function cli(rawArgv) {
     fail(2, [
       `✋ init-run: ${belowFloor.join("; ")}.`,
       "",
-      "The roles that write code (exec) and grade it (eval) run on sonnet or above; a cheaper tier is",
-      "refused here, before a run is opened. Name a model with --exec-model / --eval-model, or set",
+      "The launch record's models for the roles that write code (exec) and grade it (eval) must be sonnet or",
+      "above; a cheaper tier is refused here, before a run is opened. (A worker agent inherits the session's",
+      "model, so the record states intent and the dispatch receipts name the model that ran.) Name a model with --exec-model / --eval-model, or set",
       "SHAPEUP_EXEC_MODEL / SHAPEUP_EVAL_MODEL. `qa` is not checked, and `eval` is not under --no-eval.",
     ].join("\n"));
   }
@@ -298,11 +299,17 @@ export function cli(rawArgv) {
   if (existsSync(receiptPath) && !args.force) {
     let kept = null;
     try { kept = JSON.parse(readFileSync(runArgsPath(cwd, slug), "utf8")); } catch { /* no record on disk */ }
+    let closed = null;
+    try { closed = JSON.parse(readFileSync(join(runRoot, "close.json"), "utf8")); } catch { /* not closed */ }
     fail(3, [
-      `✋ init-run: a run is ALREADY OPEN — receipt exists at ${receiptPath}.`,
+      closed
+        ? `✋ init-run: this run is CLOSED as "${closed.status}" at ${closed.at ?? "?"} (${closed.cause ?? "no cause recorded"}) — receipt exists at ${receiptPath}.`
+        : `✋ init-run: a run is ALREADY OPEN — receipt exists at ${receiptPath}.`,
       "",
-      "Do NOT re-initialise and do NOT restart from phase 1. The orders, results, gate ledger and board",
-      "under the run root already hold the run's real state; resume from the phase they report.",
+      closed
+        ? "Reopening a closed run is the PO's decision: --force answers every order nobody answered and writes a fresh record."
+        : "Do NOT re-initialise and do NOT restart from phase 1. The orders, results, gate ledger and board",
+      closed ? "" : "under the run root already hold the run's real state; resume from the phase they report.",
       "",
       kept
         ? `LAUNCH RECORD (kept — the switches typed to this call were NOT applied; --force re-opens with new ones):\n${JSON.stringify(kept, null, 2)}`

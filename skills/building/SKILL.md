@@ -61,6 +61,7 @@ re-run with `--answer <decision>`; 5 = the set aborts: close the run as aborted 
 
 | # | Condition | Do |
 |---|---|---|
+| 0 | `<run>/close.json` exists | the run has ended: report its `status` and `cause`, and stop. Reopening it is the PO's decision (`init run --force`) |
 | 1 | no `results/orient.json` | **dispatch** `orient` (below) |
 | 2 | GATE L1a not crossed | `K gate --resolve L1a --slug <slug> --preset <set>` |
 | 3 | no `<spec>requirements.md` | plan substep `requirements` |
@@ -79,7 +80,7 @@ re-run with `--answer <decision>`; 5 = the set aborts: close the run as aborted 
 
 **A plan substep** is done here, in this session, with no sub-agent: write the substep's order (`resources/orders.md`, operation `plan`,
 `worker: "building"`), open it with `K order open`, write only what the substep produces (`resources/plan.md` and its `plan-*.md`
-siblings say what and how), then write `results/plan-<step>.json` yourself and read the artifact back. The order's substrate is the
+siblings say what and how), then write `results/plan-<step>.json` yourself (the order's `own` path, so it is writable though results are frozen) and read the artifact back, before you write the next order. The order's substrate is the
 fence: while it is open, the staged pitch, the receipt and the other orders are frozen.
 
 ## A dispatch
@@ -126,7 +127,7 @@ census compares what is green against the baseline and ships what works. A run k
 
 ## Resume
 
-`/ship` again over an open run is the resume: `init run` refuses and prints what is on disk, and you continue from the phase table, reading files and nothing else.
+`/ship` again over an open run is the resume (over a closed one, phase 0 reports the ending and stops): `init run` refuses and prints what is on disk, and you continue from the phase table, reading files and nothing else.
 A run closed without shipping is reopened by `init run --force`, which resolves every order nobody answered as abandoned before it writes.
 
 > **Intake, language check and translation, profile, the launch record** → `resources/intake.md`
