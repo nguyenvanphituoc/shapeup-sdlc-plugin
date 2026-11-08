@@ -48,11 +48,12 @@ verb, `sandbox-guard` (the fence and the tier rule), `dispatch-receipt`, `safety
   section. In particular nothing now stops a run from skipping the board-review lint, applying a result twice, miscounting attempts,
   evaluating a feature that does not build, or reporting a ship from memory. The write fence, the dispatch receipts, the T0 witness and
   the gate resolver still refuse what they refused.
-- **The measured weakness is now the product.** The loop that failed once in the comparison is the only loop. A real run on this
-  branch, on the same pitch, reached the evaluator with all three scopes green on the first attempt, then drew a FAIL (a code bug and
-  two gaps in its own planning that the removed spec lint would have caught), stopped at the start of round 2 on its own judgment of
-  the remaining budget, and had spent $9.1 against $5.4 for the engine's runs. It did not ship. One repetition is not a rate; the
-  record is `execution-native-first-2026-11-08.md`.
+- **The measured weakness is now the product, and the real run on this branch shows it.** On the same pitch the loop built all three
+  scopes in round 1, drew a FAIL (a code bug and two gaps in its own planning that the removed spec lint would have caught), stopped on its
+  own judgment of the budget, and — resumed — shipped in round 2 with a PASS. It cost $18.2 across the two sessions against $5.4 for the
+  engine's runs, skipped the QA hunt by its own decision, opened a phantom run from the wrong directory and worked around the fence once.
+  The run shipped and the plan's S4 gate is met; whether the loop ships reliably is not known from one repetition. The record is
+  `execution-native-first-2026-11-08.md`.
 - **A fence armed by hand is a fence that can be forgotten, and a stamp typed by hand can stall it.** With no active-order pointer the fence allows every write. The loop arms
   and retires it through `harness order`, which reads the pointer back and stamps the order's time itself (a real run typed a stamp ahead of the clock and stalled the run); the tests arm it the same way.
 - **The ratchet's limit is unchanged and now more visible:** the snapshot holds tracked files only, so a revert does not remove a file an

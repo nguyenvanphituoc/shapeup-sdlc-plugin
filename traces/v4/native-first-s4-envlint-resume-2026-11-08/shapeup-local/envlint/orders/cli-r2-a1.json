@@ -1,0 +1,143 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/cli-r2-a1",
+  "kernel": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.plugin-under-test/plugin-s4-2/kernel/harness.mjs",
+  "run_id": "envlint-20261108T052834Z-3e0ef920",
+  "compiled_at": "2026-11-08T05:34:50.949Z",
+  "worker": "task-executor",
+  "mode": "orchestrated",
+  "operation": "fix",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "bin/envlint.mjs",
+      "package.json",
+      "test/cli.test.mjs",
+      ".shapeup/envlint/spikes/**"
+    ],
+    "shared": [],
+    "frozen": [
+      ".shapeup/envlint/**"
+    ],
+    "own": [
+      ".shapeup/envlint/results/cli-r2-a1.json",
+      ".shapeup/envlint/tasks/TASK-*.md",
+      ".shapeup/envlint/discovery/**",
+      ".shapeup/envlint/spikes/**"
+    ]
+  },
+  "payload": {
+    "feature": "envlint",
+    "round": 2,
+    "spec_folder": "shapeup/envlint/spec/",
+    "scope_contract": {
+      "scope_id": "cli",
+      "topology_type": "LAYER_CAKE",
+      "use_cases": [
+        "UC-03"
+      ],
+      "covers": [
+        "REQ-1",
+        "REQ-2",
+        "REQ-3",
+        "REQ-4",
+        "REQ-5",
+        "REQ-6",
+        "REQ-7",
+        "REQ-8",
+        "REQ-9",
+        "REQ-21",
+        "REQ-24",
+        "REQ-25",
+        "REQ-27",
+        "REQ-28",
+        "REQ-29"
+      ],
+      "depends_on": [
+        "parsing",
+        "rules"
+      ],
+      "allowed_file_substrate": [
+        "bin/envlint.mjs",
+        "package.json",
+        "test/cli.test.mjs"
+      ],
+      "shared_substrate": [],
+      "affordance_manifest": [
+        {
+          "test_id": "envlint-cli",
+          "role": "command",
+          "required_states": [
+            "idle",
+            "error",
+            "success",
+            "empty"
+          ],
+          "source": "ux-behavior state table"
+        }
+      ],
+      "e2e_verification_fixtures": [
+        "node --test test/cli.test.mjs"
+      ],
+      "hill_phase": "UPHILL_UNKNOWN"
+    },
+    "tasks": [
+      {
+        "id": "TASK-003",
+        "title": "Implement the envlint CLI composition root",
+        "body_path": ".shapeup/envlint/tasks/TASK-003.md"
+      },
+      {
+        "id": "TASK-004",
+        "title": "End-to-end tests driving the envlint binary against temp fixtures",
+        "body_path": ".shapeup/envlint/tasks/TASK-004.md"
+      }
+    ],
+    "verify": {
+      "test_cmd": "node --test test/cli.test.mjs"
+    },
+    "bugs": [
+      {
+        "id": "BUG-1",
+        "severity": "major",
+        "criterion": "UC-03 INV-05 / UC-03 / TS-INV-05",
+        "location": "bin/envlint.mjs:67",
+        "also": [
+          "src/rules.mjs:66",
+          "src/rules.mjs:69"
+        ],
+        "repro": "printf 'PORT=\\033[31mred\\n' > esc.env; echo '{\"PORT\":{\"type\":\"int\"}}' > s.json; node bin/envlint.mjs --schema s.json esc.env | od -c",
+        "expected": "no 0x1b byte in stdout or stderr on any findings run (UC-03 INV-05, TS-INV-05)",
+        "actual": "stdout \"esc.env:1: PORT: expected int, got \\\"<ESC>[31mred\\\"\" contains raw 033",
+        "fix_hint": "Escape control characters (C0 0x00-0x1f except none needed, and DEL 0x7f) at RENDER time in bin/envlint.mjs only, e.g. 0x1b -> the 4-char text \\x1b, so no raw control byte reaches stdout/stderr; apply to the env path when echoed too. src/rules.mjs is NOT in this scope substrate (rules scope owns it) - do not touch it; the C3 message shape stays as rules builds it. Add an ESC-valued fixture to the TS-INV-05 test in test/cli.test.mjs asserting no 0x1b byte in stdout/stderr. Failing criteria: UC-03 / TS-INV-05 and UC-03 INV-05 (no ANSI escape sequences in output); refuted ACs on TASK-003 and TASK-004.",
+        "next": "task-executor, scope cli, round 2"
+      }
+    ],
+    "digested_errors": [],
+    "trial_history": [
+      {
+        "schema_version": 1,
+        "trial": 1,
+        "run_id": "envlint-20261108T050016Z-c40aa663",
+        "round": 1,
+        "attempt": 1,
+        "scope_id": "cli",
+        "at": "2026-11-08T05:13:52.955Z",
+        "artifact": "t0/verdicts/r1-a1-t3.json",
+        "sha256": "83ced6c75d069bd59d9119f0f318cfd0279427afa197698e77c018ad7ea94867",
+        "score": {
+          "fixtures_passed": 1,
+          "fixtures_total": 1,
+          "db_probe": null
+        },
+        "status": "kept",
+        "baseline_trial": null,
+        "delta": "baseline",
+        "tree_ref": "refs/shapeup/cli/kept",
+        "digest": []
+      }
+    ]
+  }
+}

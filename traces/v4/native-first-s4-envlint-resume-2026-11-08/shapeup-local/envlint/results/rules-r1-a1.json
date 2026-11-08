@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/rules-r1-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-002",
+      "status": "done",
+      "ac_results": [
+        { "ac": "`src/rules.mjs` exports `checkSchema(schema)` and `checkPairs(pairs, schema)` per C2/C3 (covers: REQ-20)", "result": "pass",
+          "evidence": "node --test test/rules.test.mjs → 'exports checkSchema and checkPairs' ok; C2/C3 behaviour covered by the 14 other tests, 15/15 pass" },
+        { "ac": "`src/rules.mjs` contains no `import` statement and no network or fs access (covers: REQ-20, REQ-22, REQ-30)", "result": "pass",
+          "evidence": "TS-INV-01 test reads src/rules.mjs and asserts no import statement, no dynamic import/require, no fetch/http/net/dns/fs reference → ok; only the global URL is used" },
+        { "ac": "`node --test test/rules.test.mjs` exits 0, importing only `src/rules.mjs` and `node:` builtins (covers: REQ-23)", "result": "pass",
+          "evidence": "node --test test/rules.test.mjs → tests 15, pass 15, fail 0; test imports only node:test, node:assert/strict, node:fs and ../src/rules.mjs" },
+        { "ac": "A `required` key absent from pairs yields `{rule:\"required\", line:null}` (covers: REQ-17)", "result": "pass",
+          "evidence": "TS-ERR-REQUIRED_MISSING: checkPairs([], {PORT:{required:true,type:'int'}}) deepEquals [{key:'PORT',line:null,rule:'required',message:'required key is missing'}] → ok" },
+        { "ac": "`int` rejects `1.0`, `0x10`, `1e3`, `\"\"` and accepts `-5`, `0`, `42` (covers: REQ-18)", "result": "pass",
+          "evidence": "TS-ERR-TYPE_MISMATCH: int (also ' 7') and TS-REQ-type-boundary tests → ok; message 'expected int, got \"<value>\"' asserted" },
+        { "ac": "`bool` accepts only `true`/`false`; `string` accepts anything (covers: REQ-18)", "result": "pass",
+          "evidence": "test 'bool accepts only true/false; string accepts anything' → ok (yes/TRUE/1/'' rejected; '', text, ${VAR} accepted by string)" },
+        { "ac": "`url` accepts `https://a.example/x` and `http://unreachable.invalid`, rejects `localhost:3000`, `javascript:alert(1)`, `file:///etc` — with no network call (covers: REQ-18, REQ-31)", "result": "pass",
+          "evidence": "url test → ok; predicate is new URL() + protocol http:/https: + non-empty hostname, synchronous, no network reference (TS-INV-01)" },
+        { "ac": "`enum` is an exact, case-sensitive match (covers: REQ-19)", "result": "pass",
+          "evidence": "TS-ERR-ENUM_MISMATCH: dev/prod pass; Dev, staging, ' dev' yield enum findings; message 'expected one of dev, prod, got \"Dev\"' → ok" },
+        { "ac": "Duplicate key → only the last occurrence is checked, its line reported; keys not in the schema → no finding (covers: REQ-17)", "result": "pass",
+          "evidence": "TS-INV-02 (A on lines 1 and 3, failing on 3 → one finding line 3; failing first, valid last → []) and TS-INV-03 (EXTRA → []) → ok" },
+        { "ac": "`checkSchema` returns errors for `[]`, `null`, unknown `type`, empty `enum`, non-boolean `required`, unknown rule field; `[]` for `{}` (covers: REQ-1)", "result": "pass",
+          "evidence": "TS-ERR-SCHEMA_INVALID (13 invalid inputs incl. all listed, each non-empty string[]) and 'checkSchema accepts {} and a valid schema' → ok" }
+      ]
+    }
+  ],
+  "files_touched": [
+    { "path": "src/rules.mjs", "change": "created" },
+    { "path": "test/rules.test.mjs", "change": "created" }
+  ],
+  "discoveries": [],
+  "assumptions": [
+    "checkSchema error strings are not fixed by C2; chosen form is '<KEY>: <reason>' (top level: 'schema must be a JSON object'), one per fault, a non-object rule skips its field checks",
+    "A key with value present but no `type` and no `enum` produces no finding; `required: false` behaves like an absent `required`",
+    "Lined findings are sorted stably by line, so a key's type finding stays before its enum finding",
+    "checkPairs does not re-validate the schema: per UC-02 it is only called with a schema checkSchema accepted",
+    "The enum message joins members with ', ' unquoted, matching the C3 template 'expected one of <a>, <b>, …, got \"<value>\"'"
+  ],
+  "deviations": []
+}

@@ -276,28 +276,44 @@ six mutants were tried, five were caught, and the sixth (the model floor in `ini
 check, so removing the first changes nothing observable.
 
 **Real run on the branch (the gate the advisor asked for, and the one result this removal is judged by).** `envlint`, the same pitch and
-the same flags as the S3 comparison, one repetition, cap $12, archived at `traces/v4/native-first-s4-envlint-2026-11-08/`.
+the same flags as the S3 comparison, cap $12 a session, archived at `traces/v4/native-first-s4-envlint-2026-11-08/` (session 1) and
+`traces/v4/native-first-s4-envlint-resume-2026-11-08/` (the resume, same run id, on the tree after the first fixes).
 
 | | A (engine, S3) | B1 (phase table, S3) | this branch |
 |---|---|---|---|
-| closed | shipped, PASS, 1 round | escalated, FAIL, 2 rounds | **not closed**: stopped at the start of round 2 |
-| scopes with a green T0 | 3 of 3 | 3 of 3 | 3 of 3, first attempt |
+| closed | shipped, PASS, 1 round | escalated, FAIL, 2 rounds | **shipped, PASS, 2 rounds — after a resume** |
+| scopes with a green T0 | 3 of 3 | 3 of 3 | 3 of 3, first attempt in each round they ran |
 | round 1 verdict | PASS | FAIL | FAIL, 3 bugs (one code, two planning gaps) |
-| gates crossed | L0 … COACH-1 | L0 … H, L4 | L0, L1a, L1a.5, L1b, L2, L3 |
-| cost as the host reported | $5.4 | $8.6 | **$9.1** |
+| QA edge hunt | ran | not reached | **skipped by the loop's own call**, logged `not-hunted` |
+| gates crossed | L0 … COACH-1 | L0 … H, L4 | L0 … L3 (×2 rounds), QA, H, L4, COACH-1 |
+| cost as the host reported | $5.4 (and $5.3) | $8.6 | **$18.2** across two sessions ($9.1 + $9.1) |
 
-The loop wrote every order from the template, armed the fence with the new verb, and the dispatch receipts name the shipped agents for
-all five dispatches. It did not ship: the evaluator's round-1 FAIL was the same class of defect as B1's (control characters reaching the
-output), and told it had $12 with about $3 left after a $2.70 evaluation, the loop stopped rather than start round 2. Two of the three bugs
-were gaps in its own planning that a spec lint would have caught at the board review. One repetition cannot separate that from variance, so
-this is evidence that the prose loop reaches L3 and a FAIL on this pitch, not that it cannot ship.
+Session 1 built all three scopes, drew a round-1 FAIL, and stopped at the start of round 2 on its own judgment that the remaining budget
+would not cover it. The resume fixed the code bug and the two planning gaps, the evaluator passed 45 of 45 criteria, and the census,
+GATE H, the ship report, GATE L4 and `order close` all ran (`close.json` reads `shipped`, "PASS round 2 of 3; QA not-hunted"). So the back
+half of the loop did run on this tree. The dispatch receipts name the shipped agents for every dispatch of both sessions.
+
+What the run says about the removal, plainly. **It shipped, at about three and a half times the engine's cost and with the QA step
+dropped by the loop itself.** The run's own report discloses three things the engine would have prevented: it ran `init run` from inside
+`.shapeup/` and opened a phantom run nested in the real one (the later orders and receipts carry the phantom's id); it opened an order
+before checking it against the schema, could not edit or withdraw it under the fence, and replaced it with a shell `cp`; and it skipped
+the hunt the gate answered `run`. One round-1 bug and two planning gaps are the same defects the spec lint was there to catch. One
+repetition does not make a rate, and a session that ran twice because the first one ran out of money is not a like-for-like with a run
+that shipped in one.
 
 **A defect the run found, fixed on the branch.** The loop typed each order's `compiled_at` by hand, and one stamp ran ahead of the clock;
 the fence reads an order as answered only when its result is at least that new, so the order stayed live after its worker returned and the
 loop had to refresh a result file's timestamp to continue. `order open` now stamps the order with the real time, and the fence test covers
 the stall (a mutant that drops the stamp turns it red).
 
-**What was not verified.** A second repetition was not run, and no shipped run exists on this branch. The domain registry still carries
+**Defects the resumed run found, fixed afterwards and not re-run.** `order open` now applies the dispatch gate's schema check before it
+arms anything, so an invalid order cannot be left live and uneditable; `init run`, `order` and `gate --resolve` refuse a working directory
+inside `.shapeup/`; the evaluator skill no longer tells the judge to run a removed command; and the loop is told to append the verdict
+ledger and to write its build note, and a plan order's own result path is now listed (the substrate table had frozen the results directory
+without it, and the run only worked because the loop left results out of the frozen list). The L3 gate prints its "loop" note even over a
+PASS verdict, as before; the log records the PASS correctly.
+
+**What was not verified.** A second repetition was not run, and those fixes were not exercised by a run. The domain registry still carries
 descriptions of records the engine wrote (three dead definitions were removed; the rest are described in terms of the loop). The T0 ratchet's
 limit, that its snapshot holds tracked files only so a revert does not remove a file an attempt created, predates this work and is
 unchanged. `last-run`, the breadcrumb that keyed a closed run's later hook rows, is no longer written. `npm test`, `npm run demo`,

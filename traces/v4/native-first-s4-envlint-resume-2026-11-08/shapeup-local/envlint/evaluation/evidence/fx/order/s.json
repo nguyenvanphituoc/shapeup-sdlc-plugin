@@ -1,0 +1,1 @@
+{"Z":{"required":true},"K2":{"enum":["a","b"]},"K":{"type":"int","enum":["1"]},"Y":{"required":true}}

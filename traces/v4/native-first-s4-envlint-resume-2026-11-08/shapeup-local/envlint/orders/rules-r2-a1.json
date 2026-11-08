@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/rules-r2-a1",
+  "kernel": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.plugin-under-test/plugin-s4-2/kernel/harness.mjs",
+  "run_id": "envlint-20261108T052834Z-3e0ef920",
+  "compiled_at": "2026-11-08T05:33:49.974Z",
+  "worker": "task-executor",
+  "mode": "orchestrated",
+  "operation": "fix",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "src/rules.mjs",
+      "test/rules.test.mjs",
+      ".shapeup/envlint/spikes/**"
+    ],
+    "shared": [],
+    "frozen": [
+      ".shapeup/envlint/**"
+    ],
+    "own": [
+      ".shapeup/envlint/results/rules-r2-a1.json",
+      ".shapeup/envlint/tasks/TASK-*.md",
+      ".shapeup/envlint/discovery/**",
+      ".shapeup/envlint/spikes/**"
+    ]
+  },
+  "payload": {
+    "feature": "envlint",
+    "round": 2,
+    "spec_folder": "shapeup/envlint/spec/",
+    "scope_contract": {
+      "scope_id": "rules",
+      "topology_type": "ICEBERG",
+      "use_cases": [
+        "UC-02"
+      ],
+      "covers": [
+        "REQ-17",
+        "REQ-18",
+        "REQ-19",
+        "REQ-20",
+        "REQ-22",
+        "REQ-23",
+        "REQ-30",
+        "REQ-31"
+      ],
+      "depends_on": [],
+      "allowed_file_substrate": [
+        "src/rules.mjs",
+        "test/rules.test.mjs"
+      ],
+      "shared_substrate": [],
+      "affordance_manifest": [],
+      "e2e_verification_fixtures": [
+        "node --test test/rules.test.mjs"
+      ],
+      "hill_phase": "UPHILL_UNKNOWN"
+    },
+    "tasks": [
+      {
+        "id": "TASK-002",
+        "title": "Implement the pure schema rules engine",
+        "body_path": ".shapeup/envlint/tasks/TASK-002.md"
+      }
+    ],
+    "verify": {
+      "test_cmd": "node --test test/rules.test.mjs"
+    },
+    "bugs": [
+      {
+        "id": "BUG-3",
+        "criterion": "TSC-2 / CMP-1 (UC-02 INV-04 → TS-INV-04)",
+        "location": "test/rules.test.mjs:137",
+        "expected": "UC-02 Test Surface now carries a TS-INV-04 row (shapeup/envlint/spec/usecases/UC-02-check-pairs-against-schema.md) and TASK-002 has an INV-04 AC. The existing test at test/rules.test.mjs:137 must carry the row id TS-INV-04 in its name (like the other TS-* tests) and cover the row's probe: an accepted url+enum/required schema, checkPairs on C1 pairs including value '::::' and an empty value, and keys __proto__/constructor/toString — checkSchema returns [] and neither call throws.",
+        "actual": "test is named 'INV-04: ...' with no TS-INV-04 id and does not exercise __proto__/constructor/toString keys",
+        "fix_hint": "surgical: rename and extend that one test only. No change to src/rules.mjs is expected (the evaluator found the behavior already passes); touch it only if the extended test fails."
+      }
+    ],
+    "digested_errors": [],
+    "trial_history": [
+      {
+        "schema_version": 1,
+        "trial": 1,
+        "run_id": "envlint-20261108T050016Z-c40aa663",
+        "round": 1,
+        "attempt": 1,
+        "scope_id": "rules",
+        "at": "2026-11-08T05:11:55.016Z",
+        "artifact": "t0/verdicts/r1-a1-t2.json",
+        "sha256": "a5ddb105dbe721687315de17c0aef099af08beb530bea63b01ca008eef4e041b",
+        "score": {
+          "fixtures_passed": 1,
+          "fixtures_total": 1,
+          "db_probe": null
+        },
+        "status": "kept",
+        "baseline_trial": null,
+        "delta": "baseline",
+        "tree_ref": "refs/shapeup/rules/kept",
+        "digest": []
+      }
+    ]
+  }
+}

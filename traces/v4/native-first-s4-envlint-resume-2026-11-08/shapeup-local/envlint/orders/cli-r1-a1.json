@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/cli-r1-a1",
+  "kernel": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.plugin-under-test/plugin-s4-1/kernel/harness.mjs",
+  "run_id": "envlint-20261108T050016Z-c40aa663",
+  "compiled_at": "2026-11-08T05:11:58Z",
+  "worker": "task-executor",
+  "mode": "orchestrated",
+  "operation": "execute",
+  "interaction": { "pause_gates": false },
+  "substrate": {
+    "allowed": ["bin/envlint.mjs", "package.json", "test/cli.test.mjs", ".shapeup/envlint/spikes/**"],
+    "shared": [],
+    "frozen": [".shapeup/envlint/**"],
+    "own": [".shapeup/envlint/results/cli-r1-a1.json", ".shapeup/envlint/tasks/TASK-*.md", ".shapeup/envlint/discovery/**", ".shapeup/envlint/spikes/**"]
+  },
+  "payload": {
+    "feature": "envlint",
+    "round": 1,
+    "spec_folder": "shapeup/envlint/spec/",
+    "scope_contract": {
+      "scope_id": "cli",
+      "topology_type": "LAYER_CAKE",
+      "use_cases": ["UC-03"],
+      "covers": ["REQ-1", "REQ-2", "REQ-3", "REQ-4", "REQ-5", "REQ-6", "REQ-7", "REQ-8", "REQ-9", "REQ-21", "REQ-24", "REQ-25", "REQ-27", "REQ-28", "REQ-29"],
+      "depends_on": ["parsing", "rules"],
+      "allowed_file_substrate": ["bin/envlint.mjs", "package.json", "test/cli.test.mjs"],
+      "shared_substrate": [],
+      "affordance_manifest": [{ "test_id": "envlint-cli", "role": "command", "required_states": ["idle", "error", "success", "empty"], "source": "ux-behavior state table" }],
+      "e2e_verification_fixtures": ["node --test test/cli.test.mjs"],
+      "hill_phase": "UPHILL_UNKNOWN"
+    },
+    "tasks": [
+      { "id": "TASK-003", "title": "Implement the envlint CLI composition root", "body_path": ".shapeup/envlint/tasks/TASK-003.md" },
+      { "id": "TASK-004", "title": "End-to-end tests driving the envlint binary against temp fixtures", "body_path": ".shapeup/envlint/tasks/TASK-004.md" }
+    ],
+    "verify": { "test_cmd": "node --test test/cli.test.mjs" }
+  }
+}

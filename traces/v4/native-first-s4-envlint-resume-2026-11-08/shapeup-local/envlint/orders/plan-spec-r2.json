@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/plan-spec-r2",
+  "kernel": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.plugin-under-test/plugin-s4-2/kernel/harness.mjs",
+  "run_id": "envlint-20261108T052834Z-3e0ef920",
+  "compiled_at": "2026-11-08T05:30:42.941Z",
+  "worker": "building",
+  "mode": "standalone",
+  "operation": "plan",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "shapeup/envlint/spec/**",
+      ".shapeup/envlint/tasks/**",
+      ".shapeup/envlint/working/**"
+    ],
+    "frozen": [
+      ".shapeup/envlint/intake.md",
+      "shapeup/envlint/project-profile.md",
+      ".shapeup/envlint/orders/**",
+      ".shapeup/envlint/receipt.json",
+      ".shapeup/envlint/receipts/**",
+      ".shapeup/envlint/t0/**"
+    ],
+    "own": [
+      ".shapeup/envlint/results/plan-spec-r2.json"
+    ]
+  },
+  "payload": {
+    "step": "spec",
+    "mode": "reconcile",
+    "feature": "envlint",
+    "spec_folder": "shapeup/envlint/spec/",
+    "kb_rules_paths": [],
+    "reason": "round-1 verdict BUG-2 (CMP-1) and BUG-3 (TSC-2): UC-02 INV-04 has no TS-INV-04 row and no TASK-002 AC"
+  }
+}

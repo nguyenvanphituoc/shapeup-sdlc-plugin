@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/rules-r2-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-002",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "[INV-04] Neither `checkSchema` nor `checkPairs` throws for a schema `checkSchema` accepts and C1-shaped pairs, including keys `__proto__`/`constructor`/`toString` (TS-INV-04) (covers: REQ-17)",
+          "result": "pass",
+          "evidence": "node --test test/rules.test.mjs -> 15/15 pass, including 'TS-INV-04: neither function throws for an accepted schema and C1 pairs' (test/rules.test.mjs:137): checkSchema({A:{type:'url',enum:['x']},B:{required:true}}) deepEquals [] and does not throw; checkPairs does not throw on pairs with value '::::' and empty value, nor on pairs keyed __proto__/constructor/toString; additionally a JSON.parse'd schema with own keys __proto__/constructor/toString is accepted ([]) and checkPairs against it does not throw"
+        }
+      ]
+    }
+  ],
+  "files_touched": [
+    { "path": "test/rules.test.mjs", "change": "modified" }
+  ],
+  "discoveries": [],
+  "assumptions": [
+    "The TS-INV-04 probe's 'keys __proto__/constructor/toString' is read as pair keys; the test also exercises them as schema keys (via JSON.parse, which yields own properties) since the row does not say which side, and both pass without a src change",
+    "BUG-3 fixed by renaming the existing INV-04 test to carry TS-INV-04 and extending it in place; no other test touched"
+  ],
+  "deviations": []
+}

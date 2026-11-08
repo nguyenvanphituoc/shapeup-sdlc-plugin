@@ -1,0 +1,49 @@
+{
+ "stdinHeldOpen": [
+  {
+   "hung": false,
+   "code": 1,
+   "stdinEnded": false,
+   "escByte": false,
+   "stdout": "esc.env:1: PORT: expected int, got \"\\x1b[31mred\"\nesc.env: T: required key is missing\n",
+   "stderr": ""
+  },
+  {
+   "hung": false,
+   "code": 1,
+   "stdinEnded": false,
+   "escByte": false,
+   "stdout": "esc.env:1: PORT: expected int, got \"\\x1b[31mred\"\nesc.env: T: required key is missing\n",
+   "stderr": ""
+  }
+ ],
+ "fixtures": [
+  {
+   "cmd": "node --test test/parse.test.mjs",
+   "exit": 0,
+   "summary": [
+    "ℹ tests 15",
+    "ℹ pass 15",
+    "ℹ fail 0"
+   ]
+  },
+  {
+   "cmd": "node --test test/rules.test.mjs",
+   "exit": 0,
+   "summary": [
+    "ℹ tests 15",
+    "ℹ pass 15",
+    "ℹ fail 0"
+   ]
+  },
+  {
+   "cmd": "node --test test/cli.test.mjs",
+   "exit": 0,
+   "summary": [
+    "ℹ tests 17",
+    "ℹ pass 17",
+    "ℹ fail 0"
+   ]
+  }
+ ]
+}

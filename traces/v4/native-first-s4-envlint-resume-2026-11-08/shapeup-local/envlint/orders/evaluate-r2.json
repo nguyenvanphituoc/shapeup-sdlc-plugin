@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/evaluate-r2",
+  "kernel": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.plugin-under-test/plugin-s4-2/kernel/harness.mjs",
+  "run_id": "envlint-20261108T052834Z-3e0ef920",
+  "compiled_at": "2026-11-08T05:36:35.982Z",
+  "worker": "spec-evaluator",
+  "mode": "orchestrated",
+  "operation": "evaluate",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [],
+    "frozen": [
+      "shapeup/envlint/spec/**",
+      ".shapeup/envlint/**"
+    ],
+    "own": [
+      ".shapeup/envlint/evaluation/**",
+      ".shapeup/envlint/results/evaluate-r2.json"
+    ]
+  },
+  "payload": {
+    "feature": "envlint",
+    "round": 2,
+    "spec_folder": "shapeup/envlint/spec/",
+    "dimensions": [
+      "spec-conformance",
+      "tdd-surface",
+      "completeness",
+      "test-surface-conformance"
+    ],
+    "run_cmd": "node bin/envlint.mjs --schema <schema.json> <envfile>   (CLI, no server; the project suite is `node --test`)",
+    "t0_artifacts": [
+      ".shapeup/envlint/t0/verdicts/r1-a1-t1.json",
+      ".shapeup/envlint/t0/verdicts/r2-a1-t1.json",
+      ".shapeup/envlint/t0/verdicts/r2-a1-t2.json"
+    ],
+    "browser": "cli",
+    "tasks": [
+      {
+        "id": "TASK-001",
+        "body_path": ".shapeup/envlint/tasks/TASK-001.md"
+      },
+      {
+        "id": "TASK-002",
+        "body_path": ".shapeup/envlint/tasks/TASK-002.md"
+      },
+      {
+        "id": "TASK-003",
+        "body_path": ".shapeup/envlint/tasks/TASK-003.md"
+      },
+      {
+        "id": "TASK-004",
+        "body_path": ".shapeup/envlint/tasks/TASK-004.md"
+      }
+    ],
+    "previous_verdict": ".shapeup/envlint/results/evaluate-r1.json",
+    "regression_note": "Fix round. Re-check BUG-1 (UC-03 TS-INV-05 / INV-05, scope cli), BUG-2 (CMP-1, TASK-002 now carries an INV-04 AC) and BUG-3 (TSC-2, UC-02 now carries a TS-INV-04 row). Regression rule: re-run the full Test Surface of UC-02 (rules reopened) and UC-03 (cli reopened), plus static completeness. UC-01 (parsing) was not reopened; its latest T0 is r1-a1-t1."
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "verdict": "ship-now",
+  "cut_list": ["D-R2-1: src/rules.mjs C3 messages embed raw values; CLI escapes at render (carry as raw idea)"],
+  "ship_blocking": [],
+  "breaker": null,
+  "baseline": null
+}

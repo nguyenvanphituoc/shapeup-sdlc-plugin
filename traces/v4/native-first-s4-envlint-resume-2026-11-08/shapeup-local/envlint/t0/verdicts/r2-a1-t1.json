@@ -1,0 +1,65 @@
+{
+  "schema_version": 2,
+  "round": 2,
+  "attempt": 1,
+  "trial": 1,
+  "at": "2026-11-08T05:34:27.487Z",
+  "run_id": "envlint-20261108T050016Z-c40aa663",
+  "scope_id": "rules",
+  "env": {
+    "schema_version": 1,
+    "host": {
+      "platform": "darwin",
+      "arch": "arm64",
+      "os_release": "27.0.0",
+      "node": "v24.15.0",
+      "hostname_sha256": "fc7b2e355cd153f2742755036cef7a85840bc651258026e69764f044a4fbdbb9"
+    },
+    "cwd": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer",
+    "tree": {
+      "head": "b8a18120b78f8f6be5f13681f4f9b973729cff15",
+      "dirty": true,
+      "branch": "master"
+    },
+    "toolchain": [
+      {
+        "bin": "node",
+        "path": "/Users/liberty/.nvm/versions/node/v24.15.0/bin/node"
+      }
+    ],
+    "lockfiles": [],
+    "caches": null,
+    "env": {
+      "allowlist": [
+        "PATH",
+        "NODE_ENV",
+        "CI",
+        "LANG",
+        "TZ"
+      ],
+      "sha256": "a3c49a86e746993391f3c39f378a7747070cd7438675e91cd0f16e46491c6695"
+    },
+    "env_sha256": "4c8218cc7d49459a1de404ce62a7472543696174c680eca12faa529b3b08e261"
+  },
+  "fixtures": [
+    {
+      "cmd": "node --test test/rules.test.mjs",
+      "exit": 0,
+      "pass": true,
+      "stdout_tail": "✔ exports checkSchema and checkPairs (0.883291ms)\n✔ TS-INV-01: rules.mjs has no import and no network/fs reference; url by shape only (0.674541ms)\n✔ TS-ERR-REQUIRED_MISSING: required key absent → required finding with line null (0.129583ms)\n✔ TS-ERR-TYPE_MISMATCH: int (0.175167ms)\n✔ TS-REQ-type-boundary: int accepts -5, 0, 42 (0.076875ms)\n✔ bool accepts only true/false; string accepts anything (0.104166ms)\n✔ url accepts http(s) with hostname; rejects other shapes; no network (0.113125ms)\n✔ TS-ERR-ENUM_MISMATCH: enum is exact and case-sensitive (0.081833ms)\n✔ type and enum both reported for one key, type first (0.078875ms)\n✔ TS-INV-02: duplicate key → only the last occurrence is checked, its line reported (0.104167ms)\n✔ TS-INV-03: keys not in the schema produce no finding (0.0595ms)\n✔ order: lined findings ascending by line, then required in schema key order (0.080459ms)\n✔ TS-ERR-SCHEMA_INVALID: checkSchema rejects structural faults (0.183625ms)\n✔ checkSchema accepts {} and a valid schema (0.066166ms)\n✔ TS-INV-04: neither function throws for an accepted schema and C1 pairs (0.172584ms)\nℹ tests 15\nℹ suites 0\nℹ pass 15\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 53.062375\n"
+    }
+  ],
+  "db_probe": null,
+  "fixtures_green": true,
+  "db_probe_green": true,
+  "overall": "green",
+  "score": {
+    "fixtures_passed": 1,
+    "fixtures_total": 1,
+    "db_probe": null
+  },
+  "discovered_tasks": [],
+  "check_files": {
+    "test/rules.test.mjs": "75d66d48cbd66a4d3ad78c993cd6c9814bee7c0ddc316135fc3eb2d7c95939da"
+  }
+}

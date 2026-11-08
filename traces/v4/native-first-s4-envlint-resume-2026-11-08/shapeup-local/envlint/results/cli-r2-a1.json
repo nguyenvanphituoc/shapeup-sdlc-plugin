@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/cli-r2-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-003",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "Output lines and order exactly per [[ux-behavior#Output lines (findings state)]], no ANSI escapes, no stdin read (covers: REQ-2, REQ-28, REQ-29)",
+          "result": "pass",
+          "evidence": "BUG-1 repro (PORT=<ESC>[31mred, schema PORT:int) via spawnSync: exit 1, stdout \"esc.env:1: PORT: expected int, got \\\"\\\\x1b[31mred\\\"\\n\", stdout.includes(0x1b)=false, stderr.includes(0x1b)=false. Fix: bin/envlint.mjs safe() escapes C0/DEL/C1 as \\xNN text at render time, on every stdout line (env path included) and on both stderr writes. node --test test/cli.test.mjs -> 17/17 pass, existing exact-output assertions unchanged"
+        }
+      ]
+    },
+    {
+      "task_id": "TASK-004",
+      "status": "done",
+      "ac_results": [
+        {
+          "ac": "Temp cwd listing is unchanged after a run; no `\\x1b` in output; `${HOME}` compared literally (covers: REQ-25, REQ-26, REQ-28, REQ-29)",
+          "result": "pass",
+          "evidence": "New test 'TS-INV-05: an ESC-valued fixture leaks no 0x1b byte into stdout or stderr' writes an ESC-valued env fixture and an ESC-named schema path; asserts no 0x1b in stdout/stderr on the findings run (exit 1) and on the error run (exit 2), plus the exact escaped stdout line. node --test test/cli.test.mjs -> 17/17 pass"
+        },
+        {
+          "ac": "`node --test test/cli.test.mjs` exits 0 and covers every UC-03 Test Surface row by id in its test names (covers: REQ-1)",
+          "result": "pass",
+          "evidence": "node --test test/cli.test.mjs -> tests 17, pass 17, fail 0"
+        }
+      ]
+    }
+  ],
+  "files_touched": [
+    { "path": "bin/envlint.mjs", "change": "modified" },
+    { "path": "test/cli.test.mjs", "change": "modified" }
+  ],
+  "discoveries": [
+    { "marker": "+", "line": "src/rules.mjs:66/69 still embeds raw values in C3 finding messages; the CLI now escapes at render, but any other consumer of checkPairs would get raw control bytes (rules scope owns it)" }
+  ],
+  "assumptions": [
+    "Escape set is C0 0x00-0x1f, DEL 0x7f and C1 0x80-0x9f (U+009B is a single-byte CSI on some terminals); each rendered as the 4-char text \\xNN, lowercase hex. Backslash itself is not escaped, so the rendering is not reversible - INV-05 only asks for no raw control bytes",
+    "Escaping is applied to each whole rendered line (path, key and message), so tabs inside a value now render as \\x09; no existing spec line shows a tab in output",
+    "stderr messages (CliError and internal error) are escaped too, since paths and parseArgs flag text echo user input"
+  ],
+  "deviations": []
+}

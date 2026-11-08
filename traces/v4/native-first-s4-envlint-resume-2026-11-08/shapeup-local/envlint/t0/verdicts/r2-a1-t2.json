@@ -1,0 +1,65 @@
+{
+  "schema_version": 2,
+  "round": 2,
+  "attempt": 1,
+  "trial": 2,
+  "at": "2026-11-08T05:36:06.354Z",
+  "run_id": "envlint-20261108T050016Z-c40aa663",
+  "scope_id": "cli",
+  "env": {
+    "schema_version": 1,
+    "host": {
+      "platform": "darwin",
+      "arch": "arm64",
+      "os_release": "27.0.0",
+      "node": "v24.15.0",
+      "hostname_sha256": "fc7b2e355cd153f2742755036cef7a85840bc651258026e69764f044a4fbdbb9"
+    },
+    "cwd": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer",
+    "tree": {
+      "head": "b8a18120b78f8f6be5f13681f4f9b973729cff15",
+      "dirty": true,
+      "branch": "master"
+    },
+    "toolchain": [
+      {
+        "bin": "node",
+        "path": "/Users/liberty/.nvm/versions/node/v24.15.0/bin/node"
+      }
+    ],
+    "lockfiles": [],
+    "caches": null,
+    "env": {
+      "allowlist": [
+        "PATH",
+        "NODE_ENV",
+        "CI",
+        "LANG",
+        "TZ"
+      ],
+      "sha256": "a3c49a86e746993391f3c39f378a7747070cd7438675e91cd0f16e46491c6695"
+    },
+    "env_sha256": "4c8218cc7d49459a1de404ce62a7472543696174c680eca12faa529b3b08e261"
+  },
+  "fixtures": [
+    {
+      "cmd": "node --test test/cli.test.mjs",
+      "exit": 0,
+      "pass": true,
+      "stdout_tail": "✔ TS-INV-01: no error case or binary garbage produces a stack trace (338.147583ms)\n✔ TS-INV-02: mixed violations print in order and exit 1 (36.850125ms)\n✔ TS-INV-02: parse problem precedes a finding on a later line and line-less findings come last (32.963333ms)\n✔ TS-INV-03: env file with no assignments exits 0 with schema {} and 1 with a required key (68.538375ms)\n✔ TS-INV-04: temp cwd listing is unchanged after runs and no .env is created (97.260917ms)\n✔ TS-INV-05: no ANSI escape in output and stdin is not awaited (67.348916ms)\n✔ TS-INV-05: an ESC-valued fixture leaks no 0x1b byte into stdout or stderr (64.804292ms)\n✔ TS-ERR-USAGE: no args, --schema alone, two positionals, unknown flag (198.304625ms)\n✔ TS-ERR-USAGE: --schema=<path> form is accepted (31.972208ms)\n✔ TS-ERR-ENV_NOT_FOUND: missing env path exits 2 naming path and ENOENT (34.804417ms)\n✔ TS-ERR-ENV_UNREADABLE: env path is a directory (33.371875ms)\n✔ TS-ERR-SCHEMA_NOT_FOUND: missing schema path (33.623417ms)\n✔ TS-ERR-SCHEMA_INVALID_JSON: schema {not json (32.357833ms)\n✔ TS-ERR-SCHEMA_INVALID: schema with type float (32.634042ms)\n✔ TS-ERR-FINDINGS: parse problem on line 3 (32.195375ms)\n✔ TS-NOGO-01: no env positional in a cwd holding .env is a usage error and .env is not read (33.038375ms)\n✔ TS-NOGO-02: ${HOME} is compared literally (33.967708ms)\nℹ tests 17\nℹ suites 0\nℹ pass 17\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 1253.545125\n"
+    }
+  ],
+  "db_probe": null,
+  "fixtures_green": true,
+  "db_probe_green": true,
+  "overall": "green",
+  "score": {
+    "fixtures_passed": 1,
+    "fixtures_total": 1,
+    "db_probe": null
+  },
+  "discovered_tasks": [],
+  "check_files": {
+    "test/cli.test.mjs": "6e46dfa6d938aa320ce1e2395ac390621c9b36677444376a5e529cf8e21181e0"
+  }
+}

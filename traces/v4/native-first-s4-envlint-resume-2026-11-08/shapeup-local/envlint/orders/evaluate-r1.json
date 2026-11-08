@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/evaluate-r1",
+  "kernel": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.plugin-under-test/plugin-s4-1/kernel/harness.mjs",
+  "run_id": "envlint-20261108T050016Z-c40aa663",
+  "compiled_at": "2026-11-08T05:14:02Z",
+  "worker": "spec-evaluator",
+  "mode": "orchestrated",
+  "operation": "evaluate",
+  "interaction": { "pause_gates": false },
+  "substrate": {
+    "allowed": [],
+    "frozen": ["shapeup/envlint/spec/**", ".shapeup/envlint/**"],
+    "own": [".shapeup/envlint/evaluation/**", ".shapeup/envlint/results/evaluate-r1.json"]
+  },
+  "payload": {
+    "feature": "envlint",
+    "round": 1,
+    "spec_folder": "shapeup/envlint/spec/",
+    "dimensions": ["spec-conformance", "tdd-surface", "completeness", "test-surface-conformance"],
+    "run_cmd": "node bin/envlint.mjs --schema <schema.json> <envfile>   (CLI, no server; the project suite is `node --test`)",
+    "t0_artifacts": [
+      ".shapeup/envlint/t0/verdicts/r1-a1-t1.json",
+      ".shapeup/envlint/t0/verdicts/r1-a1-t2.json",
+      ".shapeup/envlint/t0/verdicts/r1-a1-t3.json"
+    ],
+    "browser": "cli",
+    "tasks": [
+      { "id": "TASK-001", "body_path": ".shapeup/envlint/tasks/TASK-001.md" },
+      { "id": "TASK-002", "body_path": ".shapeup/envlint/tasks/TASK-002.md" },
+      { "id": "TASK-003", "body_path": ".shapeup/envlint/tasks/TASK-003.md" },
+      { "id": "TASK-004", "body_path": ".shapeup/envlint/tasks/TASK-004.md" }
+    ]
+  }
+}
