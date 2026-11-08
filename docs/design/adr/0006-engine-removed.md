@@ -42,8 +42,8 @@ verb, `sandbox-guard` (the fence and the tier rule), `dispatch-receipt`, `safety
 
 ## Consequences
 
-- **The kernel, hooks and installer went from 16.5 k lines to 6.2 k, and the structural suite from 110 files and 19.9 k lines to ten files
-  and 755 lines (970 with the runner and helpers).** The plan's own target for S4 was about ten files and at most 2.5 k lines; it is met.
+- **The kernel, hooks and installer went from 16.5 k lines to 6.3 k, and the structural suite from 110 files and 19.9 k lines to ten files
+  and 779 lines (994 with the runner and helpers).** The plan's own target for S4 was about ten files and at most 2.5 k lines; it is met.
 - **A set of guarantees AGENTS.md used to state as mechanical are now the loop's discipline**, and `AGENTS.md` says so in its first
   section. In particular nothing now stops a run from skipping the board-review lint, applying a result twice, miscounting attempts,
   evaluating a feature that does not build, or reporting a ship from memory. The write fence, the dispatch receipts, the T0 witness and

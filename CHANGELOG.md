@@ -19,8 +19,9 @@ anything that names a removed kernel command, the `hill-chart` skill or the `/hi
   folded or removed earlier; hook registrations went 6 → 4.
 - **A comparison went the other way, and the removal was the PO's decision.** On a three-scope pitch the scripted sequencing shipped
   2 of 2 runs and the same loop reading its own table 0 of 1, at 59% higher cost. The engine was removed anyway; the record says so.
-- **Size.** Kernel, hooks and installer 18,736 → 6,241 lines. The structural suite 21,872 lines in 115 files → 755 lines
+- **Size.** Kernel, hooks and installer 18,736 → 6,274 lines. The structural suite 21,872 lines in 115 files → 779 lines
   in ten files that execute shipped code, with a floor on the check count.
+- **QA can no longer go missing unrecorded.** `gate --resolve L4` refuses `ship` over a QA hunt the run owed and never ran (a passing round, no `noQa`, no `skip` answer): the hunt must have a result and, over a reachable app, at least one charter run. Answering GATE QA `skip` is the recorded way out. No new subcommand.
 - **A real run on this branch shipped, in two sessions.** On the same three-scope pitch it built every scope in round 1, drew an evaluator FAIL, stopped for budget, and — resumed — passed in round 2 and shipped ($18.2 in total, against $5.4 for the engine's runs; the QA hunt skipped by the loop's own call). It also found defects, fixed here: `order open` stamps the order's time and checks it against the schema before arming it; `init run`, `order` and `gate --resolve` refuse to run from inside `.shapeup/`.
 - **Fixed on the way.** `init run` now refuses a plugin copy that cannot name its worker roster instead of throwing a stack trace.
 

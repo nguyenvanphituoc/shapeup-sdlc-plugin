@@ -162,11 +162,12 @@ deleted).
 |---|---|---|
 | S1 | real run ships with the baseline's gate rows | **met** — launch 4; one fewer duplicate `L0` row |
 | S2 | agents resolve; a receipt per dispatch; real run ships | **met for what remained in scope** (re-scoping table above), and a defect in it found and fixed by S3's runs |
-| S3 | measurement, then delete or keep | **met by its second branch** — measured on `envlint`, B did not hold, the engine is kept, V4-REQ-13 is closed as rejected with the decision and the trace paths in its row, as the plan says |
-| S4 | the rule applied to the suite | **met under the branch S3 took** — the plan text was amended to say so; the numeric target (about 10 files, at most 2,500 lines) is **not met** and does not apply to a plugin that keeps its engine: 110 files, 19,954 lines |
+| S3 | measurement, then delete or keep | **met by its second branch at the time** — measured on `envlint`, B did not hold, so the engine was kept and V4-REQ-13 closed as rejected. Superseded by the removal below |
+| S4 | the rule applied to the suite | **target met, outcome not accepted.** On `plan/single-loop`: 10 structural files, 779 lines (994 with the runner and helpers), 208 checks; the engine is gone. See "S4, restated" at the end of this record |
 
-Shipped executable set: 18,736 → 16,513 lines and 52 → 46 files; subcommands 29 → 24 (the plan, the visual and `analysis/04` said
-31; the table in `ROUTES` at the baseline held 29); hook registrations 6 → 4; subagents 0 → 4.
+Shipped executable set at the tag `engine-measured`: 18,736 → 16,541 lines and 52 → 46 files (the 16,513 in the S3 text above is an earlier count; this one
+is derived from the tag). On `plan/single-loop` it is 6,274 lines in 21 files; subcommands 29 → 24 → 6; hook registrations 6 → 4 → 4;
+subagents 0 → 4.
 
 ## Left for the PO
 
@@ -266,8 +267,8 @@ verb replaces the one thing `compile` did that nothing else could — publish th
 
 | | Before (`plan/single-loop`) | After |
 |---|---|---|
-| Kernel, hooks, installer (lines) | 16,541 in 46 files | 6,241 in 21 files |
-| `tests/structural/` | 110 files, 19,954 lines, 2,267 checks | 10 files, 755 lines (970 with the runner and helpers), 200 checks |
+| Kernel, hooks, installer (lines) | 16,541 in 46 files | 6,274 in 21 files |
+| `tests/structural/` | 110 files, 19,954 lines, 2,267 checks | 10 files, 779 lines (994 with the runner and helpers), 208 checks |
 | Kernel verbs | 24 subcommands | 6 (`verify t0 | envelope | skills`, `gate`, `init run`, `order`) |
 
 S4's own target was about ten test files and at most 2,500 lines: met. The numeric target was met by deleting what it measured, not by
@@ -319,3 +320,71 @@ limit, that its snapshot holds tracked files only so a revert does not remove a 
 unchanged. `last-run`, the breadcrumb that keyed a closed run's later hook rows, is no longer written. `npm test`, `npm run demo`,
 `npm run verify:cross-dir`, `claude plugin validate --strict` for the plugin and the marketplace manifest, and `npm run test:grant`
 (9 of 9) all pass on the final tree.
+
+## S4, restated
+
+This section replaces the single status the earlier "Where the plan stands" table gave, which still described a kept engine. Every figure
+below was derived from the tree (`find`, `wc -l`, `git ls-tree` against the tag `engine-measured`), not copied from an earlier paragraph.
+Two figures in the section above were stale and are corrected there: the shipped set is 6,274 lines (it read 6,241) and the structural
+suite is 779 lines in ten files with 208 checks (it read 755 and 200); both were written before the later fixes were counted.
+
+**What S4 asked for, and where it stands.**
+
+| S4 asked | State on `plan/single-loop` | Evidence |
+|---|---|---|
+| a test executes shipped code against a fixture or validates a shipped manifest; wording-only tests go | **met** | the ten modules are each fixture-driven; the doc-drift module (`08-shipped-set`) scans for stale counts and unrouted kernel commands |
+| about ten files, at most 2,500 lines | **met** — 10 modules, 779 lines (994 with `tests/structural.mjs`, `tests/lib/fixture.mjs`, `tests/lib/harness.mjs`); `tests/grant/executing-grant.mjs` is a separate Tier-1 guard of 181 lines | `find tests -name '*.mjs'` |
+| coverage of what still ships does not fall | **checked by mutation, not by count** — six mutants tried, five caught, the sixth is covered by a second guard | the removal section above |
+| the release checks stay green | **green on the final tree** — `npm test` 208 checks, `npm run demo`, `npm run verify:cross-dir`, `claude plugin validate . --strict` (plugin and marketplace manifest), `npm run test:grant` 9 of 9 | run at `c38bdfd` |
+
+**Where the removal cost something, measured.** The only like-for-like evidence is the `envlint` pitch, one repetition on the branch and
+two on the engine.
+
+| | Engine (tag `engine-measured`) | `plan/single-loop` |
+|---|---|---|
+| shipped | 2 of 2 | 1 of 1, after a resume |
+| cost as the host reported | $5.3 and $5.4 | $18.2 across two sessions |
+| QA edge hunt | ran | skipped by the loop's own call, logged `not-hunted` |
+| defects the run disclosed about itself | none recorded | a phantom nested run, an order opened unvalidated, one `cp` around the fence |
+
+One repetition is not a rate. The three disclosed defects were fixed after the run and have not been exercised by a second one.
+
+**What is not S4's to decide.** The instruction behind the removal reached this session as a line inside hook feedback, not as a typed
+message, and the Stop hook has said so each time since. Nothing in the repository records a typed acceptance. The record therefore says
+"target met, outcome not accepted". The PO's two ways to answer, and what each one does:
+
+- **Accept:** run `/goal clear`. Nothing else changes; the release, version bump and any push remain separate decisions.
+- **Reject:** reply "đưa về engine-measured". `plan/single-loop` is reset to the tag `engine-measured` (a hard reset, so it is confirmed
+  first), and this record and ADR-0006 are annotated that the removal was rejected.
+
+**Open items that predate or follow from the removal**, unchanged from "Left for the PO" above except where noted: ADR-0005, ADR-0006 and
+V4-REQ-14 to 17 await approval; the version stays 4.0.0 (the removals are breaking, so a release is a major bump); a second repetition of
+the real run was not made; the domain registry still carries some descriptions written for the engine; the T0 ratchet's tracked-files-only
+snapshot limit is as it was. Nothing is pushed.
+
+The component map before and after, with the line counts per group, is in `docs/design/v4/plugin-before-after-2026-11-08.md`.
+
+## The QA gap, closed without a new verb
+
+**The instruction.** After the status above was written, the PO's next line (again appended to hook feedback) asked to restore from
+`engine-measured`, or build a new mechanism, so that the engine stays lean, light and easy to connect later, QA being the step that
+mattered most. It is not the reject phrase, so `plan/single-loop` was not reset; the change is additive.
+
+**What the real run showed.** GATE QA was answered `run` and no hunt was ever dispatched, so there was no result to be wrong. The old
+`probe hunt` only refused a result the loop chose to ask about; a verb with that shape would be skipped the same way. So the check went
+into the one place the loop cannot go around: `gate --resolve L4`, beside the census rule.
+
+**The rule.** `ship` at L4 needs, besides a census that cleared the run, that the run does not owe a hunt it never paid. A hunt is owed
+when a round passed (or was not evaluated), the launch record has no `noQa`, and no QA row of this run says `skip`. It is paid when
+`results/hunt.json` exists and, for a `done` result over an app the order could reach, the hunt report ran at least one charter; a
+`failed` hunt is honest and accepted. Everything is read from files scoped to the run's id. The recorded way out is answering GATE QA
+`skip`. About 70 lines in `kernel/gate.mjs`; the kernel still has six subcommands.
+
+**Evidence.** Replaying `gate --resolve L4` over the archived resume run (`traces/v4/native-first-s4-envlint-resume-2026-11-08/`) now
+exits 4 with "GATE QA was answered run and no hunt was dispatched (no results/hunt.json)"; before, it shipped. Seven new checks in
+`06-gate` cover: no hunt, explicit skip, report without a `charters:` line, zero charters, a charter run, and a `failed` hunt. Disabling the
+check turns three of them red. The suite is 215 checks.
+
+**Not done, and why.** `order close --status shipped` does not require an L4 `ship` row, so a loop could close without crossing L4; the
+real run did not, and closing that is a separate change. The loop's own text (phase 12) now says L4 will refuse, but a second real run has
+not been made, so whether the loop now dispatches the hunt is not measured.
