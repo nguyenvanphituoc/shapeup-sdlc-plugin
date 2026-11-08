@@ -11,13 +11,20 @@
 // both pointers and records the ending — status, cause, timestamp — so a run that ended stops
 // fencing the checkout, and the ending is a row instead of a recollection.
 //
-// Exit 0 done · 1 refused (the order is unreadable) · 2 malformed input. `open` also stamps the
-// order's `compiled_at` with the current time.
+// A `shipped` ENDING RESTS ON A SIGN-OFF. The ship gate refuses `ship` over a census that did not clear
+// the run, a QA hunt the run owed and never paid, or a worker that ran below the model floor — and none
+// of that held if the loop could write `status: shipped` without crossing the gate at all. So `close
+// --status shipped` reads the gate ledger and refuses unless a Ship Sign-off row of THIS run says `ship`;
+// the close record names the sign-off it rests on. `escalated` and `aborted` need no row: an honest
+// ending is never refused.
+//
+// Exit 0 done · 1 refused (the order is unreadable, or a `shipped` close with no sign-off) · 2 malformed
+// input. `open` also stamps the order's `compiled_at` with the current time.
 
 import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { runArgs } from "./lib/argv.mjs";
-import { activeOrder, activeScope, localRoot, insideRunTrace } from "./lib/paths.mjs";
+import { activeOrder, activeScope, localRoot, insideRunTrace, gates as gatesPath, readRunId } from "./lib/paths.mjs";
 import { validate, SCHEMAS_DIR } from "./verify/envelope.mjs";
 
 /** The endings a run may record. */
@@ -69,16 +76,41 @@ export function openOrder(cwd, slug, orderPath) {
 }
 
 /**
+ * This run's Ship Sign-off row that says `ship`, or null.
+ *
+ * Read off the gate ledger, keyed by the run id the receipt carries: a sign-off of an earlier run of the
+ * same feature is not this run's, and a row that stopped for the PO (`ask`) or was answered otherwise is
+ * not a sign-off. With no readable receipt (no run id) any ship row of the slug counts — there is nothing
+ * to key by, and refusing would hold a run to a key it never had.
+ *
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug.
+ * @returns {(object|null)} The latest qualifying row, or null when none exists.
+ */
+export function shipSignOff(cwd, slug) {
+  const runId = readRunId(cwd, slug);
+  let text = "";
+  try { text = readFileSync(gatesPath(cwd, slug), "utf8"); } catch { return null; }
+  let found = null;
+  for (const line of text.split("\n")) {
+    let row; try { row = JSON.parse(line); } catch { continue; }
+    if (row?.gate === "L4" && row.status === "ok" && row.decision === "ship" && (!runId || row.run_id === runId)) found = row;
+  }
+  return found;
+}
+
+/**
  * Retire both pointers and record the ending.
  *
  * @param {string} cwd - Project root.
  * @param {string} slug - Feature slug.
  * @param {string} status - One of {@link CLOSE_STATUSES}.
  * @param {string} [cause] - Why the run ended.
+ * @param {object} [extra] - Further fields of the record, e.g. the sign-off a `shipped` ending rests on.
  * @returns {{status: string, cause: (string|null), at: string}} The recorded close.
  */
-export function closeRun(cwd, slug, status, cause) {
-  const close = { status, cause: cause || null, at: new Date().toISOString() };
+export function closeRun(cwd, slug, status, cause, extra = {}) {
+  const close = { status, cause: cause || null, at: new Date().toISOString(), ...extra };
   const dir = localRoot(cwd, slug);
   mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, "close.json"), `${JSON.stringify(close, null, 2)}\n`);
@@ -105,7 +137,19 @@ export function cli(rawArgv) {
   }
   if (action === "close") {
     if (!args.status) { console.error("order close: --status is required"); process.exit(2); }
-    console.log(JSON.stringify({ ok: true, ...closeRun(cwd, args.slug, args.status, args.cause) }));
+    let extra = {};
+    if (args.status === "shipped") {
+      const row = shipSignOff(cwd, args.slug);
+      if (!row) {
+        const runId = readRunId(cwd, args.slug);
+        console.error(`✋ order close: no Ship Sign-off row says "ship" for ${runId ? `run ${runId}` : `slug ${args.slug}`}, so the run ` +
+          `cannot be recorded as shipped. Resolve GATE L4 first (harness.mjs gate --resolve L4 --slug ${args.slug} …), or close it as ` +
+          `escalated or aborted, which need no sign-off.`);
+        process.exit(1);
+      }
+      extra = { signed_off_at: row.at ?? null, signed_off_by: row.source ?? null };
+    }
+    console.log(JSON.stringify({ ok: true, ...closeRun(cwd, args.slug, args.status, args.cause, extra) }));
     process.exit(0);
   }
   console.error("usage: harness.mjs order open|close …");

@@ -84,14 +84,31 @@ export async function run(ctx) {
     r = write("lib/outside.js");
     check(!denied(r) && rule(r) === "no-order", `an answered order stops fencing, rule "${rule(r)}"`);
 
-    // Close retires both pointers and records the ending.
+    // Close retires both pointers and records the ending — and a shipped ending rests on a sign-off.
     put(root, ".shapeup/active-scope", { slug: SLUG });
-    const close = kernel(ROOT, ["order", "close", "--slug", SLUG, "--status", "shipped", "--cause", "verdict=pass rounds=1"], { cwd: root });
-    const rec = existsSync(join(root, `.shapeup/${SLUG}/close.json`)) ? json(join(root, `.shapeup/${SLUG}/close.json`)) : null;
-    check(close.status === 0 && rec?.status === "shipped" && rec.cause === "verdict=pass rounds=1" && rec.at,
-      "order close records status, cause and time");
+    const closeShipped = () => kernel(ROOT, ["order", "close", "--slug", SLUG, "--status", "shipped", "--cause", "verdict=pass rounds=1"], { cwd: root });
+    const closeFile = join(root, `.shapeup/${SLUG}/close.json`);
+    let close = closeShipped();
+    check(close.status === 1 && !existsSync(closeFile) && existsSync(join(root, ".shapeup/active-scope")) && /Ship Sign-off/.test(close.err),
+      "a shipped close with no Ship Sign-off row is refused (exit 1): nothing is recorded and the pointers stay");
+    const l4 = (run_id, extra = {}) => JSON.stringify({ at: "2026-11-08T00:00:00Z", run_id, gate: "L4", status: "ok", decision: "ship", source: "preset:ci", ...extra });
+    const gates = `.shapeup/${SLUG}/gates.jsonl`;
+    put(root, gates, l4("demo-run", { status: "ask", decision: "ask" }) + "\n");
+    check(closeShipped().status === 1, "an L4 row that stopped for the PO is not a sign-off");
+    const thisRun = "demo-20260101T000000Z-deadbeef", earlierRun = "demo-20250101T000000Z-00000000";
+    put(root, `.shapeup/${SLUG}/receipt.json`, { run_id: thisRun });
+    put(root, gates, l4(earlierRun) + "\n");
+    check(closeShipped().status === 1 && !existsSync(closeFile), "a ship row of an earlier run of the same feature does not close this one");
+    put(root, gates, l4(earlierRun) + "\n" + l4(thisRun) + "\n");
+    close = closeShipped();
+    const rec = existsSync(closeFile) ? json(closeFile) : null;
+    check(close.status === 0 && rec?.status === "shipped" && rec.cause === "verdict=pass rounds=1" && rec.at && rec.signed_off_at === "2026-11-08T00:00:00Z" && rec.signed_off_by === "preset:ci",
+      "order close records status, cause, time and the sign-off the shipped ending rests on");
     check(!existsSync(join(root, ".shapeup/active-order")) && !existsSync(join(root, ".shapeup/active-scope")),
       "order close retires both pointers");
+    put(root, gates, "");
+    check(kernel(ROOT, ["order", "close", "--slug", SLUG, "--status", "escalated", "--cause", "budget"], { cwd: root }).status === 0 && json(closeFile).status === "escalated",
+      "an escalated close needs no sign-off: an honest ending is never refused");
     check(kernel(ROOT, ["order", "close", "--slug", SLUG, "--status", "bogus"], { cwd: root }).status === 2,
       "an unknown ending is a usage error (exit 2)");
 

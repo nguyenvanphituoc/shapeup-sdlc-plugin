@@ -68,6 +68,13 @@ export async function run(ctx) {
       "a foreground dispatch leaves a receipt naming the worker that ran");
     check(row?.usage?.tokens_total === 1200 && row.usage.duration_ms === 4500 && row.usage.model === "claude-sonnet-5-5",
       "the receipt carries the tokens, duration and model the host measured");
+    check(row?.model_requested === null, "a call that carried no model is recorded as inherited (null), never guessed from what ran");
+    r = dispatch({ subagent_type: "shapeup-sdlc-plugin:orient", prompt, model: "sonnet" }, {
+      status: "completed", agentType: "shapeup-sdlc-plugin:orient", agentId: "a1b", totalTokens: 10, totalDurationMs: 20, resolvedModel: "claude-opus-5-5",
+    });
+    row = rows().at(-1);
+    check(row?.model_requested === "sonnet" && row.usage.model === "claude-opus-5-5",
+      "the model the call asked for is recorded beside the one the host says ran, so a difference is visible on the row");
 
     const before = rows().length;
     r = dispatch({ subagent_type: "shapeup-sdlc-plugin:task-executor", prompt, run_in_background: true },

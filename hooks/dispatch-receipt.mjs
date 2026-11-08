@@ -40,6 +40,14 @@
 // attestation, and the same result carries what the host measured (`totalTokens`, `totalDurationMs`,
 // `resolvedModel`), recorded on the row so no session has to copy a figure by hand.
 //
+// THE MODEL THE CALL ASKED FOR IS RECORDED BESIDE THE ONE THAT RAN. The agent definitions say
+// `model: inherit`, so a dispatch that carries no `model` runs on the launching session's model whatever
+// the launch record asked for — measured across every archived run: the record said `sonnet` and the
+// receipts of the runs that were compared named two different models. `model_requested` is the call's own
+// `tool_input.model` (null when it carried none, which is "inherited", never a guess), and the ship gate
+// reads `usage.model` against the launch record; without both columns a cost or a verdict can be read
+// against a model that never ran.
+//
 // A SCOPE LAUNCHED IN THE BACKGROUND reports no agent at all: the result is "Async agent launched"
 // plus an `agentId`, because the host has not run anything yet. Parallel scope builds are exactly that
 // case, and without this arm the receipt hook went blind to every one of them. What the host did
@@ -184,6 +192,10 @@ export function receiptRow(order, skillInvoked, payload) {
       ?? (backgroundLaunch(payload?.tool_response, payload?.tool_input) ? payload.tool_input.subagent_type : null),
     // What the host measured for an Agent dispatch; null for a Skill call, which reports none.
     usage: payload?.tool_name === "Agent" ? usageFrom(payload.tool_response) : null,
+    // The model the call asked for, as written; null when the call carried none and the agent inherited
+    // the session's. Compared with `usage.model` by whoever reads the row, never reconciled here.
+    model_requested: payload?.tool_name === "Agent" && typeof payload?.tool_input?.model === "string" && payload.tool_input.model
+      ? payload.tool_input.model : null,
   };
 }
 

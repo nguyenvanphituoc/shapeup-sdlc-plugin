@@ -53,7 +53,8 @@
 import { readFileSync, writeFileSync, appendFileSync, existsSync, mkdirSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { runArgs } from "./lib/argv.mjs";
-import { gateAnswerCandidates, gates as gatesPath, LOCAL, resultsDir, ordersDir, qaDir, tasksDir, hammerCensus, readRunId, harnessRun, insideRunTrace, runArgsPath } from "./lib/paths.mjs";
+import { gateAnswerCandidates, gates as gatesPath, LOCAL, resultsDir, ordersDir, qaDir, tasksDir, hammerCensus, readRunId, harnessRun, insideRunTrace, runArgsPath, dispatchReceipts } from "./lib/paths.mjs";
+import { belowFloor } from "./lib/floor.mjs";
 
 export const GATE_IDS = ["L0", "L1a", "L1a.5", "L1b", "L2", "L3", "QA", "H", "L4", "COACH-1"];
 
@@ -264,6 +265,76 @@ export function qaProblem(cwd, slug) {
   return n > 0 ? null : "the hunt returned done over an app its order could reach, having run 0 charters";
 }
 
+/** The launch-record role each worker runs under; `qa` is never held to the floor. */
+export const WORKER_ROLE = { orient: "exec", "task-executor": "exec", "spec-evaluator": "eval", "qa-edge-hunter": "qa" };
+
+/**
+ * Whether a launch record's model names the model a receipt says ran.
+ *
+ * The record carries what the launcher typed — an alias (`sonnet`) or an id — and the receipt the id the
+ * host resolved (`claude-sonnet-5-5`), so equality is too strict and the alias is looked for inside the
+ * id. Nothing to compare on either side is not a mismatch: a mismatch is a claim, and it needs both names.
+ *
+ * @param {*} asked - The launch record's model for the role.
+ * @param {*} ran - The receipt's `usage.model`.
+ * @returns {boolean} True when they name the same model, or when one side is missing.
+ */
+export function sameModel(asked, ran) {
+  const a = String(asked ?? "").trim().toLowerCase();
+  const r = String(ran ?? "").trim().toLowerCase();
+  if (!a || !r) return true;
+  return a === r || r.includes(a) || a.includes(r);
+}
+
+/**
+ * The model each role ran on, read off this run's dispatch receipts, against the launch record.
+ *
+ * WHY THE GATE READS THIS. The floor is checked when the run opens, on the launch record — a request.
+ * The agents are defined `model: inherit`, so the model that ran is the launching session's unless the
+ * dispatch passed one, and the receipts are the only record of it. Across every archived run the record
+ * asked for `sonnet` and two runs that were compared against each other had run their workers on two
+ * different models, which no reader of the record could see. So the ship gate reads the receipts: an
+ * `exec` or `eval` worker that ran below the floor is the floor's own refusal, applied to what ran rather
+ * than to what was asked; any other difference is written down, because a cost or a verdict read against
+ * the wrong model is a figure about a different run.
+ *
+ * A receipt with no model (a background launch reports none) is counted as `unreported` and claims
+ * nothing. Rows of another run are ignored.
+ *
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug.
+ * @returns {{asked: object, ran: object, unreported: number, mismatch: string[], below_floor: string[]}}
+ *   `ran` maps role → model id → receipt count; `mismatch` and `below_floor` are sentences for the PO.
+ */
+export function modelEvidence(cwd, slug) {
+  const asked = readJson(runArgsPath(cwd, slug))?.models ?? {};
+  const runId = readRunId(cwd, slug);
+  let rows = [];
+  try {
+    rows = readFileSync(dispatchReceipts(cwd, slug), "utf8").split("\n").filter(Boolean)
+      .map((l) => { try { return JSON.parse(l); } catch { return null; } })
+      .filter((r) => r && (!runId || r.run_id === runId));
+  } catch { rows = []; }
+  const ran = { exec: {}, eval: {}, qa: {} };
+  let unreported = 0;
+  for (const r of rows) {
+    const role = WORKER_ROLE[r.skill_invoked] ?? null;
+    if (!role) continue;
+    const m = typeof r.usage?.model === "string" && r.usage.model ? r.usage.model : null;
+    if (!m) { unreported++; continue; }
+    ran[role][m] = (ran[role][m] ?? 0) + 1;
+  }
+  const n = (k) => `${k} receipt${k === 1 ? "" : "s"}`;
+  const mismatch = [], below = [];
+  for (const role of ["exec", "eval", "qa"]) {
+    for (const [m, k] of Object.entries(ran[role])) {
+      if (!sameModel(asked[role], m)) mismatch.push(`${role}: the launch record asked for ${asked[role] ?? "no model"}, ${n(k)} name${k === 1 ? "s" : ""} ${m}`);
+      if (role !== "qa" && belowFloor(m)) below.push(`${role} ran on ${m} in ${n(k)}, below the model floor (sonnet or above)`);
+    }
+  }
+  return { asked, ran, unreported, mismatch, below_floor: below };
+}
+
 /**
  * Narrow a resolved gate answer to what the run's own evidence supports.
  *
@@ -311,7 +382,23 @@ export function narrowToEvidence(r, cwd, slug) {
   const verdict = censusVerdict(cwd, slug);
   if (verdict === "ship-now" || verdict === "ship-after-fixes") {
     const qa = qaProblem(cwd, slug);
-    if (!qa) return r;
+    if (!qa) {
+      // The floor, applied to what ran. Opening the run checked the launch record; the receipts say
+      // which model each worker actually ran on, and `ship` over a build or a verdict produced below
+      // the floor is the same refusal one step later. A model that merely differs from the record is
+      // carried on the result and into the row, not refused: the PO may well have meant it.
+      const models = modelEvidence(cwd, slug);
+      if (models.below_floor.length) {
+        return {
+          gate: r.gate, status: "ask", source: r.source, decision: "ask", note: r.note,
+          refused: "ship", census: verdict, models,
+          reason: `GATE L4 cannot be answered "ship": ${models.below_floor.join("; ")}. The floor was checked on ` +
+                  `the launch record when the run opened; the dispatch receipts say what ran. Re-run the role on a ` +
+                  `model at or above the floor, or put the block to the PO.`,
+        };
+      }
+      return { ...r, models };
+    }
     return {
       gate: r.gate, status: "ask", source: r.source, decision: "ask", note: r.note,
       refused: "ship", census: verdict, qa,
@@ -506,6 +593,11 @@ export function gateNote(r, verdict) {
   if (r.gate === "L3" && verdict === "pass") {
     return `verdict PASS — the "${r.decision}" answer applies only to a failed round; the run goes on to QA and GATE H`;
   }
+  // A ship over workers that ran on a model other than the launch record's says so in the row itself,
+  // where whoever reads the ledger for a cost or a verdict will see it.
+  if (r.gate === "L4" && r.decision === "ship" && r.models?.mismatch?.length) {
+    return `${own ?? ""}${own ? " — " : ""}model differs from the launch record: ${r.models.mismatch.join("; ")}`;
+  }
   return own;
 }
 
@@ -618,6 +710,8 @@ export function cli(rawArgv) {
       source: r.source ?? found.source, note: gateNote(r, verdict),
       round: args.round ?? null,
       ...(verdict ? { verdict } : {}),
+      // What ran, per role, beside what was asked — the machine-readable half of the note above.
+      ...(r.models ? { models: { asked: r.models.asked, ran: r.models.ran, unreported: r.models.unreported, mismatch: r.models.mismatch } } : {}),
     });
   }
   if (r.status === "ask") out({ ...r, ok: false }, 4);

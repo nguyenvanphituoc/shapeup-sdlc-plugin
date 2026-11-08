@@ -121,6 +121,7 @@ Gate: Ship Sign-off
 Feature   : [slug] — [SHIPPED (deployed) | BUILT & VERIFIED — deploy pending (PO)]
 Verdict   : PASS (dims evaluated; dims NOT evaluated named explicitly)
 QA        : [hunt done — N findings, M promoted | skipped | not-hunted | n/a]   (`ship` is refused over an owed hunt that never ran)
+Models    : exec asked <m> ran <m> · eval asked <m> ran <m> · qa …   (from the dispatch receipts; `ship` is refused when exec or eval ran below the floor)
 ```
 
 > Deploy is deliberately never automatic: the harness distinguishes *built & verified* from

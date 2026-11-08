@@ -6,7 +6,7 @@
 // that cleared the run. Each is asserted against the same call the loop makes, and the source of
 // every decision is read from the ledger rather than from what the command printed.
 import { join } from "node:path";
-import { scratch, put, kernel, slurp, existsSync } from "../lib/fixture.mjs";
+import { scratch, put, kernel, slurp, json, existsSync } from "../lib/fixture.mjs";
 
 export async function run(ctx) {
   const { ROOT, ok, fail, section } = ctx;
@@ -84,6 +84,36 @@ export async function run(ctx) {
     put(cwd, ".shapeup/w/results/hunt.json", { status: "failed", discoveries: [] });
     r = gate("L4", "ci");
     check(r.status === 0, "a hunt that says failed is honest about not hunting, and is accepted");
+
+    section("gate — L4 reads the model that ran off the dispatch receipts, against the launch record");
+    const runId = json(join(cwd, ".shapeup/w/receipt.json")).run_id;
+    const receipt = (worker, model, extra = {}) => JSON.stringify({
+      order_id: `w/${worker}`, run_id: runId, worker_declared: worker, skill_invoked: worker, dispatch_ok: true, tool: "Agent",
+      usage: { tokens_total: 1, duration_ms: 1, model }, model_requested: null, ...extra,
+    });
+    const receipts = (...rows) => put(cwd, ".shapeup/w/receipts/dispatch.jsonl", rows.join("\n") + "\n");
+    check(json(join(cwd, ".shapeup/w/run-args.json")).models.exec === "sonnet", "the launch record of this run asked for sonnet");
+    receipts(receipt("orient", "claude-opus-5-5"), receipt("task-executor", "claude-opus-5-5"), receipt("task-executor", "claude-opus-5-5"),
+      receipt("task-executor", null), receipt("spec-evaluator", "claude-sonnet-5-5"));
+    r = gate("L4", "ci");
+    const row = rows().at(-1);
+    check(r.status === 0 && r.out?.decision === "ship" && r.out?.models?.mismatch?.length === 1 && /exec: .*sonnet.*3 receipts name claude-opus-5-5/.test(r.out.models.mismatch[0]),
+      "workers that ran on a model other than the record's still ship, and the result names the role, the model and the receipt count");
+    check(r.out?.models?.unreported === 1 && r.out.models.ran.eval["claude-sonnet-5-5"] === 1,
+      "a receipt with no model is counted as unreported and claims nothing; the role that matched is not a mismatch");
+    check(row?.gate === "L4" && /model differs from the launch record/.test(row.note || "") && row.models?.mismatch?.length === 1,
+      "the ledger row carries the difference in its note and as data, so a cost read later is read against the model that ran");
+    receipts(receipt("task-executor", "claude-sonnet-5-5"), receipt("spec-evaluator", "claude-haiku-4-5"));
+    r = gate("L4", "ci");
+    check(r.status === 4 && r.out?.refused === "ship" && /eval ran on claude-haiku-4-5.*below the model floor/.test(r.out?.reason || ""),
+      "a judge that ran below the floor refuses ship: the floor applies to what ran, not only to what was asked");
+    receipts(receipt("task-executor", "claude-sonnet-5-5"), receipt("qa-edge-hunter", "claude-haiku-4-5"));
+    r = gate("L4", "ci");
+    check(r.status === 0 && r.out?.models?.mismatch?.length === 1 && /^qa:/.test(r.out.models.mismatch[0]),
+      "a hunter below the floor is not refused (qa is never held to it) but the difference is still written down");
+    receipts(receipt("task-executor", "claude-sonnet-5-5"), receipt("spec-evaluator", "claude-haiku-4-5", { run_id: "some-other-run" }));
+    r = gate("L4", "ci");
+    check(r.status === 0 && r.out?.models?.mismatch?.length === 0, "receipts of another run are ignored");
 
     section("gate — an answer file, and a gate it does not answer");
     const file = join(cwd, "answers.json");

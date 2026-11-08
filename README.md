@@ -214,7 +214,9 @@ the layer that carries it, and the three layers here fail differently:
   and an order's own result answers to the sub-agent that took its dispatch, so with two legs live
   neither can write the other's. The fence is armed by a pointer the loop sets with `harness order open`
   and retires with `harness order close`; with no pointer it allows every write, which is why those are
-  commands that read the pointer back rather than a file the loop edits.
+  commands that read the pointer back rather than a file the loop edits. The close that records a
+  `shipped` ending refuses unless a Ship Sign-off row of the same run says `ship`, so the gate's
+  refusals cannot be walked around by ending the run.
 - `PreToolUse` (`Edit|Write|MultiEdit`) — **the same hook also refuses a committed-tier write whose
   content names a path into the local run trace or a board id.** Four different producers wrote a
   committed file that a later check rejected, and one did it twice in a session, because a worker carries
@@ -233,8 +235,10 @@ the layer that carries it, and the three layers here fail differently:
   loaded — was indistinguishable from one that succeeded: the sub-agent would do the craft itself from
   the prose in its own prompt, the artifacts landed where the order permitted, so the order gate and the
   fence both passed and the run advanced having applied none of the shipped craft. The hook appends
-  `{order_id, worker_declared, skill_invoked, dispatch_ok, usage, at}` to `.shapeup/<slug>/receipts/`,
-  with the tokens, duration and model the host measured. A failed dispatch never reaches `PostToolUse`
+  `{order_id, worker_declared, skill_invoked, dispatch_ok, usage, model_requested, at}` to `.shapeup/<slug>/receipts/`,
+  with the tokens, duration and model the host measured beside the model the call asked for (the
+  agents inherit the session's model unless the dispatch names one, and Ship Sign-off reads what ran
+  against the launch record). A failed dispatch never reaches `PostToolUse`
   at all, so the receipt's *existence* is the evidence. The loop counts an attempt against a receipt, not
   against the artifact. It has no deny path and every write is guarded.
 

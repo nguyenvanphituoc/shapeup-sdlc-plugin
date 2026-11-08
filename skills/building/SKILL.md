@@ -76,7 +76,7 @@ re-run with `--answer <decision>`; 5 = the set aborts: close the run as aborted 
 | 12 | QA answered `run` and no `results/hunt.json` (skipped under `noQa`) | **dispatch** `qa-edge-hunter`. Do not move on without it: GATE L4 refuses `ship` over a hunt the run owed and never ran, and the only recorded way out is `K gate --resolve QA … --answer skip` |
 | 13 | no census file | do the census (`resources/stop.md`) and write `<run>/reports/hammer-census.json`; then GATE H |
 | 14 | GATE H crossed, no `<spec>REPORT.md` | write the ship report (`resources/stop.md`); then GATE L4 |
-| 15 | GATE L4 crossed | `K order close --slug <slug> --status <shipped\|escalated\|aborted> --cause "<verdict, rounds>"`; then GATE COACH-1 |
+| 15 | GATE L4 crossed | `K order close --slug <slug> --status <shipped\|escalated\|aborted> --cause "<verdict, rounds>"`; `shipped` is refused (exit 1) unless this run's L4 row says `ship`, so a refusal here means the gate was not crossed — go back to phase 14; then GATE COACH-1 |
 
 **A plan substep** is done here, in this session, with no sub-agent: write the substep's order (`resources/orders.md`, operation `plan`,
 `worker: "building"`), open it with `K order open`, write only what the substep produces (`resources/plan.md` and its `plan-*.md`
@@ -90,8 +90,12 @@ The same five moves for every worker. `resources/orders.md` has the order for ea
 1. **Write the order** to `<run>/orders/<stem>.json` from the template for the operation. It carries the substrate (the globs the worker may write,
    copied from the scope contract for a build) and the payload the worker needs, as paths where a path will do.
 2. **Open it**: `K order open --slug <slug> --order "<run>/orders/<stem>.json"`. This stamps the order's time and names the live order to the fence; without it the fence allows every write.
-3. **Spawn** the agent `shapeup-sdlc-plugin:<worker>` with the prompt `--order "<run>/orders/<stem>.json"` and one line of note. The dispatch is checked
-   against the order schema before it leaves, and leaves a receipt naming the agent that ran.
+3. **Spawn** the agent `shapeup-sdlc-plugin:<worker>` with the prompt `--order "<run>/orders/<stem>.json"` and one line of note, and pass the
+   **model** the launch record names for the role: `models.exec` for `orient` and `task-executor`, `models.eval` for `spec-evaluator`, `models.qa`
+   for `qa-edge-hunter`. The agent definitions say `inherit`, so a dispatch that carries no model runs on *your* session's model, whatever the
+   record asked for. The dispatch is checked against the order schema before it leaves, and leaves a receipt naming the agent that ran, the model
+   the call asked for and the model the host says ran. GATE L4 reads those receipts: an `exec` or `eval` worker that ran below the floor refuses
+   `ship`, and a model other than the record's is written into the gate's row — say so in the ship report.
 4. **Read the result** at `<run>/results/<stem>.json`: `K verify envelope "<run>/results/<stem>.json" "${CLAUDE_PLUGIN_ROOT}/kernel/schemas/work-result.schema.json"`.
    Invalid, or absent, goes back **once** with the reason; a second failure is a phase that did not complete — name it and stop at that phase.
 5. **Apply it yourself**: update the board's `status:` for the tasks the result closed, append each discovery to `<run>/discovery/ledger.md`, append the

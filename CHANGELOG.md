@@ -21,6 +21,16 @@ anything that names a removed kernel command, the `hill-chart` skill or the `/hi
   2 of 2 runs and the same loop reading its own table 0 of 1, at 59% higher cost. The engine was removed anyway; the record says so.
 - **Size.** Kernel, hooks and installer 18,736 → 6,274 lines. The structural suite 21,872 lines in 115 files → 779 lines
   in ten files that execute shipped code, with a floor on the check count.
+- **A shipped ending rests on a sign-off.** `order close --status shipped` reads the gate ledger and refuses (exit 1) unless a Ship
+  Sign-off row of the same run says `ship`; the close record names the sign-off it rests on (`signed_off_at`, `signed_off_by`).
+  `escalated` and `aborted` need no row. Before this, every refusal the ship gate makes — no clearing census, an owed hunt, a worker
+  below the floor — could be walked around by closing the run without crossing the gate; the real run did not, and nothing stopped it.
+- **The model that ran is evidence; the launch record is a request.** The loop passes the launch record's model for the role on every
+  dispatch (the agent definitions stay `model: inherit`), the dispatch receipt records the model the call asked for (`model_requested`)
+  beside the one the host says ran (`usage.model`), and `gate --resolve L4` reads the receipts of the run: an `exec` or `eval` worker
+  that ran below the model floor refuses `ship`, and a model other than the record's is written into the gate's row and the ship report,
+  not refused. Found by reading the archived receipts: every run's record asked for `sonnet`, and the two arms of the one comparison on
+  record had run their workers on two different models. No new subcommand.
 - **QA can no longer go missing unrecorded.** `gate --resolve L4` refuses `ship` over a QA hunt the run owed and never ran (a passing round, no `noQa`, no `skip` answer): the hunt must have a result and, over a reachable app, at least one charter run. Answering GATE QA `skip` is the recorded way out. No new subcommand.
 - **A real run on this branch shipped, in two sessions.** On the same three-scope pitch it built every scope in round 1, drew an evaluator FAIL, stopped for budget, and — resumed — passed in round 2 and shipped ($18.2 in total, against $5.4 for the engine's runs; the QA hunt skipped by the loop's own call). It also found defects, fixed here: `order open` stamps the order's time and checks it against the schema before arming it; `init run`, `order` and `gate --resolve` refuse to run from inside `.shapeup/`.
 - **Fixed on the way.** `init run` now refuses a plugin copy that cannot name its worker roster instead of throwing a stack trace.

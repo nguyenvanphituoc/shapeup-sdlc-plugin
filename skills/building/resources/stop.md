@@ -100,7 +100,9 @@ After GATE H and before GATE L4, write `shapeup/<slug>/REPORT.md` — frozen at 
 (cite use cases and scope ids instead; the fence refuses the write otherwise). Its first line says what this is: **a ship is not a pass**, so
 a shipped FAIL opens with `Shipped over a FAIL verdict, with the cut list below`, never with the title alone. Then:
 
-- **Outcome** — the verdict, rounds used and judged, tasks done of planned, and whether QA ran, did not run, or ran and drove nothing.
+- **Outcome** — the verdict, rounds used and judged, tasks done of planned, whether QA ran, did not run, or ran and drove nothing, and the
+  models: per role, what the launch record asked for and what the dispatch receipts (`<run>/receipts/dispatch.jsonl`, `usage.model`) name as
+  having run. Where the two differ, say so here: a cost or a verdict read against the wrong model is a figure about a different run.
 - **Verification** — one row per scope from its latest trial: fixtures passed of total, regressions, trials, last status.
 - **Requirements** — one row per registered clause: its source, the covering criterion, its verdict. A projection, never a verdict; none of it blocks the ship.
 - **The cut list and the known gaps** — every cut the PO accepted, and every ship-blocking item the PO overrode.
@@ -121,5 +123,5 @@ asks for it).
 | A MUST-HAVE that fails the comparison is never cut silently | the one case where the census refuses to make the run look shippable |
 | Cuts are proposals; the PO confirms every one | the census never overrides the human at the ship gate |
 | Every ownership, exhaustion and requirement claim cites its file | derived from the contracts and the receipts, never from what the report remembers |
-| You never set `status: done`, deploy, or ship | the run closes only after GATE L4 is crossed; the judge, the doer and the census stay separate acts |
+| You never set `status: done`, deploy, or ship | the run closes only after GATE L4 is crossed — `order close --status shipped` refuses without this run's `ship` row; the judge, the doer and the census stay separate acts |
 | Guidance never decides a gate | a knowledge-base rule may add a question to the H block, never an answer; there is no `stop` knowledge-base file — the census's claims come from files |
