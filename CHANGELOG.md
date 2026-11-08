@@ -5,7 +5,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased] · Native first, then the engine removed
 
-Not released: the version files still read 4.0.0, and this work sits on a side branch that is not merged. It is **breaking** for
+Not released: the version files still read 4.0.0, and this work is on `plan/single-loop`, not pushed; the tag `engine-measured` marks the tree before it. It is **breaking** for
 anything that names a removed kernel command, the `hill-chart` skill or the `/hill` command.
 
 - **The four workers are plugin agents.** `agents/orient.md`, `task-executor.md`, `spec-evaluator.md` and `qa-edge-hunter.md` preload

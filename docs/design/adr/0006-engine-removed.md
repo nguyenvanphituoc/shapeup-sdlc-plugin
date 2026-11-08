@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Accepted by the PO; implemented on a side branch, not merged |
+| **Status** | Accepted by the PO; applied to `plan/single-loop` (local, not pushed). The tree the comparison measured is kept at the tag `engine-measured` |
 | **Date** | 2026-11-08 |
 | **Decision** | The plugin's runtime keeps five mechanisms — the run receipt, the gate resolver, the T0 witness, the write fence and the dispatch receipts — and the loop's own discipline carries everything else. |
 | **Supersedes** | decision 3 of [ADR-0005](0005-native-first.md), which kept `compile`, `reduce ingest`, `reduce board` and `probe next`; and the V4-REQ-13 outcome "measured and not met, engine kept" |

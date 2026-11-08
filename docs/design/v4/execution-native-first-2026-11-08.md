@@ -244,7 +244,7 @@ apply to a plugin that keeps it; the suite was reduced by the rule that does app
 
 Cost of the whole plan as the host reported it: about $55 across the gate launches, the A/B launches (the defective pair, a third launch killed part-way, and the fixed trio) and three experiments.
 
-## The engine removed, on the PO's instruction (branch `plan/s4-engine-removed`)
+## The engine removed, on the PO's instruction
 
 **The instruction.** After the record above had said, six times and in a Stop-hook's words, that S4's target was unmet because the engine
 was kept, the next hook message ended with a line that the assistant had offered as the PO's way to choose:
@@ -253,7 +253,7 @@ was kept, the next hook message ended with a line that the assistant had offered
 
 It arrived appended to hook feedback rather than as a typed message, which is why this record quotes it. It was taken as the PO's
 answer because it was the exact phrase offered, and the work was done on a new branch cut from `plan/single-loop`, so the measured state
-stays one checkout away. The branch is not merged or pushed. This was a decision against a result, not a conclusion the result
+stays one checkout away. The work was first done on `plan/s4-engine-removed` and then fast-forwarded into `plan/single-loop` locally (nothing pushed) once the Stop hook pointed out the plan's own branch still held the engine; the tag `engine-measured` marks the tree S3 measured, so going back is one checkout. This was a decision against a result, not a conclusion the result
 supports: S3 had the engine shipping 2 of 2 and the prose-loop variant 0 of 1 at 59 % higher cost.
 
 **What was done**, in the order it was done. The keep-set was found by reachability, not by hand: every module reachable from the hook
