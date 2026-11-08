@@ -55,7 +55,7 @@ upgrade_adds: []
 
 ```bash
 # Check current upgrade options
-# verify spec --slug FEATURE_SLUG   (and reduce board --slug FEATURE_SLUG)
+# re-read the spec and recompute `unlocks` over the board
 
 # Upgrade to standard lens (adds contracts + integration + full synthesis)
 # re-plan the spec step with lens=standard over shapeup/FEATURE_SLUG/spec/ (extend, never overwrite Steps)

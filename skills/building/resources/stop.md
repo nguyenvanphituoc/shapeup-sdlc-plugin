@@ -1,35 +1,34 @@
 # Stop — decide when to stop (GATE H)
 
-The census is yours: `probe next` hands it out as a `kind: stop` step, you do it in this context — no
-sub-agent — and the kernel reads one file to know it is done. The bar is Shape Up's own: as the budget runs
+The census is yours: you do it in this context — no sub-agent — and GATE L4 reads one file to know it was done. The bar is Shape Up's own: as the budget runs
 out, cut perfectionist ambition by comparing the product to the **baseline** — what customers live with
 today — **never to a hypothetical ideal**. "Better than the baseline" is good enough to ship; "not as good as
 I imagined" is not a reason to keep building. You propose; the PO decides.
 
-## When the step arrives
+## When you do it
 
 ```
 1. The loop ended well (a PASS, or a not-evaluated round) and QA is done — the normal stop.
-2. The outer breaker tripped: round_budget spent, or the opt-in wall-clock budget — scopes may still be open.
-3. A scope exhausted its attempt_budget without a green T0 — queued as a proposal (`inputs.hammer_proposals`),
-   judged here instead of blocking the round.
+2. The outer breaker tripped: `maxRounds` spent — scopes may still be open.
+3. A scope exhausted its `attemptBudget` without a green T0 — you recorded it as a proposal; it is judged here
+   instead of blocking the round.
 ```
 
-The step's `inputs` carry what the run knows: `qa_findings`, `hammer_proposals`, `green_scopes`, `breaker`
-(null on the normal stop). Case 1 has no unresolved scopes; cases 2 and 3 do, and each becomes an explicit
-CUT or CARRY candidate below.
+What the run knows is in its files: the QA report under `.shapeup/<slug>/qa/`, the proposals you recorded, the scopes
+with a green latest trial, and which breaker, if any, ended the run. Case 1 has no unresolved scopes; cases 2 and 3 do,
+and each becomes an explicit CUT or CARRY candidate below.
 
 ## Census
 
 Gather every open item into one list before judging any of them. A partial view produces a wrong cut.
 
-**Every claim cites a probe.** The step's `probes` field holds the exact commands; run them as written.
+**Every claim cites the file it came from.** Derive, never remember:
 
-| Claim | Command | Rule |
+| Claim | Read | Rule |
 |---|---|---|
-| "no scope owns X" / "X is scope Y's" | `probes.owner` (add `--path <p>` for one path) | Ownership is **derived** from the contracts, never remembered. `writers: []` is an unowned seam; `missing` lists seams the wiring names that are not on disk — owned but never written. A census that narrated ownership from memory once told the PO no scope owned a directory a committed contract listed in plain sight. |
-| a pitch clause the run never showed working | `probes.requirements` | Take its `no evidence` rows; each is a census item carrying its source clause (`REQ-12 ← shaping.md R12`). A `cut` row is an answer the PO already gave — not an item. An inconsistency row is reported for reconciliation, never counted as evidence and never promoted as a finding. No registry on disk → this input is empty. |
-| "scope S exhausted its attempts" | `probes.attempts` (one command per proposal scope) | Exhaustion is **derived**, never read off a verdict file: a compiled order and a T0 verdict are both writable by the scope being judged. An attempt counts only when a dispatch receipt AND a leg row or a WorkResult attest it. Exit 1 = tripped. The round loop's own breaker reads the same derivation, so the census and the breaker cannot disagree. |
+| "no scope owns X" / "X is scope Y's" | the `allowed_file_substrate` and `shared_substrate` of every `<spec>scopes/*.md`, and the paths `<spec>wiring-map.md` names | Ownership is what the contracts say. A path no contract lists is an unowned seam; a path the wiring names that is not on disk is owned but never written. A census that narrated ownership from memory once told the PO no scope owned a directory a committed contract listed in plain sight. |
+| a pitch clause the run never showed working | `<spec>requirements.md`, and the verdict's criteria with their `covers:` anchors | A requirement with no passing criterion is a census item carrying its source clause (`REQ-12 ← shaping.md R12`). A clause the PO marked `CUT (PO-approved)` is an answer already given, not an item. No registry on disk → none. |
+| "scope S exhausted its attempts" | `<run>/t0/trials.jsonl` and `<run>/receipts/dispatch.jsonl` | Count the scope's attempts that have a dispatch receipt AND a result. A compiled order and a T0 verdict are both writable by the scope being judged, so neither counts alone. |
 
 Then collect, from the run's own records:
 
@@ -81,7 +80,7 @@ report, never hidden.
 ## The census file — what the step is done on
 
 Write the census as data (shape `HammerCensus` in the kernel's domain registry), beside the
-human-readable report, to the path in `produces.path` (`.shapeup/<slug>/reports/hammer-census.json`):
+human-readable report, to `.shapeup/<slug>/reports/hammer-census.json`:
 
 ```json
 { "schema_version": 1, "verdict": "ship-now | ship-after-fixes | cannot-ship",
@@ -92,10 +91,22 @@ human-readable report, to the path in `produces.path` (`.shapeup/<slug>/reports/
 and nothing else — before it lets any answer set say `ship`:** a census that lives only in your printed blocks
 cannot be read by a gate. Still a proposal: the file grants nothing.
 
-Then run `close` (`reduce ingest --close-census`). It checks the file against the shape above — readable
-JSON, a verdict from the three, a `cut_list` array — and exits 1, naming the reason, when it is not. **A census
-the kernel refuses is sent back once**: the next step re-emits with the reason in `note`; a second refusal
-stops the run with what was refused. A missing file is not a refusal, just the same step again.
+Read it back before you cross GATE H: readable JSON, a verdict from the three, a `cut_list` array, and `ship_blocking`
+non-empty exactly when the verdict is `cannot-ship`. A census that fails that read is yours to fix now; do not cross the gate over it.
+
+## The ship report
+
+After GATE H and before GATE L4, write `shapeup/<slug>/REPORT.md` — frozen at L4, committed, so it carries no run-trace path and no board id
+(cite use cases and scope ids instead; the fence refuses the write otherwise). Its first line says what this is: **a ship is not a pass**, so
+a shipped FAIL opens with `Shipped over a FAIL verdict, with the cut list below`, never with the title alone. Then:
+
+- **Outcome** — the verdict, rounds used and judged, tasks done of planned, and whether QA ran, did not run, or ran and drove nothing.
+- **Verification** — one row per scope from its latest trial: fixtures passed of total, regressions, trials, last status.
+- **Requirements** — one row per registered clause: its source, the covering criterion, its verdict. A projection, never a verdict; none of it blocks the ship.
+- **The cut list and the known gaps** — every cut the PO accepted, and every ship-blocking item the PO overrode.
+- **What did not finish** — the unfinished tasks by use case. A run launched with `noEval` says nothing was evaluated and never reads as verified.
+
+Every figure is read off a file you opened in this step. A report written from memory of the run is the failure this section exists to prevent.
 
 A write the fence refuses names a live order: a dead session left a dispatch open. That is dead work, not yours to
 answer — say so to the PO (`init run --force` answers every open order and discards the round history; only the PO
@@ -109,6 +120,6 @@ asks for it).
 | Default classification is NICE-TO-HAVE | a generous must-have list defeats the point |
 | A MUST-HAVE that fails the comparison is never cut silently | the one case where the census refuses to make the run look shippable |
 | Cuts are proposals; the PO confirms every one | the census never overrides the human at the ship gate |
-| Every ownership, exhaustion and requirement claim cites its probe | derived from the contracts and the attested records, never from what the report remembers |
-| You never set `status: done`, deploy, or ship | the loop closes a run only after GATE L4 is crossed; the judge, the doer and the census stay separate acts |
-| Guidance never decides a gate | a knowledge-base rule may add a question to the H block, never an answer; there is no `stop` knowledge-base file — the census's claims come from probes |
+| Every ownership, exhaustion and requirement claim cites its file | derived from the contracts and the receipts, never from what the report remembers |
+| You never set `status: done`, deploy, or ship | the run closes only after GATE L4 is crossed; the judge, the doer and the census stay separate acts |
+| Guidance never decides a gate | a knowledge-base rule may add a question to the H block, never an answer; there is no `stop` knowledge-base file — the census's claims come from files |

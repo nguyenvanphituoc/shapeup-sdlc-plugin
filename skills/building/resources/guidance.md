@@ -14,7 +14,7 @@ New rules are written under the **activity** name. The loop reads, in order:
 | a dispatched worker's order | `task-executor.md`, `orient.md`, `qa-edge-hunter.md` — the worker reads its own, from `payload.kb_rules_path` | unchanged |
 
 Never read: a file for `spec-evaluator` (the judge is not coachable — a coached judge is a second grader) or
-for the stop step's census (its ownership, exhaustion and requirement claims come from the kernel's probes, not
+for the stop step's census (its ownership, exhaustion and requirement claims come from files, not
 from guidance). A file left behind under the name of a retired skill — `scope-hammer.md`, `coach.md`,
 `translator.md` — is read by nobody; its rules are filed again under a category at the next retro.
 

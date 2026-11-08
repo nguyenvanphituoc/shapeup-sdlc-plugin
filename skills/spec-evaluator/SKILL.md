@@ -9,7 +9,7 @@ description: "Use this skill whenever the user wants to evaluate, QA, or verify 
 
 The **judge** in a planner → generator → evaluator loop. It reads the committed spec, exercises
 the **running** app, and returns a hard-threshold verdict plus a file:line bug list — as a
-WorkResult envelope the orchestrator ingests. The generator fixes; the evaluator re-runs.
+WorkResult envelope the orchestrator applies. The generator fixes; the evaluator re-runs.
 
 **Core guarantee — skeptical by default.** Out-of-the-box an LLM is a lenient QA: it finds a
 real defect, then talks itself into approving anyway. This skill inverts that posture. A
@@ -20,7 +20,7 @@ criterion with no collected evidence is a **FAIL**, never a pass-by-assumption.
 > **Dimension contract (injection interface)** → `references/dimension-contract.md`.
 > Where any reference file describes *writing* shared state (task files, `.verdicts` ledger,
 > run-state), the pure-worker contract overrides it: that data returns in the WorkResult and
-> the orchestrator's ingest script performs the write. Old gate names in reference files map
+> the orchestrator performs the write. Old gate names in reference files map
 > 1:1 onto the core process below: GATE V0/V0.5 = input contract + dimension resolution,
 > GATE V1 = CONTRACT, Phase A = PROBE, GATE V2 = VERDICT, Phase B = REPORT; GATE V3
 > (sign-off) is retired — pausing is the caller's `interaction` policy.
@@ -42,7 +42,7 @@ Invoked as `--order <path>`. Fields you may rely on (absent = unknown, never inf
 | `payload.launch_cmd` | The project profile's launch probe: installs the built artifact, starts it and asserts the first screen. This is how the app is brought up for `[ui]` probing. A non-zero exit is a finding to cite, not a reason to try another way. Absent → the profile declares none; fall back to `run_cmd` |
 | `payload.build_gate` | This run's newest round build gate artifact — each step's exit code and output tail. It records that the build ran and whether the app launched, and the launch step's output names what it captured. Read it before grading any `[ui]` row NO EVIDENCE: a launch that succeeded is evidence the app can be probed, and the row is graded on the app, not on its absence. Absent → the gate never ran |
 | `payload.revised_checks[]` | Rows that FAILed in one trial of this round and PASS in a later one whose own check file changed in between — a pass obtained by editing the check. Read each listed file against its row's Expect before you let its PASS count; a check that no longer asserts what the row asks makes that row a FAIL, and the bug names the check. Absent → no check was rewritten |
-| `payload.t0_artifacts[]` | Per-scope T0 verdict paths for this round (scoped specs), compiled from each scope's green verdict. An artifact listed but missing/red on disk, or a scoped spec with none listed → the round is NOT gradeable: return `status: failed` with the reason, naming the scope, as your FIRST deviation — a structural precondition, not a criterion |
+| `payload.t0_artifacts[]` | Per-scope T0 verdict paths for this round (scoped specs), listed by the orchestrator from each scope's latest verdict. An artifact listed but missing/red on disk, or a scoped spec with none listed → the round is NOT gradeable: return `status: failed` with the reason, naming the scope, as your FIRST deviation — a structural precondition, not a criterion |
 | `payload.scopes_without_t0[]` | Scopes with no green T0 this round while others have one. The round IS gradeable: grade every row such a scope owns as FAIL, evidence "no green T0 for scope <id>" with the scope contract as its locator (`…/scopes/<id>.md:1`). Never refuse the round for them — a refusal ends the run before the next round or GATE H can act. Absent → every scope is green |
 | `payload.browser` | `cli` (default, ~4x cheaper) \| `mcp` \| `none` |
 | `payload.tasks[]` | Traceability only (which UCs a task claims): NEVER a grading source — the committed UC text is the criterion, a paraphrase mismatch is a finding |
@@ -101,7 +101,7 @@ Done-when statements; `_index.md` Non-Go list. Which UCs are in scope comes from
 - Re-probe every FAIL once before finalizing: agree → confidence high; disagree → keep FAIL
   (no stable pass = FAIL), confidence low, note flaky.
 - Read any existing `.verdicts-*.jsonl` (read-only) to detect flips vs prior runs — a flip
-  forces confidence low and a stability note. The new lines return in your envelope; ingest
+  forces confidence low and a stability note. The new lines return in your envelope; the loop
   appends them (never rewrite history).
 - Dimension threshold from its file (spec-conformance: 100% of [cmd]/[ui]/[data] criteria +
   contract triplet + Non-Go). Overall PASS only if ALL active dimensions pass — the halo
@@ -191,12 +191,12 @@ the requirement matrix at GATE L4 and the census at GATE H are projected from th
 verdict that drops them grades the build and says nothing about what the pitch asked for. Ingest refuses a verdict that anchors no criterion at all while the board's ACs carry `covers:` clauses, and you are sent back once.
 
 **Every FAIL criterion's `evidence` MUST carry a `file:line` locator** — schema-enforced, not
-advice: the envelope is validated against `work-result.schema.json` at ingest and a locatorless
+advice: the envelope is validated against `work-result.schema.json` when the loop reads it and a locatorless
 FAIL is rejected before any write. A PASS may cite plain output. (Observed, not theorized: a
 correct FAIL verdict with no locator anywhere is unactionable without re-investigating — the
 rule used to live in prose and be enforced nowhere; it is now data in `domain.schema.json`.)
 
-The orchestrator's ingest appends the verdict ledger, un-ticks the `refuted` boxes, and sets
+The orchestrator's the loop appends the verdict ledger, un-ticks the `refuted` boxes, and sets
 `eval_verdict` frontmatter. You never touch a task file, a board, or run-state — and you
 NEVER set `status: done`: the judge issues verdicts; closure belongs elsewhere. That
 separation is the whole point of the architecture.
@@ -212,7 +212,7 @@ separation is the whole point of the architecture.
 - [ ] Every FAIL was re-probed once; confidence assigned per the ledger rule
 - [ ] Scoped spec → T0 citations present with recomputed sha256 (else the run returned `failed`)
 - [ ] Report written inside `evaluation/**` only; no other file touched
-- [ ] `refuted[]` lists exactly the boxes your evidence disproves (un-ticking is ingest's act)
+- [ ] `refuted[]` lists exactly the boxes your evidence disproves (un-ticking is the loop's act)
 - [ ] The WorkResult validates against `work-result.schema.json`
 
 ---
@@ -233,17 +233,15 @@ bug_template). Adding one (e.g. security) = write `references/dimensions/securit
 # Orchestrated (once per round, after GATE L2) — the canonical form
 /spec-evaluator --order .shapeup/checkout-vnpay/orders/evaluate-r2.json
 
-# Standalone — the preamble shim compiles a minimal order, then the single code path runs:
-#   node "<kernel>" compile --operation evaluate --slug <slug> \
-#        --worker spec-evaluator [--payload '{"dimensions": [...], "run_cmd": "..."}']
+# Standalone — the preamble shim writes a minimal order by hand, then the single code path runs:
 /spec-evaluator --spec shapeup/checkout-vnpay/spec/ --task TASK-007
 /spec-evaluator --spec shapeup/checkout-vnpay/spec/ --feature checkout-vnpay --single-pass
 ```
 
 Standalone keeps `--task` (per-task check, not round-gated) and `--single-pass` (feature-level)
 — the shim maps them onto the order's payload; missing run command → ask. After writing the
-WorkResult, run `node "<kernel>" reduce ingest <result path>` and show its
-summary — standalone has no orchestrator to ingest for you.
+WorkResult, show the user its
+summary — standalone has no orchestrator to apply it for you.
 
 ---
 
@@ -254,10 +252,10 @@ summary — standalone has no orchestrator to ingest for you.
 | Absence of evidence = FAIL | Kills pass-by-assumption, the core QA failure mode |
 | Halo effect banned | A strong dimension never lifts a failing one |
 | Disabled dimensions are out of scope | No silent scope creep |
-| Evaluator never sets `status: done`, never edits task files/boards | Judge ≠ doer; refuted boxes return as data, ingest writes |
+| Evaluator never sets `status: done`, never edits task files/boards | Judge ≠ doer; refuted boxes return as data, the loop writes |
 | Untestable AC blocks a clean PASS | Forces the spec to be verifiable, not vibes |
 | Probe the RUNNING app, not the source alone | Apps that look right still break when used |
 | Re-probe every FAIL; flip ⇒ confidence low | A single snapshot lies; the ledger makes it visible |
-| Verdict-ledger lines are returned, appended by ingest, never rewritten | Verdict history is how a single-snapshot judge becomes measurable |
+| Verdict-ledger lines are returned, appended by the loop, never rewritten | Verdict history is how a single-snapshot judge becomes measurable |
 | A verdict on a scoped spec without a T0 citation is structurally invalid | T0 is a machine fact the generator cannot fabricate |
 | UI assertions target affordances only (test_id/role/data-state) | Layer-3 styling is frozen; grading it resurrects the freeze through the judge |

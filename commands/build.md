@@ -23,7 +23,7 @@ T0 verification, the inner circuit breaker, then the single EVAL — belongs to 
 ```
 
 `/ship` opens the run properly — `harness init run` first, so the receipt and the launch record
-exist — and then asks the kernel (`probe next`) what comes next, over and over. Do not hand-roll the
+exist — and then follows the loop's phase table over the run's files. Do not hand-roll the
 round by calling this command once per task: the attempt loop, the T0 ratchet and the breakers are
-branches of that state machine, not steps a caller can be trusted to reproduce, and a session that
+the loop's discipline, not steps a caller can be trusted to reproduce, and a session that
 rebuilds them by hand is the prose lane the loop replaced.

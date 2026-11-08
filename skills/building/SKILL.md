@@ -11,102 +11,129 @@ description: "Use this skill whenever the user wants to ship a kicked-off Shape 
 leaves defects behind it. A run that left no receipt did not happen; loading these instructions is not
 running them.
 
-You drive the run. The kernel decides what comes next; you do it, then ask again. **Never advance on
-your own account of what you did — advance on a kernel exit code or on `probe next`'s JSON.**
+You drive the run, in this session. What stands between you and a claim of "done" is five mechanisms and
+nothing else: the **receipt** `init run` writes, the **gate resolver**, the **T0 witness** that runs a
+scope's fixtures and re-hashes what it cites, the **write fence** that refuses a worker's write outside
+its order's substrate, and the **dispatch receipts** that name which agent ran. Everything else in this
+file is your own discipline, and no script checks it for you — so after every action, read the files
+again instead of remembering them.
 
 Every kernel command below is run exactly as written, on ONE line (a grant matches a single-line
-command; a `\`-continued one comes back "requires approval"). If a kernel command
-comes back "requires approval", stop and say so — the scripts need a one-time grant
-(`npx shapeup-sdlc init`); never route around it or hand-build the feature.
+command; a `\`-continued one comes back "requires approval"). If a kernel command comes back "requires
+approval", stop and say so — the scripts need a one-time grant (`npx shapeup-sdlc init`); never route
+around it or hand-build the feature.
 
 ## Rules
 
-1. **ASK, DON'T ASSUME.** Collect the intake explicitly (`resources/intake.md`); put every gate to the
-   PO with a recommendation first. Never invent an answer the PO did not give.
+1. **ASK, DON'T ASSUME.** Collect the intake explicitly (`resources/intake.md`); put every gate to the PO with a recommendation first.
 2. **SIMPLEST FIRST.** The smallest change that satisfies the pitch.
 3. **NON-REGRESSION.** Never touch what already works.
-4. **THE KERNEL DECIDES THE NEXT STEP.** Run `probe next`, do what it returns, run it again.
+4. **A CLAIM NAMES ITS FILE.** Every "done", "green" or "shipped" you write cites the file or kernel output it came from.
 
 ## Step 0 — open the run
 
 Resolve the intake and open it as `resources/intake.md` says: language check (a non-English pitch is made
 English by you, right there: `<name>.en.md` and the glossary, and the run opens on the copy), the L0 collect-list,
 `init run` — with every switch the operator typed, because it writes the launch record in the same act
-as the receipt and refuses a model below the floor (exit 3 = a run is already open: its record is kept,
-mark the relaunch with `probe resume --slug <slug> --mark-relaunch` and go to the loop with `--restart`),
-the shared `project-profile.md`, and the L0 gate. `--tiny` is no longer served: say so, and run the full
-loop with the pitch's appetite small.
+as the receipt and refuses a model below the floor (exit 3 = a run is already open, or the worker roster is
+missing: the record is kept and the loop continues from the files), the shared `project-profile.md`, and the
+L0 gate.
 
-## The loop
+## Where the facts are
 
-```bash
-node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" probe next --slug <slug> [--restart]
-```
+`K` is `node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs"`. `<run>` is `.shapeup/<slug>/`, `<spec>` is `shapeup/<slug>/`.
 
-Add `--restart` on the first call of a fresh session: an order the dead session left unanswered is dead
-work, not work in flight. Surface every string in `warnings`. Then act on `kind`:
-
-| `kind` | Do |
+| Fact | File |
 |---|---|
-| `dispatch` | Run each `pre`, then `compile`. Spawn ONE sub-agent with the Agent tool: `subagent_type` `shapeup-sdlc-plugin:<skill>`, model `model`, and a prompt that is `--order "<order_path>"` plus `note`; it returns a one-line summary. The worker's craft is preloaded by its agent definition, so the prompt does not name a skill. When it returns run `ingest` as written. A dispatch you waited for has its figures in the receipt, so pass no usage flags; a worker launched in the background has none yet, so pass `--tokens-total <N> --usage-source agent-tool-result` only when its completion notice reports a total, and never estimate one. Then each `then`. A failed `compile`, or a sub-agent that dies, runs `on_fail_close` and stops. A refused `ingest` is not a stop: ask again — the kernel sends the worker back once with the refusal, then stops with the real reason. |
-| `plan` | One planning substep, done HERE — no sub-agent. Unless `order_open`, run `open`: it stamps the write fence (`payload.step`, `payload.mode`, `payload.feature`, `payload.spec_folder`, `payload.kb_rules_paths`). Read `resource` (`section` says where) and `guidance`; write ONLY what `produces` names, never outside the substep's substrate between `open` and `close`. Run each of `checks` (fix a red, run it again; `advisory` never stops). Run `close`, then ask again. A `close` over no artifact is recorded, not retried — the next step names what is missing. |
-| `stop` | The census, done HERE — no sub-agent. Run each `pre` (it records a refusal), then each command in `probes` (owner, requirements, one attempts probe per proposal scope) and cite what they print for every ownership, exhaustion and requirement claim. Read `resource` (`section` says where), compare against the BASELINE and never the ideal, write the census to `produces.path` with its `required` fields, run `close`. A refused census comes back once, with the reason in `note`; a second refusal is a stop. |
-| `build` | For every scope in `release`, in ONE message, spawn a sub-agent (model: `model`) for that scope exactly as for `dispatch`, using the item's own `compile`, `order_path`, `note` and `ingest`. When they return, ask again. |
-| `command` | Run `pre`, then `command`; exit codes in `ok_exits` (default `[0]`) pass; any other runs `on_fail_close` when present. Then each `then`. |
-| `gate` | See below. |
-| `wait` | Nothing may open until an in-flight scope returns. Ask again once one does. |
-| `need` | Something outside the kernel is missing (`need`). Create it with the PO (the profile: `resources/intake.md`), then ask again. |
-| `terminal` | Run `close_command`, report `status` and `reason`. `shipped` goes on to the retro (`retro`: `resources/retro.md`) — run `retro.gate`, its GATE COACH-1 command, FIRST, before asking for feedback. Stop. |
-| `done` | Nothing to resume. Say so. |
+| the launch record: models, `budgets.maxRounds`, `budgets.attemptBudget`, the answer set (`answers`), `noEval`, `noQa`, `maxParallelScopes` | `<run>/run-args.json` |
+| the intake, and which plugin copy opened the run | `<run>/intake.md`, `<run>/receipt.json` |
+| a gate is crossed when a row with that `gate` and `"status":"ok"` exists (matching `round` where it has one) | `<run>/gates.jsonl` |
+| orders and results — a dispatch is answered when `results/<stem>.json` exists | `<run>/orders/<stem>.json`, `<run>/results/<stem>.json` |
+| the scorer's verdict per attempt; the latest row per scope is its state | `<run>/t0/trials.jsonl`, `<run>/t0/verdicts/r<R>-a<A>-t<T>.json` |
+| committed plan: requirements, spec tree, wiring map, scope contracts | `<spec>requirements.md`, `<spec>spec/`, `<spec>wiring-map.md`, `<spec>scopes/<id>.md` |
+| the board: one `TASK-NNN.md` per task, `status:` in its frontmatter | `<run>/tasks/` |
+| the census GATE L4 reads | `<run>/reports/hammer-census.json` |
 
-A `pre` or `then` entry marked `advisory` is a projection: run it, log a failure, never stop on it.
+## The phases — do the first one whose condition holds, then read the files again
 
-**A sub-agent is told only its order and its note.** Its agent definition carries its skill. It does not receive the run's history,
-the other scopes, or your reading of the plan; the order is the whole brief.
+A gate is crossed with `K gate --resolve <GATE> --slug <slug> [--round R] [--verdict V] --preset <set>` (exit 0 = crossed; 4 = ask the PO and
+re-run with `--answer <decision>`; 5 = the set aborts: close the run as aborted and stop). `<set>` is the launch record's `answers`.
 
-### Gates
+| # | Condition | Do |
+|---|---|---|
+| 1 | no `results/orient.json` | **dispatch** `orient` (below) |
+| 2 | GATE L1a not crossed | `K gate --resolve L1a --slug <slug> --preset <set>` |
+| 3 | no `<spec>requirements.md` | plan substep `requirements` |
+| 4 | no spec tree or no board | plan substep `spec`; then read the board back against `resources/plan-spec.md`'s checklist |
+| 5 | no `<spec>wiring-map.md` | plan substep `wire`; then GATE L1a.5 |
+| 6 | no `<spec>scopes/*.md` | plan substep `scopes`; then GATE L1b |
+| 7 | a scope has no green latest trial for round R (R starts at 1) | **build** it (below) |
+| 8 | every scope green or out of attempts, GATE L2 not crossed for R | `K gate --resolve L2 --slug <slug> --round R --preset <set>` |
+| 9 | no `results/evaluate-rR.json` (skipped under `noEval`) | **dispatch** `spec-evaluator` |
+| 10 | GATE L3 not crossed for R | `K gate --resolve L3 --slug <slug> --round R --verdict <pass\|fail\|not-evaluated>`. On fail and `R < maxRounds`, round R+1 repeats 7 to 10 for the scopes the verdict's bugs name; otherwise go to 13 |
+| 11 | GATE QA not crossed | `K gate --resolve QA --slug <slug> --round R --verdict pass --preset <set>` |
+| 12 | QA answered `run` and no `results/hunt.json` (skipped under `noQa`) | **dispatch** `qa-edge-hunter` |
+| 13 | no census file | do the census (`resources/stop.md`) and write `<run>/reports/hammer-census.json`; then GATE H |
+| 14 | GATE H crossed, no `<spec>REPORT.md` | write the ship report (`resources/stop.md`); then GATE L4 |
+| 15 | GATE L4 crossed | `K order close --slug <slug> --status <shipped\|escalated\|aborted> --cause "<verdict, rounds>"`; then GATE COACH-1 |
 
-A gate pauses the run for the PO. Run each `pre`, print `block` verbatim, then run `command`:
+**A plan substep** is done here, in this session, with no sub-agent: write the substep's order (`resources/orders.md`, operation `plan`,
+`worker: "building"`), open it with `K order open`, write only what the substep produces (`resources/plan.md` and its `plan-*.md`
+siblings say what and how), then write `results/plan-<step>.json` yourself and read the artifact back. The order's substrate is the
+fence: while it is open, the staged pitch, the receipt and the other orders are frozen.
 
-- **exit 0** — crossed. The decision is in the output and the kernel ledgered it; ask again.
-- **exit 4** — the answer set has no answer. Put `block` to the PO in `resources/gates.md`'s shape —
-  the decisions in `valid_decisions`, your recommendation first, one question — wait, then run
-  `answer_command` with `<decision>` replaced by what the PO chose. That records the source `PO (live)`.
-- **exit 5** — the set aborts here. Run `abort_close`, report, stop.
+## A dispatch
 
-Never answer a gate yourself in an `interactive` or `auto` run, and never use `answer_command` unless the
-PO gave that decision in this session. An unattended run resolves through its answer set alone.
+The same five moves for every worker. `resources/orders.md` has the order for each operation.
 
-## What the kernel keeps for you
+1. **Write the order** to `<run>/orders/<stem>.json` from the template for the operation. It carries the substrate (the globs the worker may write,
+   copied from the scope contract for a build) and the payload the worker needs, as paths where a path will do.
+2. **Open it**: `K order open --slug <slug> --order "<run>/orders/<stem>.json"`. This names the live order to the fence; without it the fence allows every write.
+3. **Spawn** the agent `shapeup-sdlc-plugin:<worker>` with the prompt `--order "<run>/orders/<stem>.json"` and one line of note. The dispatch is checked
+   against the order schema before it leaves, and leaves a receipt naming the agent that ran.
+4. **Read the result** at `<run>/results/<stem>.json`: `K verify envelope "<run>/results/<stem>.json" "${CLAUDE_PLUGIN_ROOT}/kernel/schemas/work-result.schema.json"`.
+   Invalid, or absent, goes back **once** with the reason; a second failure is a phase that did not complete — name it and stop at that phase.
+5. **Apply it yourself**: update the board's `status:` for the tasks the result closed, append each discovery to `<run>/discovery/ledger.md`, and
+   state what the result changed. Nobody else writes these.
 
-You do not count attempts, track rounds, remember which gate was crossed, decide whether a verdict is
-fit to stand, or re-dispatch a phase that already left its artifact: each is a branch of `probe next`.
-A phase sent back once is sent back by the kernel's own step, with the reason in `note`; a second
-refusal is a stop, not a third try. If a step looks wrong, do not improvise past it — report it as a
-suspected harness defect and stop.
+## Build a scope
 
-**A write the substrate does not cover is denied while an order is live.** Between `compile` and
-`ingest` of a build order you write nothing yourself; between `open` and `close` of a plan order you write
-only what the substep produces.
+For scope `S` in round `R`, attempt `A` (start at 1): dispatch `task-executor` with operation `execute` (round 1, or `fix` with the verdict's bugs on later rounds),
+whose substrate is the scope contract's `allowed_file_substrate` and `shared_substrate`. The worker runs `K verify t0 "<spec>scopes/S.md" --round R --attempt A`
+itself. After its result lands, **run the same command yourself** and read `status` from the JSON on stdout, never from the exit code (a `kept` red-but-improved attempt exits 1):
+
+| `status` | You |
+|---|---|
+| `kept`, overall green | the scope is green for round R |
+| `kept`, red | attempt A+1 builds on this tree; fold the digested errors into the next order |
+| `reverted` or `crash` | attempt A+1; the tree was restored |
+
+A scope that reaches `attemptBudget` attempts without a green is **out of attempts**: stop building it, record it as a proposal for GATE H, and go on. It never stops the round.
+Build a scope only after the scopes in its contract's `depends_on` are green. Two scopes build at once only when no path is writable by both (read the contracts' substrates); otherwise one at a time.
+Count an attempt from the dispatch receipts in `<run>/receipts/dispatch.jsonl`, not from your memory: a dispatch with no receipt did not run the shipped worker.
+
+## The breakers
+
+`maxRounds` ends the run: after a failed round R = `maxRounds`, go to the census. `attemptBudget` ends one scope. Neither ends the run from outside — both route to GATE H, where the
+census compares what is green against the baseline and ships what works. A run killed from outside ships nothing.
 
 ## Sub-commands
 
-`/ship` with none runs the whole loop. A sub-command does one activity of it, from the same kernel steps:
-`plan` (`/scopes`, `/wire`) — the planning substeps; `stop` (`/hammer`) — the census, over the run in hand when
-`probe next` hands a `kind: stop` step, and otherwise a report of the step the run is at; `retro` (`/retro`,
-`/retro --scan`, `/retro --research <stack>`) — `resources/retro.md`, `retro-scan.md`, `retro-research.md`;
+`/ship` with none runs the whole loop. A sub-command does one activity of it:
+`plan` (`/scopes`, `/wire`) — the planning substeps; `stop` (`/hammer`) — the census over the run in hand;
+`retro` (`/retro`, `/retro --scan`, `/retro --research <stack>`) — `resources/retro.md`, `retro-scan.md`, `retro-research.md`;
 `intake <path>…` (`--check` writes nothing) — the language gate alone, `resources/intake.md` §2.
 
 ## Resume
 
-`/ship` again over an open run is the resume: Step 0 finds the receipt, the loop reads artifacts on
-disk and nothing else. A closed run that did not ship is reopened on the record by the loop's first
-step; one that shipped reports `done`.
+`/ship` again over an open run is the resume: `init run` refuses and prints what is on disk, and you continue from the phase table, reading files and nothing else.
+A run closed without shipping is reopened by `init run --force`, which resolves every order nobody answered as abandoned before it writes.
 
 > **Intake, language check and translation, profile, the launch record** → `resources/intake.md`
+> **The order for each operation: substrate, payload, where each field comes from** → `resources/orders.md`
 > **Planning: how a substep runs, requirements; the spec, wiring and scope formats** → `resources/plan.md` and its `plan-*.md` siblings
 > **Which knowledge-base file is read where, and under what name a rule is filed** → `resources/guidance.md`
 > **How to put a gate to the PO, and what to have read first** → `resources/gates.md`
 > **What a round is; the attempt loop; why the loop stops where it does** → `resources/rounds.md`
-> **The census, the baseline comparison, the cut list (GATE H)** → `resources/stop.md`
+> **The census, the baseline comparison, the cut list, the ship report (GATE H)** → `resources/stop.md`
 > **After a ship: feedback, the retro gate, `--scan`, `--research`** → `resources/retro.md`, `retro-scan.md`, `retro-research.md`

@@ -29,10 +29,12 @@ conflict → the spec and the lint win, told to the PO).
            `## Affordances` table for the affordance manifest, a short `## Why this slice` paragraph. A
            reviewer must be able to read the substrate in a PR; regeneration preserves prose under
            headings you do not own.
-4 LINT     verify spec --slug <slug> (the step's check) — PA1 (directory alignment), PA2 (> ~15 files),
-           DISJOINT (undeclared overlap), SCOPE-ANCHOR (empty/unresolvable use_cases), TIER-DIRECTION (a
-           task id in a committed contract), SCOPE-DEPS (depends_on naming a scope that is not here). Fix
-           reds by re-slicing, not by silencing.
+4 READ BACK the contracts together, once, and say what you found: PA1 (a scope aligned 1:1 with a top-level
+           directory), PA2 (> ~15 files, a warning), DISJOINT (a file in two scopes' substrate without both
+           declaring it shared — the write fence enforces substrates, so an overlap here is a collision there),
+           SCOPE-ANCHOR (empty or unresolvable use_cases), SCOPE-DEPS (depends_on naming a scope that is not
+           here). Fix reds by re-slicing, not by silencing. A task id in a committed contract is refused by the
+           write fence itself.
 5 BOARD    regenerate scope-board.md — a VIEW of the contracts, nothing more:
              | scope_id | topology | use_cases | depends_on | files | lint |
            Every column restates a field the contract already declares, so the board can be thrown away and

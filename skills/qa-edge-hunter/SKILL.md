@@ -48,7 +48,7 @@ zero exit as the deliverable reached; `build_gate` records that the round's gate
 Drive it with the tools the project's knowledge base names, by the path it gives.
 Do not refuse the hunt, and do not invent a URL. Its write surface is
 `.shapeup/<feature>/qa/**` only. The Hunter never touches the discovery ledger itself —
-ingest appends its `discoveries[]` under a `## Discovered` section, preserving single-writer
+the loop appends its `discoveries[]` under a `## Discovered` section, preserving single-writer
 mechanically.
 
 ---
@@ -77,11 +77,11 @@ HARD (any miss → STOP, report which):
      real invocation of the entry point (not a ping, not a guess that a tool is missing). When the
      order carries `launch_cmd`, run it before concluding anything; the report names the command
      and its exit. A hunt that reached nothing returns `status: failed`, never `done`. A hunt that
-     reached the app runs at least one charter: ingest refuses a `done` whose report says
+     reached the app runs at least one charter: the loop sends back a `done` whose report says
      `charters: 0/…` while the order carried `launch_cmd` or `app_url`.
   ✅ EVAL-FEATURE-<slug>.md exists with verdict: PASS
   ✅ if discovery/ledger.md exists: ledger.feature == <feature> (read-only context check —
-     a missing ledger is fine; ingest creates it when your findings land)
+     a missing ledger is fine; the loop creates it when your findings land)
 SOFT:
   ⚠️ any usecases/UC-*.md has `## Test Surface`?
      NO → DEGRADED MODE:
@@ -101,7 +101,7 @@ from charters and listed in the report, never silently skipped.
 ⏸ GATE Q0 — Preflight
 App       : [url] ✅ reachable
 EVAL      : EVAL-FEATURE-[slug].md — PASS (dims: [...])
-Ledger    : [✅ feature match | absent — ingest will create it]
+Ledger    : [✅ feature match | absent — the loop will create it]
 Surface   : [present | ABSENT → degraded mode]
 Out-of-bounds? (max 2 questions) …
 ```
@@ -209,7 +209,7 @@ Per charter:
          "severity_hint": "data-integrity | boundary-breach | ux-degradation | cosmetic",
          "test_gap": "unit | integration | exploratory-only" }
 
-       Always `~` — ingest appends these to the discovery ledger verbatim; you never open
+       Always `~` — the loop appends these to the discovery ledger verbatim; you never open
        the ledger file. severity_hint is the Hunter's advice to triage — the promotion
        decision is PO/TL's at SHIP S.0, never made here.
        test_gap is advisory for reconciliation: unit = a targeted unit test would have
@@ -307,7 +307,7 @@ hammered out at GATE Q1 (not hunted): […]
 | ① Boundary | C-01, C-05 | 2 | 0 |
 | … | | | |
 → details live in .shapeup/<feature>/discovery/ledger.md under the `## Discovered` section
-  ingest appends for this hunt's order
+  the loop appends for this hunt's order
 
 ## Shaping-quality signal (advisory, for the PO — next cycle's input)
 - lens ⑤ findings ≈ No-gos written loosely (breach routes left open)
@@ -353,7 +353,7 @@ No verdict line exists in this file by design. The Hunter's last words:
 1. **Never a verdict.** The run's verdict is the evaluator's PASS. One judge.
 2. **Never promote.** Every finding is born `~`. severity-hint advises; PO/TL decide.
 3. **Never fix.** Read-only on code; execute-only on the app; write-only to
-   qa/hunt-report.md + its own WorkResult (findings return as data; ingest owns the ledger).
+   qa/hunt-report.md + its own WorkResult (findings return as data; the loop owns the ledger).
 4. **Never block ship.** A hunt with 40 findings and a hunt with 0 both end the same way:
    report, then triage at L4. The circuit breaker outranks the Hunter.
 5. **Never re-probe covered territory.** EVAL-*.md territory is subtracted at Q1; an

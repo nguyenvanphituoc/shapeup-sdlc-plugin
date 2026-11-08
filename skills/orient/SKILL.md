@@ -197,7 +197,7 @@ Group by **suspected scope** so `ba` can map scopes naturally. Do **not** assign
 or dependencies — that is the planner's job. You are handing over raw material, not a plan.
 
 > This is the seed for the planner's first board. The *in-build* discovered-task loop
-> (build WorkResults' discoveries[] ingested into the live ledger, reconciled by a plan spec step
+> (build WorkResults' discoveries[] applied to the live ledger, reconciled by a plan spec step
 in `reconcile` mode) is
 > a separate, later mechanism — don't conflate the two.
 
@@ -251,10 +251,10 @@ Tech-lead uses this to render the GATE L1a Hill and confirm the spike before han
 ## Invocation
 
 ```bash
-# Invoked by the loop at step 7 (canonical) — compile-order --operation orient --slug <feat> …
+# Invoked by the loop at step 7 (canonical) — the order the loop wrote
 /orient --order .shapeup/<feat>/orders/orient.json
 
-# Standalone flags (the preamble shim compiles the same envelope)
+# Standalone flags (the preamble shim writes the same envelope by hand)
 /orient --pitch shapeup/<feat>/shaping/shaping.md --spec shapeup/<feat>/spec/ --stack "pnpm, Next 16 web :3000"
 
 # Standalone recon (no orchestrator) — still writes only the four artifacts

@@ -39,7 +39,7 @@ The longest sequential chain — minimum time to complete if parallelized optima
 *(All other work can happen in parallel alongside this chain)*
 
 <!-- Record the DERIVED numbers only — total hours and step count, both from
-     `harness reduce board`. The chain's task ids belong to the LOCAL board
+     the board you recomputed. The chain's task ids belong to the LOCAL board
      (.shapeup/<slug>/tasks/), which is gitignored and renumbers per machine; this
      document is committed, so an id written here dangles on every other clone
      (spec-lint TIER-DIRECTION). Read the id-level chain off the board itself. -->
@@ -99,7 +99,7 @@ Carried from [[_index#Rabbit-Holes]]:
 
 ## Execution Recommendation
 
-<!-- Filled from harness verify spec output -->
+<!-- Filled from the planning step's own read-back -->
 
 **Audit Score: N/100**
 

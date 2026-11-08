@@ -41,13 +41,13 @@ not build, each needing the PO's yes, a rejected deferral going back to planning
 `REQ → AC` table, one row per registered requirement (`REQ-12 ← shaping.md R12`, the criterion that grades it,
 or the scope that claims it, or `CUT (PO-approved)`), omitted when the run has no registry. The table is printed,
 never asked: it decides nothing at this gate.
-`verify spec` is re-run here whatever the planning step already checked, because a human may have approved past a
-red. Any red is a hard stop; the reds are DISJOINT (a file in two scopes' substrate without both declaring it
-shared), PA1, SCOPE-ANCHOR, TIER-DIRECTION, SCOPE-DEPS, REQ-UNCOVERED, CONTRACT-SCHEMA, CONTRACT-UNREADABLE,
-BREADBOARD-PLACE and BREADBOARD-UI (PA2 is a warning). The two breadboard reds are planning's to fix — add the
-screen or defer the Place, never fold it into another screen. Scopes are released in dependency order: a scope opens
-the moment the scopes it declares in `depends_on` have settled, up to the dial, and contracts declaring none are one
-wave, every scope eligible at once. Ask at most two: scope cuts? any spike to resolve before build? Frame cuts against
+Read the plan back here yourself, whatever the planning step already checked, because a human may have approved past a
+problem and no script lints it for you. A problem is a hard stop: a file in two scopes' substrate without both declaring it
+shared, a scope aligned with a directory (PA1), a scope whose use case does not resolve, a `depends_on` naming a scope that is
+not there, a requirement no criterion grades and no scope claims, a Place with UI affordances folded into another screen. A scope over
+~15 files is a warning. The breadboard problems are planning's to fix — add the screen or defer the Place, never fold it into another
+screen. Scopes are released in dependency order: a scope opens the moment the scopes it declares in `depends_on` have settled, up to
+`maxParallelScopes`, and contracts declaring none are one wave, every scope eligible at once. Ask at most two: scope cuts? any spike to resolve before build? Frame cuts against
 the pitch's appetite, and surface the pitch's rabbit holes — a cut here is cheap, after round 1 it is expensive.
 
 **L2 — Round Close.** The block carries `green_scopes`, `hammer_proposals` and the build gate (`green`, `red —
@@ -69,7 +69,7 @@ bug? Past the round budget the answer is the census, with the residual bug list.
 **L4 — Ship Sign-Off.** Print the feature as `SHIPPED (deployed)` or `BUILT & VERIFIED — deploy pending (PO)`;
 rounds; the verdict with the dimensions evaluated **and** not evaluated, so "shipped" never reads as "verified
 for all"; QA findings (all held as `~`) or skipped; and the `Requirements:` line **transcribed** from
-`probe requirements --slug <slug> --format table`, never composed (it decides nothing: a clause with no PASS
+the report's Requirements table, which you read off the verdict and `requirements.md`, never composed from memory (it decides nothing: a clause with no PASS
 evidence is a fact the census weighs, not a veto). Deploy is outward-facing and the PO's: the loop stops at built and verified, records
 `deploy pending (PO)` unless the PO says to run the project's own deploy, and never deploys itself. Ask at most
 one: anything to record before closing? Substantive feedback goes to the retro (`resources/retro.md`), which

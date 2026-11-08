@@ -66,8 +66,8 @@ retro believes this project needs (`archetype`, `entry_point`, `build_probe`, `l
 
 **Not a category.** `spec-evaluator` — the single-judge rule: the knowledge base is guidance, never an invariant,
 and routing rules into the judge would turn advice into a second grader. The stop step's census — every
-ownership, exhaustion and requirement claim comes from a probe, and a steered census is prose again. `shapeup`
-and `hill-chart` have no read-side hook, so a rule filed there would never be read. If feedback truly targets
+ownership, exhaustion and requirement claim comes from a file, and a steered census is prose again. `shapeup`
+has no read-side hook, so a rule filed there would never be read. If feedback truly targets
 one of these, say so plainly; do **not** force-fit it into a category.
 
 **Harness defect ≠ worker steering.** When the root cause is the *mechanism itself* — a hook that fails open, a

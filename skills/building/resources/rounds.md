@@ -1,9 +1,7 @@
 # Rounds — what a round is, and why the loop stops where it does
 
-`probe next` sequences the build and evaluate steps; this file is the rationale behind the shape the kernel
-derives, so a PO question about a round can be answered from it and a suspected defect can be recognised.
-None of it is a procedure to follow: if the kernel's step disagrees with this file, report the disagreement
-and stop.
+The phase table in `SKILL.md` is the procedure; this file is the rationale behind the shape of a round, so a PO question
+about one can be answered from it. If a file on disk disagrees with it, report the disagreement and stop.
 
 ## A round
 
@@ -16,9 +14,10 @@ PASS.
 | Builds | every scope, released as its dependencies settle | only the scopes those bugs and criteria are addressed to |
 | Passing areas | n/a | never touched |
 
-**Evaluation fires once per round**, and only when the round's build gate is not red: a feature that does not
-build or launch has nothing for a judge to grade, and the gate's failing step is what round r + 1 fixes. It is
-never called per task, inside the build, or over a partly built board.
+**Evaluation fires once per round.** It is never called per task, inside the build, or over a partly built board. Before you
+dispatch it, build and launch the feature yourself with the project profile's run command: a feature that does not build or
+launch has nothing for a judge to grade, and the failing step is what round r + 1 fixes — skip the evaluation and go to the next
+round with that failure as the bug.
 
 **Regression rule (r > 1).** A fix changes code, and a fix can break what passed. So a fix round's evaluation
 is the fixed bugs' criteria, plus a full re-run of the Test Surface rows of every use case a re-opened scope
@@ -34,7 +33,7 @@ back into a build round, so a finding the PO wants fixed now is a decision to st
 
 **`--no-eval`** skips the evaluator: GATE L3 is crossed over the verdict `not-evaluated` with no judge dispatched, and a
 plain note says nothing was verified beyond each worker's own evidence checks. It is never upgraded to a pass,
-and the shipped report refuses to say PASS over it.
+and the ship report says so in its first line.
 
 ## The attempt loop, per scope
 
@@ -53,34 +52,27 @@ red-but-improved attempt, the exact case the ratchet exists for, exits 1. Read `
 `$?`, and never chain the call under `set -e` or `&&`. On any red, the digested errors fold into the next
 attempt's order; no separate dispatch is needed.
 
-## Why three breakers
+## Why two breakers
 
 ```
-OUTER    round_budget (max rounds)    — the six-week-timebox analogue; one per round, however many scopes
-INNER    attempt_budget (per scope)   — one per T0 attempt; hitting the cap without a green trips THAT scope
+OUTER    maxRounds (launch record)    — the six-week-timebox analogue; one per round, however many scopes
+INNER    attemptBudget (per scope)    — one per T0 attempt; hitting the cap without a green trips THAT scope
                                         only, queued as a proposal for GATE H, never a hard stop
-         no_progress_k (default 2)    — composed into the same breaker: attempts count attempts and cannot see
-                                        that the last two produced nothing, so k consecutive non-`kept` trials
-                                        queue the same proposal early
-DEADLINE wall_clock_budget_s          — opt-in; elapsed seconds since the run receipt
 ```
 
-Both event breakers count *events*, not time: neither can see that round 1 has been running for twenty-nine
-minutes, so a run can burn its whole wall clock with both untouched — and a run killed from *outside* ships
-nothing, not even the scopes already green. A breaker that trips from the inside routes to GATE H, where the
-census compares the shippable subset against the baseline and ships what works. Same clock, different ending.
+Both count *events*, not time. A run killed from *outside* ships nothing, not even the scopes already green; a breaker that
+trips from the inside routes to GATE H, where the census compares the shippable subset against the baseline and ships what
+works. Same budget, different ending.
 
 Nesting is deliberate: a struggling scope must not freeze the others, so only running out of *rounds* stops the
-whole run. A scope that trips its inner breaker is still judged at GATE H like any cut candidate — never
-silently dropped, never allowed to block scopes that are working. An attempt is spent only when the attested
-channels say so (a dispatch receipt plus a leg row or a WorkResult); `probe attempts` derives it, and the round
-loop and the census read the same derivation so they cannot disagree.
+whole run. A scope that trips its inner breaker is still judged at GATE H like any cut candidate — never silently dropped,
+never allowed to block scopes that are working. An attempt counts only when the dispatch receipt attests it, and the receipt
+is in `<run>/receipts/dispatch.jsonl`: a compiled order and a T0 verdict are both writable by the scope being judged.
 
 ## What a worker cannot do
 
-A worker has no port for "I cannot decide this": a WorkResult carries no escalation field. A phase that cannot
-finish leaves no artifact, and `probe next` stops the run at that phase, naming it. The send-back-once belongs to the
-opposite case: a worker that left its artifacts and no WorkResult is dispatched again once, told its artifacts
-stand, and a result the single writer refused goes back once with the refusal's reason. Read the phase's result to
-find what it could not complete and resolve it yourself — amend the spec, widen the scope contract, answer the
-ambiguity with the PO — then ask `probe next` again; only the unfinished work is dispatched.
+A worker has no port for "I cannot decide this": a WorkResult carries no escalation field. A phase that cannot finish leaves
+no artifact, and you stop the run at that phase, naming it. A worker that left its artifacts and no WorkResult is dispatched
+again once, told its artifacts stand, and a result that fails the envelope check goes back once with the reason. Read the
+phase's result to find what it could not complete and resolve it yourself — amend the spec, widen the scope contract, answer
+the ambiguity with the PO — then dispatch again; only the unfinished work is dispatched.

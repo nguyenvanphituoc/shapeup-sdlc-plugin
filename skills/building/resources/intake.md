@@ -11,8 +11,9 @@ skill. **None resolvable → stop.** Print "✋ NO INTAKE — name a kicked-off 
 nothing else: do not emit the L0 block, list downstream gates, or describe the pipeline that "will" run.
 A run with no spec has nothing to drive, and narrating one reads exactly like a run that worked.
 
-A pitch is `shaping.md` plus its `breadboard.md`, which the run finds beside it (or in `shaping/`), takes
-from `--breadboard`, or reads inline in a single `pitch.md`.
+A pitch is `shaping.md` plus its `breadboard.md`. You find the breadboard beside the pitch, in
+`shapeup/<slug>/shaping/`, one the PO names, or inline in a single `pitch.md`, and you copy it to
+`.shapeup/<slug>/breadboard.md` once the run is open: that is the path every planning order freezes and every worker reads.
 
 ## 2. Language check — the harness is English end to end
 
@@ -56,7 +57,7 @@ Residual scan: clean | <n> non-English spans → [file:line …]
 Structure    : matches source | <diff>
 ```
 
-The run **opens on the `.en.md` files** (`--intake-file <name>.en.md`, and `--breadboard <breadboard>.en.md`):
+The run **opens on the `.en.md` files** (`--intake-file <name>.en.md`, and the `<breadboard>.en.md` copied to `.shapeup/<slug>/breadboard.md`):
 the intake is what every planning step reads, so a translation made after the run opened reaches nobody. A run
 already open on the original is reopened with `init run --force` — nothing has been planned yet. Once the run
 is open, write the audit trail (what was detected, skipped or flagged, the glossary diff, the scan result) to
@@ -69,10 +70,10 @@ Never inferred; ask for what the pitch does not say.
 | | |
 |---|---|
 | Appetite | the pitch frontmatter's `appetite`. Missing or uncapped is a risk: say so at L0 and again at the board gate. It sizes the round budget: 1 week → 2 rounds, 2 weeks → 3, 6 weeks → 4. |
-| Lens | `lite` \| `standard` \| `cross-context` (default `standard`) |
+| Lens | `lite` \| `standard` \| `cross-context` (default `standard`) — carried as `lens` in every `plan` order's payload |
 | Stack hint | aims the Scout's sweeps and the run commands (e.g. "pnpm, Next 16 web :3000") |
-| Eval dimensions | default `auto`: the order resolves the set from the spec. Name a set only on request; it must reach `init run --dimensions`, or it grades nothing. What is left out is reported at the ship gate as not evaluated. |
-| Rounds, attempts | default 3 rounds, 5 attempts per scope per round. A scope also ends early after 2 consecutive attempts that kept nothing (`no_progress_k`, set per scope contract), queuing the same GATE H proposal — `resources/rounds.md` says why |
+| Eval dimensions | default `auto`: the order resolves the set from the spec. Name a set only on request; it must reach every `evaluate` order's `dimensions`, or it grades nothing. What is left out is reported at the ship gate as not evaluated. |
+| Rounds, attempts | default 3 rounds, 5 attempts per scope per round. `resources/rounds.md` says why there are two breakers |
 | Auto level | `interactive` (default): pause at every gate · `auto`: low-risk gates pre-answered, still pause at the judgment gates and ship · `unattended`: headless, needs an answer set |
 | Models | resolve once: flags, then `.claude/settings.local.json`, then `.claude/settings.json`, then defaults, and pass the result as `--exec-model` / `--eval-model` / `--qa-model`. Exec and eval must be sonnet or above — `init run` refuses a cheaper tier. A model the member's plan does not offer degrades one tier down, and the degrade is said at the L0 gate, never silent. |
 | Run commands | the build command (`run_cmd`), and the profile's `build_probe` and `launch_probe`. A `mobile` profile with no launch probe has nobody owning the install and launch risk: say so. |
@@ -85,20 +86,19 @@ argument is where this step goes wrong. **Every switch the operator typed goes o
 run` writes the launch record (§7) in the same act as the receipt, so a switch left off it does nothing.
 
 ```bash
-node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" init run --slug <slug> --intake-file <path> --auto-level <interactive|auto|unattended> [--dimensions <a,b>] [--gate-answers <ci|guarded|path.json>] [--wall-clock-budget <seconds>] [--max-rounds 3] [--attempts 5] [--exec-model <m>] [--eval-model <m>] [--qa-model <m>] [--no-eval] [--no-qa] [--parallel-scopes <N>] [--adversarial-verify] [--breadboard <path>]
+node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" init run --slug <slug> --intake-file <path> --auto-level <interactive|auto|unattended> [--gate-answers <ci|guarded|path.json>] [--max-rounds 3] [--attempts 5] [--exec-model <m>] [--eval-model <m>] [--qa-model <m>] [--no-eval] [--no-qa] [--parallel-scopes <N>]
 ```
 
 Ask for every value in §3 *before* this command, so the record is right the first time; a change the PO asks
 for at the L0 gate (§6) re-opens the run with `--force` — nothing has been planned yet.
 
 **Exit 2 naming a role** means a model is below the floor (`exec` and `eval` must be sonnet or above; `qa` and,
-under `--no-eval`, `eval` are not checked): say which, and ask for another. **`--tiny` and `--lane tiny` exit 2
-too**: the small-change lane is no longer served. Run the full loop and set the pitch's appetite small.
+under `--no-eval`, `eval` are not checked): say which, and ask for another. An unknown switch exits 2 too, naming it.
 
-**Exit 3 means a run is already open.** The refusal prints the derived facts and the launch record it keeps —
-the switches typed to *this* call were not applied. Run `probe resume --slug <slug> --mark-relaunch`, and go to
-the loop with `--restart`. `--force` reopens deliberately and writes a fresh record, and discards the round
-history the breaker counts; only the PO asks for it.
+**Exit 3 means a run is already open, or the worker roster is missing.** For an open run the refusal prints the
+launch record it keeps — the switches typed to *this* call were not applied — and the loop continues from the phase
+table in `SKILL.md`. `--force` reopens deliberately: it answers every order nobody answered as abandoned, retires the
+fence's pointer and writes a fresh record; only the PO asks for it.
 
 ## 5. The shared profile
 
@@ -111,10 +111,11 @@ wired without it, and a typo in the `archetype` enum must fail rather than silen
 | `archetype` | `client-only-game` · `web-service` · `mobile` · `library` · `data-pipeline` |
 | `entry_point` | the composition root the wiring map names its call sites against. Where some module composes the app, name that one rather than the file the platform happens to start |
 | `build_probe` | asserts the BUILT ARTIFACT covers what the run wrote — a green exit code is not proof the feature compiled when the toolchain compiles only what an entry point reaches |
-| `launch_probe` | installs, starts and asserts the first screen. A `mobile` profile without one is warned about every round, because nothing else launches the app |
+| `launch_probe` | installs, starts and asserts the first screen. A `mobile` profile without one is worth saying at L0, because nothing else launches the app |
 
-The two probes feed the round build gate: a scope's fixture can be green while its code never compiles, on any
-toolchain that compiles only what the entry point reaches, so `build_probe` asserts the built artifact.
+The loop runs them itself, once per round before it dispatches the evaluator: a scope's fixture can be green while its
+code never compiles, on any toolchain that compiles only what the entry point reaches, so `build_probe` asserts the
+built artifact. A red step ends the round with no verdict, and its failure is the next round's bug.
 
 ## 6. The L0 gate
 
@@ -140,9 +141,8 @@ Exit 4: put the block to the PO and wait. Exit 0 `proceed`: continue. Exit 5: st
 
 ## 7. The launch record
 
-`.shapeup/<slug>/run-args.json` is what this run was launched with, written by `init run` and read by the loop
-and by `reduce ship`; it is the only place a typed switch survives. The loop reads nothing but the record and
-the artifacts.
+`.shapeup/<slug>/run-args.json` is what this run was launched with, written by `init run` and read by the loop;
+it is the only place a typed switch survives. The loop reads nothing but the record and the artifacts.
 
 | Switch on `init run` | Field |
 |---|---|
@@ -150,11 +150,8 @@ the artifacts.
 | `--gate-answers <set>` | `answers` — the answer set the gates resolve through |
 | `--exec-model` `--eval-model` `--qa-model` | `models.{exec,eval,qa}` — a flag, else `SHAPEUP_EXEC_MODEL` / `SHAPEUP_EVAL_MODEL` / `SHAPEUP_QA_MODEL`, else `sonnet`; `qa` follows `exec` |
 | `--max-rounds` `--attempts` | `budgets.{maxRounds,attemptBudget}` |
-| `--no-eval` | `noEval` — skips the evaluation; a shipped report says so and never reads as verified, and `reduce ship` refuses to freeze a PASS report over a run launched with it |
+| `--no-eval` | `noEval` — skips the evaluation; the ship report says so in its first line and never reads as verified; you do not write PASS over a run launched with it |
 | `--no-qa` | `noQa` — skips the QA hunt |
 | `--parallel-scopes N` | `maxParallelScopes` — how many scopes build at once (default 4; `1` = sequential) |
-| `--adversarial-verify` | `adversarialVerify` — recorded and reported as not carried by the loop |
-| `--lane full` | *(recorded only)* — consumed by `kernel/init/run.mjs` as `args.lane`; the only lane served, and `tiny` is refused |
-| `--wall-clock-budget S` | *(not a record field)* — lands in the receipt as `wall_clock_budget_s`, consumed by `kernel/verify/budget.mjs` as `wall_clock_budget_s`; the deadline breaker reads it from there |
 
 Then go to the loop.

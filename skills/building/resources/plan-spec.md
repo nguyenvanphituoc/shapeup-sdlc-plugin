@@ -45,14 +45,12 @@ interactive, at most two questions each.
                                                                       [plan-references/integration-analysis.md]
 6  TASKS       atomic, ordered, executable → tasks/ (the LOCAL root, the one uncommitted branch of the
                tree: regenerable, machine-local)                      [plan-references/task-generation.md]
-7  DERIVE+LINT mechanical, not yours to grade — the step's `checks`:
-                 reduce board --slug <slug> --write      unlocks = the depends_on inverse; Σ hours; critical
-                                                         path; appetite arithmetic — an overflow is a fact
-                                                         you REPORT for the stop gate, never resolve
-                 verify spec --slug <slug>               structure, wikilinks, edge symmetry — fix reds,
-                                                         then run it again. BREADBOARD-PLACE /
-                                                         BREADBOARD-UI: add the screen or defer the Place
-                                                         with the PO's yes; never fold it into another
+7  DERIVE+READ BACK  not yours to grade, and no script does it for you:
+                 recompute `unlocks` as the depends_on inverse over the whole board; sum the hours; find the
+                 critical path; do the appetite arithmetic — an overflow is a fact you REPORT for the stop
+                 gate, never resolve. Then read the tree back: structure, wikilinks, edge symmetry — fix what
+                 you find. BREADBOARD-PLACE / BREADBOARD-UI: every Place with UI affordances is its own
+                 screen — add it or defer the Place with the PO's yes; never fold it into another
                → scope-summary.md + synthesis.md (traceability matrix, risk register, dependency graph —
                  the judgment layers over the board's numbers)
 8  INDEX       _index.md (pitch digest + document map) + feedback.md template
@@ -66,7 +64,7 @@ the evaluator grades against and a reviewer needs.
 
 - One task = one verifiable change (one package, one concern); acceptance criteria checkable by running
   commands.
-- `depends_on` explicit; `unlocks` NEVER hand-authored — `reduce board --write` recomputes it.
+- `depends_on` explicit; `unlocks` is the `depends_on` inverse, recomputed whenever a task changes, never filled in by feel.
 - Contract-first: an implementation task touching a repository requires its contract file (else generate
   the contract-stub task first); third-party + `⏳ TBD` → the SPIKE task precedes and blocks it
   (`time_box_hours` hard cap, `api_ref`, `blocks[]`).
@@ -96,9 +94,9 @@ run can be measured against.
 ## What is yours and what is not
 
 You write the spec tree, the board and the working notes. You do not write `run-state` (dead — the loop
-owns run truth), `tasks/_index.md` status flips for built work (the ingest step's), scope contracts (the
+owns run truth), `tasks/_index.md` status flips for built work (the loop's, when it applies a result), scope contracts (the
 scopes substep's), or any discovered-rounds counter. Verify before `close`: every task has
 `use_case_refs`, explicit `depends_on`, command-verifiable acceptance criteria; no hand-authored `unlocks`;
-`reduce board --write` ran after the last board change; `verify spec` reports 0 red (or each remaining red
+`unlocks` was recomputed after the last board change; you read the tree back and found 0 red (or each remaining red
 is explained to the PO); every Test Surface row cites a D1–D4 source (gaps raised, not filled); appetite
 overflow, if any, is reported, not resolved.

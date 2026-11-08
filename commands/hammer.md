@@ -6,8 +6,8 @@ Use the **building** skill's `stop` sub-command on $ARGUMENTS.
 The stop decision. Censuses the open items (QA findings, discovered-ledger rows, attempt-budget
 proposals), compares the product to the **pitch's baseline — what customers live with today, never
 the ideal** — and returns a cut list plus a ship verdict for the TL/PO to confirm. You do it in this
-session, as the `kind: stop` step `probe next` hands out, and every ownership, exhaustion and
-requirement claim cites the probe it came from (`probe owner`, `probe attempts`, `probe requirements`).
+session, and every ownership, exhaustion and requirement claim cites the file it came from — the scope
+contracts, the dispatch receipts and trials, the verdict and `requirements.md`.
 
 Handles all three arrival paths: the normal stop (all scopes finished), an exhausted round
 budget, and an exhausted per-scope attempt budget. The verdict is a proposal — promotion of cut

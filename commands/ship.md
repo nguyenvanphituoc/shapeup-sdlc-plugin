@@ -13,17 +13,17 @@ a run that left no receipt did not happen.
 
 ## How the run executes
 
-`building` drives the run in this session. It opens the run, then asks the kernel `probe next` what
-comes next and does exactly that, over and over: dispatch a worker, build the released scopes in
-parallel, run a kernel command, cross a gate, close. Three things follow:
+`building` drives the run in this session. It opens the run, then reads the run's files and takes the first
+phase whose condition holds, over and over: dispatch a worker, build the released scopes, run a kernel
+command, cross a gate, close. Three things follow:
 
 - **A gate is answered where it is reached.** The loop prints the gate block, asks the PO one
   question with a recommendation, records the answer with the source `PO (live)`, and goes on. There
   is no relaunch after an answer.
-- **A killed session loses nothing.** The next step is derived from artifacts on disk, never from
+- **A killed session loses nothing.** The next phase is read off the files on disk, never from
   the conversation, so `/ship` again over an open run resumes it: a finished phase is not re-run.
 - **Every agent the run spawns is a worker** — `orient`, `task-executor`, `spec-evaluator` and
-  `qa-edge-hunter` — and each leaves a row in the run's records. Planning is not a worker: the loop does it in this session, under a write fence of its own, and each substep leaves its own row too. Nor are the census at GATE H, the retro after a ship, or the English copy of a non-English pitch: the loop does those itself, from the same `probe next` steps.
+  `qa-edge-hunter` — and each leaves a row in the run's records. Planning is not a worker: the loop does it in this session, under a write fence of its own. Nor are the census at GATE H, the ship report, the retro after a ship, or the English copy of a non-English pitch: the loop does those itself.
 
 **`--tiny` is no longer served** — a breaking change in 4.0. The separate small-change lane (the `tech-lead`
 skill's prose loop) was retired with that skill, and `init run` refuses `--tiny` and `--lane tiny` with exit 2. If
@@ -44,19 +44,14 @@ Only run headless/auto if the user explicitly asks for it in their message:
 
 Additional flags, pass through to `building` only when the user names them:
 - `--breadboard <path>` → the pitch's breadboard, when it is not beside the pitch. A pitch shaped
-  with `/shapeup` is `shaping.md` + `breadboard.md`; the run finds a `breadboard.md` in the same
+  with `/shapeup` is `shaping.md` + `breadboard.md`; the loop finds a `breadboard.md` in the same
   folder (or in `shaping/`) on its own, and reads one written inline in a single `pitch.md`. Its
-  Places become the spec's screens, and spec-lint stops the run at GATE L1b when one is missing or
-  folded into another screen.
+  Places become the spec's screens, and GATE L1b is where a missing or folded one is caught.
 - `--gate-answers <ci|guarded|interactive|path.json>` → the pre-recorded PO decisions this run
   crosses its gates with. Gates still emit their blocks and still record a decision; the decision's
   **source** becomes the answer set instead of a live human, and the ledger says so. Generate one
   with `harness gate --init --preset ci --by "<name>"`. Without one an unattended run waits at the
-  first ⏸ until the wall-clock budget expires, having built nothing.
-- `--wall-clock-budget <seconds>` → arm the deadline breaker. Off by default. Set it in any lane
-  with a hard clock and *below* the external kill, so the harness trips its own breaker first: past
-  the deadline no new build round opens and the run routes to GATE H, where the census ships whatever
-  is green. A run killed from outside ships nothing.
+  first ⏸, having built nothing.
 - `--parallel-scopes N` → how many scopes build at once (default 4). Concurrency is a cost question
   before it is a speed one — every extra leg is another worker's full context. `1` builds scopes one
   at a time.

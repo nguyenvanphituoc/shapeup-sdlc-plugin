@@ -65,7 +65,7 @@ audit_rules_version: "2.5"
 
 ## Audit Report
 
-*Generated from harness verify spec output — do not edit manually.*
+*Written by the planning step from its own read-back — do not edit manually.*
 *skill_version: 2.1 | audit_rules_version: 2.1*
 
 ### Score Summary

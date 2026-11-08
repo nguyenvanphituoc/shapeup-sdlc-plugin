@@ -23,8 +23,8 @@ rely on (anything absent = **unknown**; never invent it):
 
 | Field | What it is |
 |---|---|
-| `payload.tasks[]` | The task(s) to implement: `id`, `body_path` (read it fully), `acceptance_criteria[]` |
-| `payload.scope_contract` | The active scope: `affordance_manifest`, `e2e_verification_fixtures`, topology |
+| `payload.tasks[]` | The task(s) to implement: `id` and `body_path` — read the file fully; its acceptance criteria are in it |
+| `payload.scope_contract` | The path of the active scope's contract (`scopes/<id>.md`) — read it: `affordance_manifest`, `e2e_verification_fixtures`, topology |
 | `substrate.allowed` / `substrate.shared` | The ONLY globs you may write. A needed file outside them → ESCALATE, never a write (a sandbox hook blocks it anyway) |
 | `payload.decisions[]` | Adjudicated answers from prior escalations — binding precedent, apply them |
 | `payload.digested_errors[]` | `{file, line, core_message}` triples from the previous attempt's failed verification (a test that failed by name with no file:line — `FAIL TS-05-05 step 4: …` — arrives with `file: null` and the whole line as its message) — your starting bug list |
@@ -165,13 +165,13 @@ suffix come from `order_id`) matching `work-result.schema.json`, and print its p
 }
 ```
 
-`ac` carries the checkbox text **verbatim** — the ingest script ticks boxes by matching it.
+`ac` carries the checkbox text **verbatim** — the loop ticks boxes by matching it.
 Failing/skipped ACs are reported as such, never omitted. Discovered work is *reported*, never
 self-planned: no new task files, no spec edits — one raw line per discovery.
 
 You do NOT: tick AC boxes, edit `tasks/_index.md`, write `run-state.md`, touch the discovery
 ledger, mark anything done outside your result, or update any other spec document. The
-orchestrator's `harness reduce ingest` does all of that from your envelope.
+orchestrator's loop does all of that from your envelope.
 
 ---
 
@@ -194,17 +194,13 @@ orchestrator's `harness reduce ingest` does all of that from your envelope.
 # Orchestrated (the loop's build step) — the canonical form
 /task-executor --order .shapeup/checkout-vnpay/orders/r2-a3.json
 
-# Standalone — the preamble shim compiles a minimal WorkOrder from the flags, then the
-# single code path above runs. Requires the harness scripts (plugin install):
-#   node "<kernel>" compile --task TASK-003 --slug checkout-vnpay
-#   node "<kernel>" compile --next --slug checkout-vnpay
+# Standalone — the preamble shim writes a minimal WorkOrder by hand from the flags (the loop's
+# `resources/orders.md` has the shape), then the single code path above runs:
 /task-executor --spec shapeup/checkout-vnpay/spec/ --task TASK-003
 /task-executor --spec shapeup/checkout-vnpay/spec/ --next
 ```
 
-Standalone shim: derive `<slug>` from the `--spec` path (`shapeup/<slug>/spec`),
-run `harness compile` with the matching flags (mode becomes `standalone`), then proceed
-against the compiled order exactly as if dispatched. After writing the WorkResult, run
-`node "<kernel>" reduce ingest <result path>` yourself and show the user its
-summary — standalone has no orchestrator to ingest for you. One code path inside; two entry
+Standalone shim: derive `<slug>` from the `--spec` path (`shapeup/<slug>/spec`), write a minimal order
+by hand with `"mode": "standalone"`, then proceed against it exactly as if dispatched. After writing the
+WorkResult, show the user its summary — standalone has no orchestrator to apply it for you. One code path inside; two entry
 points outside.

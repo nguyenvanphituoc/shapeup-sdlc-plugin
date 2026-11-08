@@ -361,8 +361,8 @@ Slug rules:
 ## Link-Field Integrity (v3.3)
 
 **`depends_on` is the single authoritative edge; `unlocks` is derived, never hand-authored.**
-On EVERY board write — a full spec step, a reconcile — recompute (via
-`harness reduce board --write`, never by hand) the `unlocks` field of every task on the board as the
+On EVERY board write — a full spec step, a reconcile — recompute (from the whole board, every time — never
+by feel) the `unlocks` field of every task on the board as the
 exact inverse of the full board's `depends_on` graph, then write it. Adding one task that
 declares `depends_on: [TASK-007]` therefore rewrites `TASK-007.unlocks` in the same pass.
 "Write both sides when you remember" allows drift; a derived field cannot drift
@@ -563,7 +563,7 @@ tasks). Scope (Basecamp sense) maps onto a UC; an invariant lives *inside* the U
    task-executor / the tech lead; this mode only surfaces the disagreement.
 9. Regenerate ONLY the derived files: tasks/_index.md, scope-summary.md, synthesis.md
    (+ the unlocks frontmatter recompute from step 7).
-10. Run harness reduce board (Appetite Guard arithmetic, below); report overflow as a discovery.
+10. Do the Appetite Guard arithmetic below over the whole board; report overflow as a discovery.
 ```
 
 **Appetite Guard (forcing function, not a report):**
