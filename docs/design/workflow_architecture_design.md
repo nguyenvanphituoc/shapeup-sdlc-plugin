@@ -2,7 +2,7 @@
 
 > **Historical.** This note describes the design the run had before 4.0: a Workflow script as the control
 > plane, couriers to type its kernel commands, a relaunch after every paused gate. [ADR-0004](adr/0004-single-loop.md)
-> replaced that with a loop in the session over the kernel's `probe next`. The reasoning here stands as a record
+> replaced that with a loop in the session over the kernel's `probe next` (itself removed since, [ADR-0006](adr/0006-engine-removed.md)). The reasoning here stands as a record
 > of why that shape was tried; the component names and channels it draws no longer exist.
 
 The extraction review that argued *whether* to move the control plane into a workflow has been

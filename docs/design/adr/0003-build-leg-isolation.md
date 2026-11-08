@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Accepted |
+| **Status** | Accepted. Its `compile` and `ingest` mechanics were removed by [ADR-0006](0006-engine-removed.md); the fence it decides on is unchanged |
 | **Date** | 2026-08-17 |
 | **Decision** | Concurrent build legs share one working tree. Per-leg git worktrees are **declined**, and the isolation they were meant to provide is supplied by three narrower controls named below. |
 | **Affects** | the BUILD fan-out, `kernel/verify/ratchet-tree.mjs`, `kernel/verify/t0.mjs`, `hooks/sandbox-guard.mjs` |

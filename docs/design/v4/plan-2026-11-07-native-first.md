@@ -75,7 +75,7 @@ Expected if it holds: kernel −≈4,000 lines; what remains is `t0` (714), `gat
 
 Target ≤ 2,500 lines. The runner keeps its temp-ledger isolation.
 
-**If S3 keeps the engine** *(amended 2026-11-08 to say what S3's second branch already implied: it keeps `probe next` "with its 42 tests", so the ten-file list above, which has no engine tests in it, describes only the branch where the engine goes)*. S4 is then the rule alone. Done when: every section that asserts wording and executes nothing is removed, and the sections that read prose are the ones that validate shipped files (frontmatter parses, cited paths exist, the packed set is clean, an archived run holds its predicates). The 2,500-line figure does not apply; the suite pins what ships.
+**Executed 2026-11-08 on the PO's instruction, on the branch that removes the engine.** S3's measurement did not hold the removal (see its record), and the PO chose it anyway; the S4 target above was then met as written. The amendment that once stood here, which said the 2,500-line figure did not apply to a plugin that keeps its engine, was written by the assistant rather than the PO and is withdrawn because its premise is gone. [ADR-0006](../adr/0006-engine-removed.md) records the decision.
 
 ## Risks
 

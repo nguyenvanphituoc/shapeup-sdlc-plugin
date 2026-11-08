@@ -1,5 +1,7 @@
 # 07 — Domain ERD
 
+> **Read the writers and readers below with the engine removed (ADR-0006).** Where a row names `compile`, `ingest`, `probe` or `reduce`, the loop now does that job; the records `HillShard`, `RoundBuildVerdict`, `ResumeFacts` and `LegRow` are retired and no longer written.
+
 [← Back to index](README.md)
 
 > **Generated from** [`kernel/schemas/domain.schema.json`](../../kernel/schemas/domain.schema.json)
@@ -34,14 +36,14 @@ no `run_id`: it is worker-written, and it reaches the key through `order_id`, wh
 fully anchor into the committed tier (a task's `use_case_refs`/`linked_docs`, a T0
 artifact's `scope_id`, a discovery line's `[UC-NN]` tag), while a SHARED document links
 only its committed siblings — never a LOCAL path or a machine-local task id, which would
-dangle on every fresh clone. `harness verify spec` enforces both halves mechanically
+dangle on every fresh clone. `the loop's planning read-back` enforces both halves mechanically
 (`TIER-DIRECTION` red for a `[[tasks/...]]` link in a spec doc, `UC-ANCHOR` red for a task
 with an empty or unresolvable anchor).
 
 ## 7.1 — The envelope port (WorkOrder → worker → WorkResult)
 
 Everything a worker receives arrives inside a WorkOrder; everything it used to write into
-shared files it now returns inside a WorkResult, and `harness reduce ingest` is the single
+shared files it now returns inside a WorkResult, and the loop is the single
 writer that projects the result into shared state.
 
 ```mermaid
@@ -55,9 +57,9 @@ erDiagram
 
     WorkResult ||--o{ TaskResult : "task_results[]"
     TaskResult ||--o{ AcResult : "ac_results[]"
-    TaskResult }o--|| TaskBoardFile : "task_id — ingest ticks ACs, flips status"
+    TaskResult }o--|| TaskBoardFile : "task_id — the loop ticks ACs, flips status"
     WorkResult ||--o{ FileTouched : "files_touched[]"
-    WorkResult ||--o{ Discovery : "discoveries[] — ingest appends to the ledger"
+    WorkResult ||--o{ Discovery : "discoveries[] — the loop appends to the ledger"
     WorkResult ||--o| Verdict : "verdict (spec-evaluator only)"
 
     WorkOrder {
@@ -108,7 +110,7 @@ erDiagram
         string notes
     }
     AcResult {
-        string ac "checkbox text VERBATIM — ingest matches on it"
+        string ac "checkbox text VERBATIM — the loop matches on it"
         enum result "pass | fail | skipped"
         string evidence "no evidence = fail by the worker's own hand"
     }
@@ -135,15 +137,15 @@ erDiagram
 
 A verdict on a scoped spec is structurally invalid without a T0 citation; the sha256 is
 recomputed from disk — content-addressed evidence the generator cannot fabricate. Both ends are
-mechanical: `harness compile` hands the evaluator the artifacts to cite (`t0_artifacts`, each
+mechanical: `the loop` hands the evaluator the artifacts to cite (`t0_artifacts`, each
 scope's green verdict for the round) and the launch evidence for `[ui]` rows (`build_gate`, the
-round's build gate artifact; `launch_cmd`, the profile's launch probe), and `harness probe eval` and `harness reduce ingest` refuse a
+round's build gate artifact; `launch_cmd`, the profile's launch probe), and `the loop` and `the loop` refuse a
 scoped PASS/FAIL that cites none.
 
 ```mermaid
 erDiagram
     Verdict ||--o{ CriterionVerdict : "criteria[] → appended as VerdictLedgerLine (JSONL)"
-    Verdict ||--o{ RefutedAc : "refuted[] — ingest un-ticks the box"
+    Verdict ||--o{ RefutedAc : "refuted[] — the loop un-ticks the box"
     Verdict ||--o{ T0Citation : "t0_citations[] (required on scoped specs)"
     T0Citation }o--|| T0Artifact : "path + recomputed sha256"
     T0Artifact ||--o{ CommandResult : "fixtures[] + db_probe"
@@ -197,7 +199,6 @@ erDiagram
     ScopeContract ||--o{ TaskRef : "tasks[] — scope_id is the stable key"
     ScopeContract ||--o{ AffordanceEntry : "affordance_manifest"
     ScopeContract ||--o{ T0Artifact : "one per attempt"
-    ScopeContract ||--o| HillShard : "phase DERIVED, never authored"
     ScopeContract ||--o{ ScopeContract : "superseded_by[] (supersede-never-delete)"
 
     ScopeContract {
@@ -218,48 +219,35 @@ erDiagram
         string[] required_states "subset of idle loading success error empty"
         string source "optional: the breadboard U# it implements"
     }
-    HillShard {
-        string scope_id PK "SHARED hill/scope-id.yml"
-        enum phase "UPHILL_UNKNOWN → UPHILL_SOLVED → DOWNHILL_EXECUTION → FINISHED"
-    }
 ```
 
 ## 7.4 — Standalone artifacts (no relationships beyond the slug root)
 
 | Entity | Tier | Location | Sole writer | Readers |
 |---|---|---|---|---|
-| `VerdictLedgerLine` | LOCAL | `evaluation/.verdicts-<target>.jsonl` | harness reduce ingest | spec-evaluator (flip detection) |
+| `VerdictLedgerLine` | LOCAL | `evaluation/.verdicts-<target>.jsonl` | the loop | spec-evaluator (flip detection) |
 | `MetricsRow` | LOCAL | `metrics/<machine-id>.jsonl` | none — the ship-time harvest step retired; rows an earlier release wrote keep this shape | none |
-| `ActiveScopePointer` | LOCAL | `.shapeup/active-scope` | harness init run (GATE L0) — write-once per run, not writable by any worker | harness verify budget. **No hook reads it**: the advisory hooks that once did were retired with the hook diet, and `sandbox-guard` never read it |
-| `ActiveOrderPointer` | LOCAL | `.shapeup/active-order` | harness compile (published as it writes each order); retired by harness reduce ship and harness init run --force | sandbox-guard hook. It names the RUN and nothing more: the guard enforces the substrate of *every* live order for that run — compiled, with no result at least as new as the order's own `compiled_at` — because with scopes building concurrently the writer may not be the order the pointer happens to name, and because an order the pointer named is not thereby still executing |
-| `DispatchReceipt` | LOCAL | `<slug>/receipts/dispatch.jsonl` | dispatch-receipt hook (PostToolUse, append-only) — a sub-agent cannot write its own attestation | harness reduce ingest (refuses an orchestrated result with no matching receipt), the export (a leg's start) |
-| `LegRow` | LOCAL | `<slug>/legs.jsonl` | harness reduce ingest (append-only, one row per closed leg) | harness probe leg (whether a scope's result reached the board) |
+| `ActiveScopePointer` | LOCAL | `.shapeup/active-scope` | harness init run (GATE L0) — write-once per run, not writable by any worker | the loop. **No hook reads it**: the advisory hooks that once did were retired with the hook diet, and `sandbox-guard` never read it |
+| `ActiveOrderPointer` | LOCAL | `.shapeup/active-order` | the loop (published as it writes each order); retired by the loop and harness init run --force | sandbox-guard hook. It names the RUN and nothing more: the guard enforces the substrate of *every* live order for that run — compiled, with no result at least as new as the order's own `compiled_at` — because with scopes building concurrently the writer may not be the order the pointer happens to name, and because an order the pointer named is not thereby still executing |
+| `DispatchReceipt` | LOCAL | `<slug>/receipts/dispatch.jsonl` | dispatch-receipt hook (PostToolUse, append-only) — a sub-agent cannot write its own attestation | the loop (refuses an orchestrated result with no matching receipt), the export (a leg's start) |
 | `SafetyOverrides` (v1.2) | LOCAL | `.shapeup/safety-overrides.json` | **human PO only** — outside the run-trace carve-out, so no worker can write it | safety-spine hook |
-| `RequirementClause` (spine v1.3) | SHARED | `<slug>/requirements.md` | the plan activity's requirements substep (extraction only; a `CUT` is a PO governance edit) | harness verify spec (covers-closure), the loop (the L1b table), human |
+| `RequirementClause` (spine v1.3) | SHARED | `<slug>/requirements.md` | the plan activity's requirements substep (extraction only; a `CUT` is a PO governance edit) | the loop's planning read-back (covers-closure), the loop (the L1b table), human |
 | `WiringMap` (spine v1.3) | SHARED | `<slug>/wiring-map.md` | the plan activity's wire substep (SOLE writer, direct — like `scopes/*.md`); `entries[]` are `WiringEntry` | the scopes substep (seam), spec-evaluator |
-| `ProjectProfile` (spine v1.3) | SHARED | `<slug>/project-profile.md` | the loop, at the intake gate (not harness compile, which stays pipeline-blind) | harness verify build (`build_probe` + `launch_probe`), the plan activity (wire) |
-| `RunArgs` (the launch record) | LOCAL | `<slug>/run-args.json` | harness init run (same act as the receipt; the model floor is enforced as it is written) | harness probe next, harness reduce ship (the no-evaluation guard) |
-| `ResumeFacts` | EMBEDDED | stdout of `harness probe resume` — never written to disk | harness probe resume (derived from the run's own artifacts) | harness probe next, harness init run (the already-open refusal), a resumed session |
-| `RoundBuildVerdict` | LOCAL | `<slug>/build/r<N>-t<T>.json` | harness verify build (once per round before EVAL: the ledger's `run_cmd`, then the profile's probes, stopping at the first failure; immutable per gate run) | harness reduce hill (a red round's T0-greens move no dot), harness compile (each failing step → `payload.bugs` for round N+1; the newest artifact → the same round's evaluate order as `payload.build_gate`), tech-lead (GATE L2 block) |
+| `ProjectProfile` (spine v1.3) | SHARED | `<slug>/project-profile.md` | the loop, at the intake gate (not the loop, which stays pipeline-blind) | the loop (`build_probe` + `launch_probe`), the plan activity (wire) |
+| `RunArgs` (the launch record) | LOCAL | `<slug>/run-args.json` | harness init run (same act as the receipt; the model floor is enforced as it is written) | the loop, the loop (the no-evaluation guard) |
 
 ## 7.4b — Telemetry & resilience read-plane (v1.2)
 
 The absorb-audit additions are all *derived* records: they read the run's files and project
-them — none of them is a new write surface for workers, and `harness reduce ingest` remains the
+them — none of them is a new write surface for workers, and `the loop` remains the
 sole SHARED-state writer.
-
-```mermaid
-erDiagram
-    HarnessRun ||--o| ResumeFacts : "derived from files by harness probe resume"
-    T0Artifact ||--o| ResumeFacts : "round/attempt from latest verdict filename"
-```
 
 ## 7.5 — Vocabulary enums
 
 | Enum | Values |
 |---|---|
 | `WorkerName` (4) | task-executor · spec-evaluator · orient · qa-edge-hunter — the loop (`building`) is not a member: it is the `worker` of a fence-only `plan` order, which the order schema accepts beside the roster |
-| `Operation` (7) | execute, fix, spike · evaluate · orient · hunt · plan (fence-only: one order per planning substep — `requirements`, `spec`, `wire`, `scopes` — answered by `reduce ingest --close-plan`, no sub-agent) |
+| `Operation` (7) | execute, fix, spike · evaluate · orient · hunt · plan (fence-only: one order per planning substep — `requirements`, `spec`, `wire`, `scopes` — answered by the loop writing `results/plan-<step>.json`, no sub-agent) |
 
 ## 7.6 — Payload fields by worker (`x-payload-by-worker`)
 

@@ -31,9 +31,9 @@ never `.mjs` paths.
   (`hooks/sandbox-guard.mjs` is the reference implementation).
 - A version bump touches both `package.json` and `.claude-plugin/plugin.json`;
   release CI fails on mismatch.
-- A new worker skill takes 3 steps: `SKILL.md` → declare fields in
-  `kernel/schemas/domain.schema.json` → teach `harness compile` and
-  `harness reduce ingest`. Step 1 alone yields a skill the orchestrator can't dispatch.
+- A new worker skill takes 4 steps: `SKILL.md` → declare fields in
+  `kernel/schemas/domain.schema.json` (and add it to `WorkerName`) → `agents/<name>.md` preloading it → a row in
+  the `building` skill's phase table and its order in `resources/orders.md`. Step 1 alone yields a skill the loop can't dispatch.
 - `tools/` is repo-only and never ships; what ships is the `files` allowlist in `package.json`.
 - Commit subjects: `type(scope): lowercase declarative`.
 - A gate code, or a new custom notation symbol in the spirit of `✦ ✚ ★ ✧ ⚙ ⏸ ~` (not an ordinary

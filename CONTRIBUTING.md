@@ -54,11 +54,11 @@ behaviour. Do not hand-edit `docs/assets/demo-gate.svg`.
 ```
 skills/<name>/SKILL.md    one skill = one craft. Markdown. This is most of the project.
 skills/*/scripts/         mechanics belonging to one skill, co-located with it
-skills/building/         the loop: a thin skill over the kernel's `probe next`
-kernel/                   the deterministic half: compile, ingest, t0-verify, trace, probe next
+skills/building/         the loop: a skill that drives a run over the run's own files
+kernel/                   the deterministic half: t0, the gate resolver, the envelope check, init run, order
 kernel/schemas/           domain.schema.json + the envelope schemas
-hooks/                    five .mjs hooks; hooks.json wires them
-tests/structural.mjs      the test entrypoint
+hooks/                    three .mjs hooks and the envelope check; hooks.json wires them
+tests/structural.mjs      the test entrypoint (ten modules, each executing shipped code)
 ```
 
 The one architectural thing worth knowing before you change anything: **the orchestrator owns
@@ -79,8 +79,9 @@ highest friction today (we know; help welcome):
 2. Declare the fields it needs in the central registry
    `kernel/schemas/domain.schema.json`. Every cross-boundary field is defined there
    **once**, annotated with its tier, location, writer and readers. No skill defines its own.
-3. Teach `harness compile` how to build its order and `harness reduce ingest` how to apply its
-   result.
+3. Add `agents/<name>.md` (its tools, its model, the skill it preloads), a row to the `building` skill's
+   phase table, and its order to `skills/building/resources/orders.md`. Step 1 alone yields a skill the loop
+   has no way to dispatch.
 
 If step 2 or 3 is where you got stuck, please say so in the PR or an issue — reducing that cost
 is an explicit goal, not a fact of life.
@@ -108,8 +109,8 @@ changes, however good the rest of it is.
 |---|---|
 | One judge — only `spec-evaluator` produces a verdict | QA discovering a bug is not a second opinion on ship-readiness |
 | EVAL runs exactly once per round | The loop terminates because the judge is expensive and singular |
-| Only `harness reduce ingest` writes shared state | This is what makes parallel scopes safe |
-| Hill phase is derived from artifacts, never self-reported | The entire honesty claim of the project |
+| Only the loop writes shared state | This is what makes parallel scopes safe |
+| Progress is a T0 artifact the evaluator re-hashes, never a worker's account of itself | The entire honesty claim of the project |
 | Workers never learn pipeline position | Keeps skills reusable and testable in isolation |
 | No fabricated eval numbers, ever | See below |
 

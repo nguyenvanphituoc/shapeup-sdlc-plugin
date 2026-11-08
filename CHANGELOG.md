@@ -3,22 +3,25 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased] · Native first
+## [Unreleased] · Native first, then the engine removed
 
-Not released: the version files still read 4.0.0 and the PO has not accepted ADR-0005, which records the decision.
+Not released: the version files still read 4.0.0, and this work sits on a side branch that is not merged. It is **breaking** for
+anything that names a removed kernel command, the `hill-chart` skill or the `/hill` command.
 
 - **The four workers are plugin agents.** `agents/orient.md`, `task-executor.md`, `spec-evaluator.md` and `qa-edge-hunter.md` preload
   their skill; the loop dispatches by agent name. The receipt hook attests the agent that ran and records the tokens, duration and
-  model the host measured, and `reduce ingest` takes the leg row's usage from it, so the loop no longer passes `--tokens-total`.
-  `verify skills` refuses a worker whose agent does not preload its skill. `package.json` ships `agents/`.
-- **Removed.** `reduce graph` (and the run graph; `hill-chart` renders from the hill shards alone and labels a pitch "Finished" or
-  "On the hill"), `report export` and its fact tables, the traceability oracle (`verify trace`: reachability and covers-closure
-  reporting; covers-closure is still enforced by `verify spec`; the profile's `source_extensions` field goes with it), `probe stats`,
-  the `probe digest` verb, the `Stop` hook (`gate-zerowork`: a session that narrates a run instead of opening one is no longer stopped
-  by the runtime) and the `tier-guard` hook, whose committed-tier write check now runs inside `sandbox-guard` with the same refusal.
-  The shipped executable set is 18,736 → 16,513 lines; hook registrations 6 → 4.
-- **Tests.** The sections that asserted wording rather than behaviour are gone, with the tests of every removed module:
-  `tests/structural/` 21,872 → 19,911 lines, 2,512 → 2,261 checks.
+  model the host measured. `verify skills` refuses a worker whose agent does not preload its skill. `package.json` ships `agents/`.
+- **The decision engine is removed (ADR-0006).** `compile`, `reduce ingest | board | ship | hill`, `verify spec | build | budget |
+  dispatch`, every `probe` verb and `init fit` are gone, with the `hill-chart` skill, the `/hill` command and the wall-clock breaker.
+  The loop writes each order from a template, opens it for the fence with the new `order open`, checks a result with `verify envelope`
+  and applies it itself; `order close` retires the fence's pointer and records how the run ended. The runtime keeps five things: the
+  receipt, the gate resolver, the T0 witness, the write fence and the dispatch receipts. The `tier-guard` and `Stop` hooks were
+  folded or removed earlier; hook registrations went 6 → 4.
+- **A comparison went the other way, and the removal was the PO's decision.** On a three-scope pitch the scripted sequencing shipped
+  2 of 2 runs and the same loop reading its own table 0 of 1, at 59% higher cost. The engine was removed anyway; the record says so.
+- **Size.** Kernel, hooks and installer 18,736 → about 6,400 lines. The structural suite 21,872 lines in 115 files → under 1,000 lines
+  in ten files that execute shipped code, with a floor on the check count.
+- **Fixed on the way.** `init run` now refuses a plugin copy that cannot name its worker roster instead of throwing a stack trace.
 
 ## [4.0.0] — 2026-11-07 · One loop in the session, in place of one workflow launch
 

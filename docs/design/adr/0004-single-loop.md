@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Accepted — by the PO, 2026-11-07, before activity A1 started |
+| **Status** | Accepted — by the PO, 2026-11-07, before activity A1 started. The loop stands; the `probe next` it ran over was removed by [ADR-0006](0006-engine-removed.md) |
 | **Date** | 2026-11-07 |
 | **Decision** | The run is driven by one loop skill, `building`, in the operator's own session, over a kernel verb `probe next` that derives the next step from artifacts on disk. The Workflow-runtime launch, the courier sub-agents, the preflight canary and the relaunch protocol are retired. Four worker skills remain. |
 | **Supersedes** | [`03-system-design.md` §3.5](../03-system-design.md) — "one workflow launch, not a turn-by-turn drive" |
