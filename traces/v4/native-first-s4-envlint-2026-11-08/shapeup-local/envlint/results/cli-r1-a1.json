@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/cli-r1-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-003",
+      "status": "done",
+      "ac_results": [
+        { "ac": "`bin/envlint.mjs` exists with a `#!/usr/bin/env node` shebang, imports `../src/parse.mjs` and `../src/rules.mjs` (covers: REQ-21, REQ-24)", "result": "pass", "evidence": "head of bin/envlint.mjs is '#!/usr/bin/env node'; imports parseEnv from '../src/parse.mjs' and checkSchema/checkPairs from '../src/rules.mjs'; node --test test/cli.test.mjs -> 16/16 driving it" },
+        { "ac": "`package.json` gains `\"bin\": {\"envlint\": \"bin/envlint.mjs\"}`, every other field unchanged (covers: REQ-21)", "result": "pass", "evidence": "git diff package.json: only the bin field added; name/version/type/scripts identical" },
+        { "ac": "Argument handling uses strict `parseArgs`: exactly one `--schema <path>` and one positional, else exit 2 with `envlint: …` and the usage line (covers: REQ-8, REQ-21)", "result": "pass", "evidence": "TS-ERR-USAGE tests: no args, --schema alone, two positionals, --color, no --schema, duplicate --schema -> exit 2, stderr 'envlint: ...' + 'usage: envlint --schema <schema.json> <envfile>'; --schema=<path> form accepted (exit 0)" },
+        { "ac": "No default env path and no default schema path anywhere in the code (covers: REQ-9, REQ-27)", "result": "pass", "evidence": "grep for '.env' in bin/ src/ matches only a comment in src/parse.mjs; no default in parseArgs options; TS-NOGO-01: cwd with .env + no positional -> exit 2 usage, no findings" },
+        { "ac": "Every read/parse error maps to one `envlint: …` stderr line and exit 2; the whole main is guarded so nothing prints a stack trace (covers: REQ-7)", "result": "pass", "evidence": "main wrapped in try/catch -> CliError or 'envlint: internal error: <msg>', exitCode 2; TS-INV-01 runs 10 error/garbage cases asserting no '    at ' / 'Error:' lines and a single envlint line (+usage); TS-ERR-ENV_NOT_FOUND exact stderr 'envlint: cannot read env file missing.env: ENOENT'" },
+        { "ac": "Output lines and order exactly per [[ux-behavior#Output lines (findings state)]], no ANSI escapes, no stdin read (covers: REQ-2, REQ-28, REQ-29)", "result": "pass", "evidence": "TS-INV-02 exact stdout 'e.env:2: PORT: expected int, got \"abc\"\\ne.env: TOKEN: required key is missing'; ordering test: parse error line 2, finding line 3, line-less in schema key order (Z then Y); TS-INV-05 no \\x1b, exits with stdin pipe left open" },
+        { "ac": "No `writeFile`, `appendFile`, network module or `fetch` in `bin/` or `src/` (covers: REQ-25, REQ-30)", "result": "pass", "evidence": "grep -nE 'writeFile|appendFile|fetch|node:(http|https|net|dgram|tls)' bin/*.mjs src/*.mjs -> no matches; TS-INV-04 temp cwd listing unchanged" }
+      ]
+    },
+    {
+      "task_id": "TASK-004",
+      "status": "done",
+      "ac_results": [
+        { "ac": "`node --test test/cli.test.mjs` exits 0 and covers every UC-03 Test Surface row by id in its test names (covers: REQ-1)", "result": "pass", "evidence": "node --test test/cli.test.mjs -> tests 16, pass 16, fail 0; test names carry TS-INV-01..05, TS-ERR-USAGE, TS-ERR-ENV_NOT_FOUND, TS-ERR-ENV_UNREADABLE, TS-ERR-SCHEMA_NOT_FOUND, TS-ERR-SCHEMA_INVALID_JSON, TS-ERR-SCHEMA_INVALID, TS-ERR-FINDINGS, TS-NOGO-01, TS-NOGO-02 (all 14 rows); full suite node --test -> 46/46" },
+        { "ac": "Mixed violations → expected stdout lines in order, exit 1 (covers: REQ-2, REQ-3)", "result": "pass", "evidence": "TS-INV-02 (two tests) pass: exact stdout match, exit 1" },
+        { "ac": "Missing env file → exit 2, stderr names path + `ENOENT`, no stack trace (covers: REQ-4, REQ-7)", "result": "pass", "evidence": "TS-ERR-ENV_NOT_FOUND pass: exit 2, stderr 'envlint: cannot read env file missing.env: ENOENT\\n', assertNoStack" },
+        { "ac": "Missing / non-JSON / invalid schema → exit 2 with the documented message (covers: REQ-5, REQ-7)", "result": "pass", "evidence": "TS-ERR-SCHEMA_NOT_FOUND / _INVALID_JSON / _INVALID pass with exact stderr lines, exit 2" },
+        { "ac": "Env file with no assignments → exit 0 with schema `{}`, exit 1 listing missing required keys otherwise (covers: REQ-6)", "result": "pass", "evidence": "TS-INV-03 pass: comments/blank-only env -> exit 0 empty stdout with {}; exit 1 'e.env: A: required key is missing' with required A" },
+        { "ac": "No env positional in a cwd holding a `.env` → exit 2 usage, the `.env` is not read (covers: REQ-8, REQ-9)", "result": "pass", "evidence": "TS-NOGO-01 pass: exit 2 with usage, empty stdout, stderr carries none of the .env's findings" },
+        { "ac": "Temp cwd listing is unchanged after a run; no `\\x1b` in output; `${HOME}` compared literally (covers: REQ-25, REQ-26, REQ-28, REQ-29)", "result": "pass", "evidence": "TS-INV-04, TS-INV-05, TS-NOGO-02 pass" }
+      ]
+    }
+  ],
+  "files_touched": [
+    { "path": "bin/envlint.mjs", "change": "created" },
+    { "path": "package.json", "change": "modified" },
+    { "path": "test/cli.test.mjs", "change": "created" }
+  ],
+  "discoveries": [],
+  "assumptions": [
+    "The schema is read and validated before the env file is read, so when both are bad the schema error is the one reported (UC-03 Steps order 2 before 3).",
+    "A repeated --schema flag is a usage error with reason 'expected exactly one --schema' (spec says exactly one; parseArgs alone would silently take the last).",
+    "Usage-error reasons from parseArgs (unknown flag, --schema without a value) are passed through verbatim after 'envlint: '; the spec fixes only 'missing --schema' and 'expected exactly one env file', which are used verbatim.",
+    "Read errors print err.code (ENOENT/EISDIR/EACCES/...) and fall back to err.message only if no code exists.",
+    "Exit code is set via process.exitCode rather than process.exit() so stdout flushes fully when piped."
+  ],
+  "deviations": []
+}

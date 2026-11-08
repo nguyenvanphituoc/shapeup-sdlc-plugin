@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/orient",
+  "worker": "orient",
+  "status": "done",
+  "artifacts": [
+    ".shapeup/envlint/orient/code-surface.md",
+    ".shapeup/envlint/orient/spike-cli-seam.md",
+    ".shapeup/envlint/orient/discovered-seed.md",
+    ".shapeup/envlint/orient/hill-signal.md"
+  ],
+  "assumptions": [
+    "Suggested module paths src/parse.mjs and src/rules.mjs are placeholders; only bin/envlint.mjs is fixed (project-profile entry_point).",
+    "The spike probe's exit code 2 for usage/IO errors vs 1 for findings is an assumption used to prove distinguishability, not a requirement.",
+    "GATE O-A and O-B auto-confirmed (interaction.pause_gates=false)."
+  ],
+  "deviations": [
+    "No payload.breadboard: no Places/affordances, so no P#/U#/N# ids; elements were extracted from the pitch text.",
+    "No payload.kb_rules_path: no team guidelines read.",
+    "Pitch (pitch.gate.md) is titled 'Raw idea' and carries no status: shaped / bet: frontmatter; it has appetite and boundaries, so Orient proceeded.",
+    "Pitch gap: schema file format is undefined ('a small JSON schema').",
+    "Pitch gap: exit-code values are unspecified beyond 'non-zero'; findings vs usage/IO error codes undistinguished.",
+    "Pitch gap: output line format, stream and ordering of findings unspecified, and the parsed-pairs shape must carry line numbers for 'line by line' output (Parsing/Rules data contract).",
+    "Pitch gap: acceptance sets for int, bool and url are unstated; URL.canParse accepts localhost:3000, javascript:, mailto:, file:; Number() accepts '1.0', '0x10', ' 7', '1e3', ''.",
+    "Pitch gap: outcome for an env file with no assignments is undefined; parser edge cases (inline #, escapes, multiline/unterminated quotes, CRLF/BOM, duplicate keys, KEY=) unspecified.",
+    "package.json is named 'site' and has no bin field."
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/parsing-r1-a1",
+  "kernel": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.plugin-under-test/plugin-s4-1/kernel/harness.mjs",
+  "run_id": "envlint-20261108T050016Z-c40aa663",
+  "compiled_at": "2026-11-08T05:10:17Z",
+  "worker": "task-executor",
+  "mode": "orchestrated",
+  "operation": "execute",
+  "interaction": { "pause_gates": false },
+  "substrate": {
+    "allowed": ["src/parse.mjs", "test/parse.test.mjs", ".shapeup/envlint/spikes/**"],
+    "shared": [],
+    "frozen": [".shapeup/envlint/**"],
+    "own": [".shapeup/envlint/results/parsing-r1-a1.json", ".shapeup/envlint/tasks/TASK-*.md", ".shapeup/envlint/discovery/**", ".shapeup/envlint/spikes/**"]
+  },
+  "payload": {
+    "feature": "envlint",
+    "round": 1,
+    "spec_folder": "shapeup/envlint/spec/",
+    "scope_contract": {
+      "scope_id": "parsing",
+      "topology_type": "ICEBERG",
+      "use_cases": ["UC-01"],
+      "covers": ["REQ-10", "REQ-11", "REQ-12", "REQ-13", "REQ-14", "REQ-15", "REQ-16", "REQ-22", "REQ-23", "REQ-26"],
+      "depends_on": [],
+      "allowed_file_substrate": ["src/parse.mjs", "test/parse.test.mjs"],
+      "shared_substrate": [],
+      "affordance_manifest": [],
+      "e2e_verification_fixtures": ["node --test test/parse.test.mjs"],
+      "hill_phase": "UPHILL_UNKNOWN"
+    },
+    "tasks": [{ "id": "TASK-001", "title": "Implement the pure .env parser", "body_path": ".shapeup/envlint/tasks/TASK-001.md" }],
+    "verify": { "test_cmd": "node --test test/parse.test.mjs" }
+  }
+}

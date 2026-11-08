@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/parsing-r1-a1",
+  "worker": "task-executor",
+  "status": "done",
+  "task_results": [
+    {
+      "task_id": "TASK-001",
+      "status": "done",
+      "ac_results": [
+        { "ac": "`src/parse.mjs` exports `parseEnv(text)` returning `{pairs, problems}` per C1 (covers: REQ-16)", "result": "pass", "evidence": "node --test test/parse.test.mjs -> 'returns {pairs, problems} arrays' pass; 15/15 pass" },
+        { "ac": "`src/parse.mjs` contains no `import` statement and performs no I/O (covers: REQ-16, REQ-22)", "result": "pass", "evidence": "test 'TS-INV-02' reads src/parse.mjs source: no static import, no import(), no require(); repeated calls deep-equal -> pass" },
+        { "ac": "`node --test test/parse.test.mjs` exits 0, importing only `src/parse.mjs` and `node:` builtins (covers: REQ-23)", "result": "pass", "evidence": "node --test test/parse.test.mjs -> tests 15, pass 15, fail 0; test imports: node:test, node:assert/strict, node:fs, ../src/parse.mjs" },
+        { "ac": "`KEY=value` yields `{key:\"KEY\", value:\"value\", line:1}` (covers: REQ-10)", "result": "pass", "evidence": "test 'KEY=value yields a pair on line 1' pass" },
+        { "ac": "Full-line `#` comments and whitespace-only lines yield no pair and no problem (covers: REQ-11, REQ-12)", "result": "pass", "evidence": "test 'comments and whitespace-only lines yield nothing' -> {pairs:[],problems:[]} pass" },
+        { "ac": "`export KEY=value` yields key `KEY` (covers: REQ-13)", "result": "pass", "evidence": "test 'export KEY=value yields key KEY' (space and tab) pass" },
+        { "ac": "`A=\"x y\"` and `B='x y'` yield the inner text `x y`; `A=\"abc` yields problem `unterminated quote` (covers: REQ-14)", "result": "pass", "evidence": "tests 'quoted values yield verbatim inner text' and 'TS-ERR-UNTERMINATED_QUOTE' pass" },
+        { "ac": "A line with no `=` on line 2 yields `{line:2, message:\"missing '='\"}`; `1BAD=x` yields `invalid key` (covers: REQ-15)", "result": "pass", "evidence": "tests 'TS-ERR-MISSING_EQUALS' and 'TS-ERR-INVALID_KEY' pass" },
+        { "ac": "`A=${HOME}` yields the literal value `${HOME}` (covers: REQ-26)", "result": "pass", "evidence": "test 'TS-INV-03' -> value '${HOME}' and '${HOME}/x' pass" },
+        { "ac": "Empty string, BOM-prefixed text and CRLF text parse without throwing, with correct 1-based lines (covers: REQ-15)", "result": "pass", "evidence": "tests 'TS-INV-04', 'BOM-prefixed text parses with correct lines', 'CRLF text parses with correct lines and no stray \\r' pass" }
+      ]
+    }
+  ],
+  "files_touched": [
+    { "path": "src/parse.mjs", "change": "created" },
+    { "path": "test/parse.test.mjs", "change": "created" }
+  ],
+  "discoveries": [],
+  "assumptions": [
+    "C1 rule 3 (export prefix) is applied after trimming leading whitespace, so '  export A=1' yields key A; 'export=1' (no following space/tab) yields key 'export'",
+    "A line that is only 'export ' followed by whitespace becomes empty after removal and yields problem missing '=' (rule 4), not a skip",
+    "Non-string input is coerced with String(text) so parseEnv never throws (INV-04); C1 types the input as string"
+  ],
+  "deviations": []
+}

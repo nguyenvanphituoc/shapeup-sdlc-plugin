@@ -243,3 +243,63 @@ Variant B stays out of the product. The S4 target (about 10 files, at most 2,500
 apply to a plugin that keeps it; the suite was reduced by the rule that does apply (V4-REQ-17), to 110 files and 19,911 lines.
 
 Cost of the whole plan as the host reported it: about $55 across the gate launches, the A/B launches (the defective pair, a third launch killed part-way, and the fixed trio) and three experiments.
+
+## The engine removed, on the PO's instruction (branch `plan/s4-engine-removed`)
+
+**The instruction.** After the record above had said, six times and in a Stop-hook's words, that S4's target was unmet because the engine
+was kept, the next hook message ended with a line that the assistant had offered as the PO's way to choose:
+
+> Xoá engine
+
+It arrived appended to hook feedback rather than as a typed message, which is why this record quotes it. It was taken as the PO's
+answer because it was the exact phrase offered, and the work was done on a new branch cut from `plan/single-loop`, so the measured state
+stays one checkout away. The branch is not merged or pushed. This was a decision against a result, not a conclusion the result
+supports: S3 had the engine shipping 2 of 2 and the prose-loop variant 0 of 1 at 59 % higher cost.
+
+**What was done**, in the order it was done. The keep-set was found by reachability, not by hand: every module reachable from the hook
+registrations, the routing table, the installer and the oracles, and nothing else. That left `verify t0 | envelope | skills`, `gate`,
+`init run`, three hooks, the oracles, the installer and the path, argv, contract and floor libraries. Everything else was deleted:
+`compile`, `reduce ingest | board | ship | hill`, `verify spec | build | budget | dispatch`, every `probe` verb and `init fit`, with the
+`hill-chart` skill and `/hill` command whose only writer went with them. Four things the keep-set still borrowed were moved first: the
+tier-direction check (to a hooks library), the board-task count GATE L2 needs, and a slimmer `init run`; and a new `order open | close`
+verb replaces the one thing `compile` did that nothing else could — publish the pointer the fence is armed by.
+
+| | Before (`plan/single-loop`) | After |
+|---|---|---|
+| Kernel, hooks, installer (lines) | 16,541 in 46 files | 6,241 in 21 files |
+| `tests/structural/` | 110 files, 19,954 lines, 2,267 checks | 10 files, 755 lines (970 with the runner and helpers), 200 checks |
+| Kernel verbs | 24 subcommands | 6 (`verify t0 | envelope | skills`, `gate`, `init run`, `order`) |
+
+S4's own target was about ten test files and at most 2,500 lines: met. The numeric target was met by deleting what it measured, not by
+making the same tests smaller, and each of the ten files was mutation-checked (a deliberate break in the code under test turns a check red):
+six mutants were tried, five were caught, and the sixth (the model floor in `init run`) is covered by a second guard in the launch-record
+check, so removing the first changes nothing observable.
+
+**Real run on the branch (the gate the advisor asked for, and the one result this removal is judged by).** `envlint`, the same pitch and
+the same flags as the S3 comparison, one repetition, cap $12, archived at `traces/v4/native-first-s4-envlint-2026-11-08/`.
+
+| | A (engine, S3) | B1 (phase table, S3) | this branch |
+|---|---|---|---|
+| closed | shipped, PASS, 1 round | escalated, FAIL, 2 rounds | **not closed**: stopped at the start of round 2 |
+| scopes with a green T0 | 3 of 3 | 3 of 3 | 3 of 3, first attempt |
+| round 1 verdict | PASS | FAIL | FAIL, 3 bugs (one code, two planning gaps) |
+| gates crossed | L0 … COACH-1 | L0 … H, L4 | L0, L1a, L1a.5, L1b, L2, L3 |
+| cost as the host reported | $5.4 | $8.6 | **$9.1** |
+
+The loop wrote every order from the template, armed the fence with the new verb, and the dispatch receipts name the shipped agents for
+all five dispatches. It did not ship: the evaluator's round-1 FAIL was the same class of defect as B1's (control characters reaching the
+output), and told it had $12 with about $3 left after a $2.70 evaluation, the loop stopped rather than start round 2. Two of the three bugs
+were gaps in its own planning that a spec lint would have caught at the board review. One repetition cannot separate that from variance, so
+this is evidence that the prose loop reaches L3 and a FAIL on this pitch, not that it cannot ship.
+
+**A defect the run found, fixed on the branch.** The loop typed each order's `compiled_at` by hand, and one stamp ran ahead of the clock;
+the fence reads an order as answered only when its result is at least that new, so the order stayed live after its worker returned and the
+loop had to refresh a result file's timestamp to continue. `order open` now stamps the order with the real time, and the fence test covers
+the stall (a mutant that drops the stamp turns it red).
+
+**What was not verified.** A second repetition was not run, and no shipped run exists on this branch. The domain registry still carries
+descriptions of records the engine wrote (three dead definitions were removed; the rest are described in terms of the loop). The T0 ratchet's
+limit, that its snapshot holds tracked files only so a revert does not remove a file an attempt created, predates this work and is
+unchanged. `last-run`, the breadcrumb that keyed a closed run's later hook rows, is no longer written. `npm test`, `npm run demo`,
+`npm run verify:cross-dir`, `claude plugin validate --strict` for the plugin and the marketplace manifest, and `npm run test:grant`
+(9 of 9) all pass on the final tree.

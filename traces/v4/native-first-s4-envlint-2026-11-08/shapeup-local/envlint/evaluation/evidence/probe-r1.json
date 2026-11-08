@@ -1,0 +1,1146 @@
+{
+ "UC01/TS-INV-01": {
+  "r": {
+   "pairs": [
+    {
+     "key": "A",
+     "value": "1",
+     "line": 3
+    },
+    {
+     "key": "B",
+     "value": "2",
+     "line": 5
+    },
+    {
+     "key": "C",
+     "value": "q",
+     "line": 8
+    }
+   ],
+   "problems": [
+    {
+     "line": 6,
+     "message": "missing '='"
+    }
+   ]
+  },
+  "expect": "A@3 B@5 problem@6 C@8"
+ },
+ "UC01/TS-INV-02": {
+  "hasImport": false,
+  "hasRequire": false,
+  "same": true
+ },
+ "UC01/TS-INV-03": {
+  "pairs": [
+   {
+    "key": "A",
+    "value": "${HOME}/x",
+    "line": 1
+   }
+  ],
+  "problems": []
+ },
+ "UC01/TS-INV-04": {
+  "empty": {
+   "ok": true,
+   "r": {
+    "pairs": [],
+    "problems": []
+   }
+  },
+  "nl": {
+   "ok": true,
+   "r": {
+    "pairs": [],
+    "problems": []
+   }
+  },
+  "eq": {
+   "ok": true,
+   "r": {
+    "pairs": [],
+    "problems": [
+     {
+      "line": 1,
+      "message": "invalid key"
+     }
+    ]
+   }
+  },
+  "q": {
+   "ok": true,
+   "r": {
+    "pairs": [],
+    "problems": [
+     {
+      "line": 1,
+      "message": "missing '='"
+     }
+    ]
+   }
+  },
+  "bom": {
+   "ok": true,
+   "r": {
+    "pairs": [
+     {
+      "key": "A",
+      "value": "1",
+      "line": 1
+     },
+     {
+      "key": "B",
+      "value": "2",
+      "line": 2
+     }
+    ],
+    "problems": []
+   }
+  },
+  "crlf": {
+   "ok": true,
+   "r": {
+    "pairs": [
+     {
+      "key": "A",
+      "value": "1",
+      "line": 1
+     },
+     {
+      "key": "B",
+      "value": "x",
+      "line": 2
+     }
+    ],
+    "problems": [
+     {
+      "line": 4,
+      "message": "missing '='"
+     }
+    ]
+   }
+  },
+  "dq": {
+   "ok": true,
+   "r": {
+    "pairs": [],
+    "problems": [
+     {
+      "line": 1,
+      "message": "missing '='"
+     }
+    ]
+   }
+  },
+  "export": {
+   "ok": true,
+   "r": {
+    "pairs": [],
+    "problems": [
+     {
+      "line": 1,
+      "message": "missing '='"
+     }
+    ]
+   }
+  },
+  "exportsp": {
+   "ok": true,
+   "r": {
+    "pairs": [],
+    "problems": [
+     {
+      "line": 1,
+      "message": "missing '='"
+     }
+    ]
+   }
+  },
+  "nul": {
+   "ok": true,
+   "r": {
+    "pairs": [],
+    "problems": [
+     {
+      "line": 1,
+      "message": "invalid key"
+     }
+    ]
+   }
+  }
+ },
+ "UC01/TS-ERR-MISSING_EQUALS": {
+  "pairs": [
+   {
+    "key": "A",
+    "value": "1",
+    "line": 1
+   }
+  ],
+  "problems": [
+   {
+    "line": 2,
+    "message": "missing '='"
+   }
+  ]
+ },
+ "UC01/TS-ERR-INVALID_KEY": {
+  "pairs": [],
+  "problems": [
+   {
+    "line": 1,
+    "message": "invalid key"
+   },
+   {
+    "line": 2,
+    "message": "invalid key"
+   }
+  ]
+ },
+ "UC01/TS-ERR-UNTERMINATED_QUOTE": {
+  "pairs": [],
+  "problems": [
+   {
+    "line": 1,
+    "message": "unterminated quote"
+   },
+   {
+    "line": 2,
+    "message": "unterminated quote"
+   }
+  ]
+ },
+ "UC01/steps": {
+  "kv": {
+   "pairs": [
+    {
+     "key": "KEY",
+     "value": "value",
+     "line": 1
+    }
+   ],
+   "problems": []
+  },
+  "quotes": {
+   "pairs": [
+    {
+     "key": "A",
+     "value": "x y",
+     "line": 1
+    },
+    {
+     "key": "B",
+     "value": "x y",
+     "line": 2
+    },
+    {
+     "key": "C",
+     "value": "a\\nb",
+     "line": 3
+    },
+    {
+     "key": "D",
+     "value": "x # not a comment",
+     "line": 4
+    },
+    {
+     "key": "E",
+     "value": "spaced",
+     "line": 5
+    },
+    {
+     "key": "F",
+     "value": "a=b",
+     "line": 6
+    }
+   ],
+   "problems": []
+  },
+  "mixedQuote": {
+   "pairs": [],
+   "problems": [
+    {
+     "line": 1,
+     "message": "unterminated quote"
+    }
+   ]
+  },
+  "lone": {
+   "pairs": [],
+   "problems": [
+    {
+     "line": 1,
+     "message": "unterminated quote"
+    }
+   ]
+  },
+  "dup": {
+   "pairs": [
+    {
+     "key": "A",
+     "value": "1",
+     "line": 1
+    },
+    {
+     "key": "A",
+     "value": "2",
+     "line": 2
+    }
+   ],
+   "problems": []
+  },
+  "exportTab": {
+   "pairs": [
+    {
+     "key": "K",
+     "value": "v",
+     "line": 1
+    }
+   ],
+   "problems": []
+  }
+ },
+ "UC02/TS-INV-01": {
+  "hasImport": false,
+  "net": false,
+  "findings": []
+ },
+ "UC02/TS-INV-02": [
+  {
+   "key": "A",
+   "line": 3,
+   "rule": "type",
+   "message": "expected int, got \"x\""
+  }
+ ],
+ "UC02/TS-INV-03": [],
+ "UC02/TS-ERR-REQUIRED_MISSING": [
+  {
+   "key": "PORT",
+   "line": null,
+   "rule": "required",
+   "message": "required key is missing"
+  }
+ ],
+ "UC02/TS-ERR-TYPE_MISMATCH": [
+  {
+   "t": "int",
+   "v": "1.0",
+   "f": [
+    {
+     "key": "K",
+     "line": 1,
+     "rule": "type",
+     "message": "expected int, got \"1.0\""
+    }
+   ]
+  },
+  {
+   "t": "int",
+   "v": "0x10",
+   "f": [
+    {
+     "key": "K",
+     "line": 1,
+     "rule": "type",
+     "message": "expected int, got \"0x10\""
+    }
+   ]
+  },
+  {
+   "t": "int",
+   "v": "1e3",
+   "f": [
+    {
+     "key": "K",
+     "line": 1,
+     "rule": "type",
+     "message": "expected int, got \"1e3\""
+    }
+   ]
+  },
+  {
+   "t": "int",
+   "v": "",
+   "f": [
+    {
+     "key": "K",
+     "line": 1,
+     "rule": "type",
+     "message": "expected int, got \"\""
+    }
+   ]
+  },
+  {
+   "t": "int",
+   "v": " 7",
+   "f": [
+    {
+     "key": "K",
+     "line": 1,
+     "rule": "type",
+     "message": "expected int, got \" 7\""
+    }
+   ]
+  },
+  {
+   "t": "bool",
+   "v": "yes",
+   "f": [
+    {
+     "key": "K",
+     "line": 1,
+     "rule": "type",
+     "message": "expected bool, got \"yes\""
+    }
+   ]
+  },
+  {
+   "t": "url",
+   "v": "localhost:3000",
+   "f": [
+    {
+     "key": "K",
+     "line": 1,
+     "rule": "type",
+     "message": "expected url, got \"localhost:3000\""
+    }
+   ]
+  },
+  {
+   "t": "url",
+   "v": "javascript:alert(1)",
+   "f": [
+    {
+     "key": "K",
+     "line": 1,
+     "rule": "type",
+     "message": "expected url, got \"javascript:alert(1)\""
+    }
+   ]
+  },
+  {
+   "t": "url",
+   "v": "file:///etc",
+   "f": [
+    {
+     "key": "K",
+     "line": 1,
+     "rule": "type",
+     "message": "expected url, got \"file:///etc\""
+    }
+   ]
+  }
+ ],
+ "UC02/TS-REQ-type-boundary": [
+  {
+   "t": "int",
+   "v": "0",
+   "f": []
+  },
+  {
+   "t": "int",
+   "v": "-5",
+   "f": []
+  },
+  {
+   "t": "int",
+   "v": "42",
+   "f": []
+  },
+  {
+   "t": "bool",
+   "v": "true",
+   "f": []
+  },
+  {
+   "t": "bool",
+   "v": "false",
+   "f": []
+  },
+  {
+   "t": "url",
+   "v": "https://a.example/x",
+   "f": []
+  },
+  {
+   "t": "string",
+   "v": "",
+   "f": []
+  }
+ ],
+ "UC02/TS-ERR-ENUM_MISMATCH": [
+  {
+   "v": "Dev",
+   "f": [
+    {
+     "key": "M",
+     "line": 1,
+     "rule": "enum",
+     "message": "expected one of dev, prod, got \"Dev\""
+    }
+   ]
+  },
+  {
+   "v": "staging",
+   "f": [
+    {
+     "key": "M",
+     "line": 1,
+     "rule": "enum",
+     "message": "expected one of dev, prod, got \"staging\""
+    }
+   ]
+  },
+  {
+   "v": "dev",
+   "f": []
+  }
+ ],
+ "UC02/TS-ERR-SCHEMA_INVALID": [
+  {
+   "s": [],
+   "e": [
+    "schema must be a JSON object"
+   ]
+  },
+  {
+   "s": null,
+   "e": [
+    "schema must be a JSON object"
+   ]
+  },
+  {
+   "s": {
+    "A": {
+     "type": "float"
+    }
+   },
+   "e": [
+    "A: \"type\" must be one of string, int, bool, url"
+   ]
+  },
+  {
+   "s": {
+    "A": {
+     "enum": []
+    }
+   },
+   "e": [
+    "A: \"enum\" must be a non-empty array of strings"
+   ]
+  },
+  {
+   "s": {
+    "A": {
+     "required": "yes"
+    }
+   },
+   "e": [
+    "A: \"required\" must be a boolean"
+   ]
+  },
+  {
+   "s": {
+    "A": {
+     "min": 1
+    }
+   },
+   "e": [
+    "A: unknown rule field \"min\""
+   ]
+  },
+  {
+   "s": 5,
+   "e": [
+    "schema must be a JSON object"
+   ]
+  },
+  {
+   "s": "x",
+   "e": [
+    "schema must be a JSON object"
+   ]
+  },
+  {
+   "s": {
+    "A": 1
+   },
+   "e": [
+    "A: rule must be an object"
+   ]
+  },
+  {
+   "s": {
+    "A": {
+     "enum": [
+      1
+     ]
+    }
+   },
+   "e": [
+    "A: \"enum\" must be a non-empty array of strings"
+   ]
+  },
+  {
+   "s": {},
+   "e": []
+  },
+  {
+   "s": {
+    "P": {
+     "required": true,
+     "type": "int"
+    },
+    "M": {
+     "enum": [
+      "a"
+     ]
+    }
+   },
+   "e": []
+  }
+ ],
+ "UC02/steps": {
+  "both": [
+   {
+    "key": "K",
+    "line": 4,
+    "rule": "type",
+    "message": "expected int, got \"x\""
+   },
+   {
+    "key": "K",
+    "line": 4,
+    "rule": "enum",
+    "message": "expected one of 1, got \"x\""
+   }
+  ],
+  "order": [
+   {
+    "key": "A",
+    "line": 2,
+    "rule": "type",
+    "message": "expected bool, got \"y\""
+   },
+   {
+    "key": "B",
+    "line": 5,
+    "rule": "type",
+    "message": "expected int, got \"x\""
+   },
+   {
+    "key": "Z",
+    "line": null,
+    "rule": "required",
+    "message": "required key is missing"
+   },
+   {
+    "key": "Y",
+    "line": null,
+    "rule": "required",
+    "message": "required key is missing"
+   }
+  ],
+  "enumMsg": [
+   {
+    "key": "M",
+    "line": 1,
+    "rule": "enum",
+    "message": "expected one of a, b, c, got \"q\""
+   }
+  ],
+  "urlEdge": [
+   {
+    "v": "http://",
+    "f": [
+     {
+      "key": "U",
+      "line": 1,
+      "rule": "type",
+      "message": "expected url, got \"http://\""
+     }
+    ]
+   },
+   {
+    "v": "https://x",
+    "f": []
+   },
+   {
+    "v": "HTTP://A.B",
+    "f": []
+   },
+   {
+    "v": "http://[::1]/",
+    "f": []
+   }
+  ]
+ },
+ "UC02/INV-04": {
+  "threw": null,
+  "schemaErrs": []
+ },
+ "UC03/TS-INV-01": [
+  {
+   "args": [],
+   "code": 2,
+   "signal": null,
+   "stdout": "",
+   "stderr": "envlint: missing --schema\nusage: envlint --schema <schema.json> <envfile>\n",
+   "stack": false,
+   "stderrLines": 2
+  },
+  {
+   "args": [
+    "--schema"
+   ],
+   "code": 2,
+   "signal": null,
+   "stdout": "",
+   "stderr": "envlint: Option '--schema <value>' argument missing\nusage: envlint --schema <schema.json> <envfile>\n",
+   "stack": false,
+   "stderrLines": 2
+  },
+  {
+   "args": [
+    "--schema",
+    "s.json"
+   ],
+   "code": 2,
+   "signal": null,
+   "stdout": "",
+   "stderr": "envlint: expected exactly one env file\nusage: envlint --schema <schema.json> <envfile>\n",
+   "stack": false,
+   "stderrLines": 2
+  },
+  {
+   "args": [
+    "--schema",
+    "s.json",
+    "a",
+    "b"
+   ],
+   "code": 2,
+   "signal": null,
+   "stdout": "",
+   "stderr": "envlint: expected exactly one env file\nusage: envlint --schema <schema.json> <envfile>\n",
+   "stack": false,
+   "stderrLines": 2
+  },
+  {
+   "args": [
+    "--color"
+   ],
+   "code": 2,
+   "signal": null,
+   "stdout": "",
+   "stderr": "envlint: Unknown option '--color'. To specify a positional argument starting with a '-', place it at the end of the command after '--', as in '-- \"--color\"\nusage: envlint --schema <schema.json> <envfile>\n",
+   "stack": false,
+   "stderrLines": 2
+  },
+  {
+   "args": [
+    "-h"
+   ],
+   "code": 2,
+   "signal": null,
+   "stdout": "",
+   "stderr": "envlint: Unknown option '-h'. To specify a positional argument starting with a '-', place it at the end of the command after '--', as in '-- \"-h\"\nusage: envlint --schema <schema.json> <envfile>\n",
+   "stack": false,
+   "stderrLines": 2
+  },
+  {
+   "args": [
+    "--schema",
+    "s.json",
+    "nope.env"
+   ],
+   "code": 2,
+   "signal": null,
+   "stdout": "",
+   "stderr": "envlint: cannot read env file nope.env: ENOENT\n",
+   "stack": false,
+   "stderrLines": 1
+  },
+  {
+   "args": [
+    "--schema",
+    "s.json",
+    "adir"
+   ],
+   "code": 2,
+   "signal": null,
+   "stdout": "",
+   "stderr": "envlint: cannot read env file adir: EISDIR\n",
+   "stack": false,
+   "stderrLines": 1
+  },
+  {
+   "args": [
+    "--schema",
+    "adir",
+    "garbage.env"
+   ],
+   "code": 2,
+   "signal": null,
+   "stdout": "",
+   "stderr": "envlint: cannot read schema file adir: EISDIR\n",
+   "stack": false,
+   "stderrLines": 1
+  },
+  {
+   "args": [
+    "--schema",
+    "nope.json",
+    "garbage.env"
+   ],
+   "code": 2,
+   "signal": null,
+   "stdout": "",
+   "stderr": "envlint: cannot read schema file nope.json: ENOENT\n",
+   "stack": false,
+   "stderrLines": 1
+  },
+  {
+   "args": [
+    "--schema",
+    "bad.json",
+    "garbage.env"
+   ],
+   "code": 2,
+   "signal": null,
+   "stdout": "",
+   "stderr": "envlint: invalid schema bad.json: not valid JSON\n",
+   "stack": false,
+   "stderrLines": 1
+  },
+  {
+   "args": [
+    "--schema",
+    "inv.json",
+    "garbage.env"
+   ],
+   "code": 2,
+   "signal": null,
+   "stdout": "",
+   "stderr": "envlint: invalid schema inv.json: A: \"type\" must be one of string, int, bool, url\n",
+   "stack": false,
+   "stderrLines": 1
+  },
+  {
+   "args": [
+    "--schema",
+    "arr.json",
+    "garbage.env"
+   ],
+   "code": 2,
+   "signal": null,
+   "stdout": "",
+   "stderr": "envlint: invalid schema arr.json: schema must be a JSON object\n",
+   "stack": false,
+   "stderrLines": 1
+  },
+  {
+   "args": [
+    "--schema",
+    "nul.json",
+    "garbage.env"
+   ],
+   "code": 2,
+   "signal": null,
+   "stdout": "",
+   "stderr": "envlint: invalid schema nul.json: schema must be a JSON object\n",
+   "stack": false,
+   "stderrLines": 1
+  },
+  {
+   "args": [
+    "--schema",
+    "s.json",
+    "garbage.env"
+   ],
+   "code": 1,
+   "signal": null,
+   "stdout": "garbage.env:1: parse error: invalid key\ngarbage.env:2: parse error: invalid key\ngarbage.env:3: parse error: invalid key\ngarbage.env:4: parse error: invalid key\ngarbage.env:5: parse error: missing '='\ngarbage.env: A: required key is missing\n",
+   "stderr": "",
+   "stack": false,
+   "stderrLines": 0
+  },
+  {
+   "args": [
+    "--schema",
+    "garbage.env",
+    "s.json"
+   ],
+   "code": 2,
+   "signal": null,
+   "stdout": "",
+   "stderr": "envlint: invalid schema garbage.env: not valid JSON\n",
+   "stack": false,
+   "stderrLines": 1
+  },
+  {
+   "args": [
+    "--schema=",
+    "s.json"
+   ],
+   "code": 2,
+   "signal": null,
+   "stdout": "",
+   "stderr": "envlint: cannot read schema file : ENOENT\n",
+   "stack": false,
+   "stderrLines": 1
+  }
+ ],
+ "UC03/TS-INV-02": {
+  "args": [
+   "--schema",
+   "s.json",
+   "e.env"
+  ],
+  "code": 1,
+  "signal": null,
+  "stdout": "e.env:2: PORT: expected int, got \"abc\"\ne.env: TOKEN: required key is missing\n",
+  "stderr": ""
+ },
+ "UC03/TS-INV-03": {
+  "clean": {
+   "args": [
+    "--schema",
+    "empty.json",
+    "e.env"
+   ],
+   "code": 0,
+   "signal": null,
+   "stdout": "",
+   "stderr": ""
+  },
+  "req": {
+   "args": [
+    "--schema",
+    "req.json",
+    "e.env"
+   ],
+   "code": 1,
+   "signal": null,
+   "stdout": "e.env: A: required key is missing\n",
+   "stderr": ""
+  },
+  "zeroByte": {
+   "args": [
+    "--schema",
+    "empty.json",
+    "zero.env"
+   ],
+   "code": 0,
+   "signal": null,
+   "stdout": "",
+   "stderr": ""
+  }
+ },
+ "UC03/TS-INV-04": {
+  "before": [
+   "e.env",
+   "s.json"
+  ],
+  "after": [
+   "e.env",
+   "s.json"
+  ],
+  "codes": [
+   1,
+   2,
+   2,
+   2
+  ]
+ },
+ "UC03/TS-INV-05": {
+  "status": 1,
+  "timedOut": null,
+  "esc": false,
+  "stdout": "e.env:1: PORT: expected int, got \"abc\"\ne.env:2: parse error: missing '='\ne.env: T: required key is missing\n",
+  "userEscValue": {
+   "code": 1,
+   "stdoutHasEsc": true,
+   "stdoutJson": "\"esc.env:1: PORT: expected int, got \\\"\\u001b[31mred\\\"\\n\""
+  }
+ },
+ "UC03/TS-ERR-USAGE": [
+  {
+   "args": [],
+   "code": 2,
+   "signal": null,
+   "stdout": "",
+   "stderr": "envlint: missing --schema\nusage: envlint --schema <schema.json> <envfile>\n"
+  },
+  {
+   "args": [
+    "--schema",
+    "s.json"
+   ],
+   "code": 2,
+   "signal": null,
+   "stdout": "",
+   "stderr": "envlint: expected exactly one env file\nusage: envlint --schema <schema.json> <envfile>\n"
+  },
+  {
+   "args": [
+    "--schema",
+    "s.json",
+    "a.env",
+    "b.env"
+   ],
+   "code": 2,
+   "signal": null,
+   "stdout": "",
+   "stderr": "envlint: expected exactly one env file\nusage: envlint --schema <schema.json> <envfile>\n"
+  },
+  {
+   "args": [
+    "--color"
+   ],
+   "code": 2,
+   "signal": null,
+   "stdout": "",
+   "stderr": "envlint: Unknown option '--color'. To specify a positional argument starting with a '-', place it at the end of the command after '--', as in '-- \"--color\"\nusage: envlint --schema <schema.json> <envfile>\n"
+  },
+  {
+   "args": [
+    "a.env"
+   ],
+   "code": 2,
+   "signal": null,
+   "stdout": "",
+   "stderr": "envlint: missing --schema\nusage: envlint --schema <schema.json> <envfile>\n"
+  },
+  {
+   "args": [
+    "--schema",
+    "s.json",
+    "--schema",
+    "s.json",
+    "a.env"
+   ],
+   "code": 2,
+   "signal": null,
+   "stdout": "",
+   "stderr": "envlint: expected exactly one --schema\nusage: envlint --schema <schema.json> <envfile>\n"
+  },
+  {
+   "args": [
+    "--schema=s.json",
+    "a.env"
+   ],
+   "code": 0,
+   "signal": null,
+   "stdout": "",
+   "stderr": ""
+  }
+ ],
+ "UC03/TS-ERR-ENV_NOT_FOUND": {
+  "args": [
+   "--schema",
+   "s.json",
+   "missing.env"
+  ],
+  "code": 2,
+  "signal": null,
+  "stdout": "",
+  "stderr": "envlint: cannot read env file missing.env: ENOENT\n"
+ },
+ "UC03/TS-ERR-ENV_UNREADABLE": {
+  "args": [
+   "--schema",
+   "s.json",
+   "adir"
+  ],
+  "code": 2,
+  "signal": null,
+  "stdout": "",
+  "stderr": "envlint: cannot read env file adir: EISDIR\n"
+ },
+ "UC03/TS-ERR-SCHEMA_NOT_FOUND": {
+  "args": [
+   "--schema",
+   "missing.json",
+   "a.env"
+  ],
+  "code": 2,
+  "signal": null,
+  "stdout": "",
+  "stderr": "envlint: cannot read schema file missing.json: ENOENT\n"
+ },
+ "UC03/TS-ERR-SCHEMA_INVALID_JSON": {
+  "args": [
+   "--schema",
+   "bad.json",
+   "a.env"
+  ],
+  "code": 2,
+  "signal": null,
+  "stdout": "",
+  "stderr": "envlint: invalid schema bad.json: not valid JSON\n"
+ },
+ "UC03/TS-ERR-SCHEMA_INVALID": {
+  "args": [
+   "--schema",
+   "inv.json",
+   "a.env"
+  ],
+  "code": 2,
+  "signal": null,
+  "stdout": "",
+  "stderr": "envlint: invalid schema inv.json: A: \"type\" must be one of string, int, bool, url\n"
+ },
+ "UC03/TS-ERR-FINDINGS": {
+  "args": [
+   "--schema",
+   "s.json",
+   "e.env"
+  ],
+  "code": 1,
+  "signal": null,
+  "stdout": "e.env:3: parse error: missing '='\n",
+  "stderr": ""
+ },
+ "UC03/TS-NOGO-01": {
+  "args": [
+   "--schema",
+   "s.json"
+  ],
+  "code": 2,
+  "signal": null,
+  "stdout": "",
+  "stderr": "envlint: expected exactly one env file\nusage: envlint --schema <schema.json> <envfile>\n"
+ },
+ "UC03/TS-NOGO-02": {
+  "args": [
+   "--schema",
+   "s.json",
+   "e.env"
+  ],
+  "code": 0,
+  "signal": null,
+  "stdout": "",
+  "stderr": ""
+ },
+ "UC03/output-order": {
+  "args": [
+   "--schema",
+   "s.json",
+   "e.env"
+  ],
+  "code": 1,
+  "signal": null,
+  "stdout": "e.env:1: K: expected int, got \"x\"\ne.env:1: K: expected one of 1, got \"x\"\ne.env:2: parse error: missing '='\ne.env:3: K2: expected one of a, b, got \"q\"\ne.env: Z: required key is missing\ne.env: Y: required key is missing\n",
+  "stderr": ""
+ },
+ "UC03/static": {
+  "shebang": true,
+  "writes": false,
+  "stdin": false,
+  "defaultEnv": false
+ }
+}

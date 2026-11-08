@@ -42,16 +42,19 @@ verb, `sandbox-guard` (the fence and the tier rule), `dispatch-receipt`, `safety
 
 ## Consequences
 
-- **The kernel and hooks went from 16.5 k lines to about 6.4 k, and the structural suite from 110 files and 19.9 k lines to ten files
-  and under 1 k.** The plan's own target for S4 was about ten files and at most 2.5 k lines; it is met.
+- **The kernel, hooks and installer went from 16.5 k lines to 6.2 k, and the structural suite from 110 files and 19.9 k lines to ten files
+  and 755 lines (970 with the runner and helpers).** The plan's own target for S4 was about ten files and at most 2.5 k lines; it is met.
 - **A set of guarantees AGENTS.md used to state as mechanical are now the loop's discipline**, and `AGENTS.md` says so in its first
   section. In particular nothing now stops a run from skipping the board-review lint, applying a result twice, miscounting attempts,
   evaluating a feature that does not build, or reporting a ship from memory. The write fence, the dispatch receipts, the T0 witness and
   the gate resolver still refuse what they refused.
-- **The measured weakness is now the product.** The loop that failed once in the comparison is the only loop. Whether it ships a
-  three-scope pitch reliably is the open question; `execution-native-first-2026-11-08.md` has the run on this branch, if one was made.
-- **A fence armed by hand is a fence that can be forgotten.** With no active-order pointer the fence allows every write. The loop arms
-  and retires it through `harness order`, which reads the pointer back; the tests arm it the same way.
+- **The measured weakness is now the product.** The loop that failed once in the comparison is the only loop. A real run on this
+  branch, on the same pitch, reached the evaluator with all three scopes green on the first attempt, then drew a FAIL (a code bug and
+  two gaps in its own planning that the removed spec lint would have caught), stopped at the start of round 2 on its own judgment of
+  the remaining budget, and had spent $9.1 against $5.4 for the engine's runs. It did not ship. One repetition is not a rate; the
+  record is `execution-native-first-2026-11-08.md`.
+- **A fence armed by hand is a fence that can be forgotten, and a stamp typed by hand can stall it.** With no active-order pointer the fence allows every write. The loop arms
+  and retires it through `harness order`, which reads the pointer back and stamps the order's time itself (a real run typed a stamp ahead of the clock and stalled the run); the tests arm it the same way.
 - **The ratchet's limit is unchanged and now more visible:** the snapshot holds tracked files only, so a revert does not remove a file an
   attempt created.
 - `harness-run.md` is no longer written, a terminal close no longer leaves the `last-run` breadcrumb that keyed later hook rows, and a

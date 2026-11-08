@@ -11,7 +11,8 @@
 // both pointers and records the ending — status, cause, timestamp — so a run that ended stops
 // fencing the checkout, and the ending is a row instead of a recollection.
 //
-// Exit 0 done · 1 refused (the order is unreadable) · 2 malformed input.
+// Exit 0 done · 1 refused (the order is unreadable) · 2 malformed input. `open` also stamps the
+// order's `compiled_at` with the current time.
 
 import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -33,7 +34,12 @@ export const ARGV_SPEC = {
 };
 
 /**
- * Write the active-order pointer, then read it back.
+ * Stamp the order with the real time, write the active-order pointer, then read it back.
+ *
+ * THE STAMP IS THE KERNEL'S, NOT THE LOOP'S. The fence decides an order is answered when its result
+ * is at least as new as the order's `compiled_at`, so a time the loop typed by hand and got wrong —
+ * a few minutes in the future — keeps the order live after its worker has returned and stalls every
+ * write the run makes. A real run did exactly that; the clock is read here instead.
  *
  * @param {string} cwd - Project root.
  * @param {string} slug - Feature slug.
@@ -45,6 +51,8 @@ export function openOrder(cwd, slug, orderPath) {
   try { order = JSON.parse(readFileSync(orderPath, "utf8")); }
   catch (e) { return { ok: false, reason: `order is not readable JSON: ${e.message}` }; }
   if (!order || typeof order !== "object") return { ok: false, reason: "order is not an object" };
+  order.compiled_at = new Date().toISOString();
+  writeFileSync(orderPath, `${JSON.stringify(order, null, 2)}\n`);
   const p = activeOrder(cwd);
   mkdirSync(dirname(p), { recursive: true });
   writeFileSync(p, `${JSON.stringify({ slug, order_path: orderPath }, null, 2)}\n`);

@@ -19,8 +19,9 @@ anything that names a removed kernel command, the `hill-chart` skill or the `/hi
   folded or removed earlier; hook registrations went 6 → 4.
 - **A comparison went the other way, and the removal was the PO's decision.** On a three-scope pitch the scripted sequencing shipped
   2 of 2 runs and the same loop reading its own table 0 of 1, at 59% higher cost. The engine was removed anyway; the record says so.
-- **Size.** Kernel, hooks and installer 18,736 → about 6,400 lines. The structural suite 21,872 lines in 115 files → under 1,000 lines
+- **Size.** Kernel, hooks and installer 18,736 → 6,241 lines. The structural suite 21,872 lines in 115 files → 755 lines
   in ten files that execute shipped code, with a floor on the check count.
+- **A real run on this branch did not ship.** On the same three-scope pitch it built all scopes in round 1, drew an evaluator FAIL, and stopped at the start of round 2 for budget ($9.1 spent). It also found a defect, fixed here: `order open` now stamps the order's time instead of trusting one typed by the loop.
 - **Fixed on the way.** `init run` now refuses a plugin copy that cannot name its worker roster instead of throwing a stack trace.
 
 ## [4.0.0] — 2026-11-07 · One loop in the session, in place of one workflow launch

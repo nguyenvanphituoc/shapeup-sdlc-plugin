@@ -1,0 +1,65 @@
+{
+  "schema_version": 2,
+  "round": 1,
+  "attempt": 1,
+  "trial": 1,
+  "at": "2026-11-08T05:11:42.399Z",
+  "run_id": "envlint-20261108T050016Z-c40aa663",
+  "scope_id": "parsing",
+  "env": {
+    "schema_version": 1,
+    "host": {
+      "platform": "darwin",
+      "arch": "arm64",
+      "os_release": "27.0.0",
+      "node": "v24.15.0",
+      "hostname_sha256": "fc7b2e355cd153f2742755036cef7a85840bc651258026e69764f044a4fbdbb9"
+    },
+    "cwd": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer",
+    "tree": {
+      "head": "b8a18120b78f8f6be5f13681f4f9b973729cff15",
+      "dirty": true,
+      "branch": "master"
+    },
+    "toolchain": [
+      {
+        "bin": "node",
+        "path": "/Users/liberty/.nvm/versions/node/v24.15.0/bin/node"
+      }
+    ],
+    "lockfiles": [],
+    "caches": null,
+    "env": {
+      "allowlist": [
+        "PATH",
+        "NODE_ENV",
+        "CI",
+        "LANG",
+        "TZ"
+      ],
+      "sha256": "e859949ac321c1e9f3620a4a7027845bc2f1b048062465e9bc51fa5bb26c49da"
+    },
+    "env_sha256": "640325ac0f9e01d0fba026c8f1502a5c47c37061afa3cac80858b6cc9c9fd280"
+  },
+  "fixtures": [
+    {
+      "cmd": "node --test test/parse.test.mjs",
+      "exit": 0,
+      "pass": true,
+      "stdout_tail": "✔ returns {pairs, problems} arrays (1.350708ms)\n✔ TS-INV-02: src/parse.mjs has no import and is deterministic (0.39025ms)\n✔ KEY=value yields a pair on line 1 (0.085375ms)\n✔ comments and whitespace-only lines yield nothing (0.065375ms)\n✔ export KEY=value yields key KEY (0.07075ms)\n✔ quoted values yield verbatim inner text (0.062708ms)\n✔ TS-ERR-UNTERMINATED_QUOTE (0.065875ms)\n✔ TS-ERR-MISSING_EQUALS: line 2 without '=' (0.06425ms)\n✔ TS-ERR-INVALID_KEY: 1BAD=x and =x (0.073833ms)\n✔ TS-INV-03: ${VAR} is never interpolated (0.097ms)\n✔ TS-INV-01: lines are 1-based physical lines (0.072125ms)\n✔ duplicates are kept in file order (0.049875ms)\n✔ TS-INV-04: boundary inputs never throw (0.096209ms)\n✔ BOM-prefixed text parses with correct lines (0.046708ms)\n✔ CRLF text parses with correct lines and no stray \\r (0.049833ms)\nℹ tests 15\nℹ suites 0\nℹ pass 15\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 51.998375\n"
+    }
+  ],
+  "db_probe": null,
+  "fixtures_green": true,
+  "db_probe_green": true,
+  "overall": "green",
+  "score": {
+    "fixtures_passed": 1,
+    "fixtures_total": 1,
+    "db_probe": null
+  },
+  "discovered_tasks": [],
+  "check_files": {
+    "test/parse.test.mjs": "6fe2b11df7198d9adf7d0cdbf93ac4e6f0091f8f2a16f7550dd1a0148df5d20f"
+  }
+}

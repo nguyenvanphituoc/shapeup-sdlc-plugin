@@ -88,7 +88,7 @@ The same five moves for every worker. `resources/orders.md` has the order for ea
 
 1. **Write the order** to `<run>/orders/<stem>.json` from the template for the operation. It carries the substrate (the globs the worker may write,
    copied from the scope contract for a build) and the payload the worker needs, as paths where a path will do.
-2. **Open it**: `K order open --slug <slug> --order "<run>/orders/<stem>.json"`. This names the live order to the fence; without it the fence allows every write.
+2. **Open it**: `K order open --slug <slug> --order "<run>/orders/<stem>.json"`. This stamps the order's time and names the live order to the fence; without it the fence allows every write.
 3. **Spawn** the agent `shapeup-sdlc-plugin:<worker>` with the prompt `--order "<run>/orders/<stem>.json"` and one line of note. The dispatch is checked
    against the order schema before it leaves, and leaves a receipt naming the agent that ran.
 4. **Read the result** at `<run>/results/<stem>.json`: `K verify envelope "<run>/results/<stem>.json" "${CLAUDE_PLUGIN_ROOT}/kernel/schemas/work-result.schema.json"`.

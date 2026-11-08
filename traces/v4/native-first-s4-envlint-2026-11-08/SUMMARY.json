@@ -1,0 +1,64 @@
+{
+  "tree": "5d733c3 plus the grant restamp, archived from git HEAD",
+  "pitch": "envlint (three scopes, No-gos stated as plain sentences)",
+  "command": "claude -p --plugin-dir <archive> --allowedTools 'Bash(node *)' --permission-mode acceptEdits --max-budget-usd 12 '/shapeup-sdlc-plugin:ship pitch.gate.md --unattended'",
+  "started": "2026-11-08T04:59:50Z",
+  "ended": "2026-11-08T05:21:58Z",
+  "total_cost_usd": 9.1156654,
+  "num_turns": 20,
+  "duration_ms": 607628,
+  "subagents": {
+    "shapeup-sdlc-plugin:orient": 1,
+    "shapeup-sdlc-plugin:task-executor": 3,
+    "shapeup-sdlc-plugin:spec-evaluator": 1
+  },
+  "permission_denials": 7,
+  "closed": false,
+  "gate_sequence": [
+    "L0:proceed",
+    "L0:proceed",
+    "L1a:proceed",
+    "L1a.5:proceed",
+    "L1b:proceed",
+    "L2/r1:proceed",
+    "L3/r1:loop"
+  ],
+  "dispatch_receipts": [
+    {
+      "order": "envlint/orient",
+      "agent": "orient",
+      "ok": true,
+      "tokens": 62756,
+      "model": "claude-opus-5-5"
+    },
+    {
+      "order": "envlint/parsing-r1-a1",
+      "agent": "task-executor",
+      "ok": true,
+      "tokens": null,
+      "model": "claude-opus-5-5"
+    },
+    {
+      "order": "envlint/rules-r1-a1",
+      "agent": "task-executor",
+      "ok": true,
+      "tokens": null,
+      "model": "claude-opus-5-5"
+    },
+    {
+      "order": "envlint/cli-r1-a1",
+      "agent": "task-executor",
+      "ok": true,
+      "tokens": 42911,
+      "model": "claude-opus-5-5"
+    },
+    {
+      "order": "envlint/evaluate-r1",
+      "agent": "spec-evaluator",
+      "ok": true,
+      "tokens": 114268,
+      "model": "claude-opus-5-5"
+    }
+  ],
+  "final_message": "I stopped this unattended run at the start of round 2. The USD budget for this session can't cover another round: the round-1 evaluator alone cost about $2.70 and roughly $3 is left. The run is still open, nothing is shipped, and running `/ship pitch.gate.md --unattended` again resumes it from round 2.\n\n**Where it stands**\n- **Gates crossed** (all by the `ci` answer set, no human): L0, L1a, L1a.5, L1b, L2 for round 1, and L3 for round 1, which answered `loop` (round 2 of 3).\n- **Build:** all three scopes built and passed their own test suites on the first attempt (`parsing`, `rules`, `cli`; evidence in `.shapeup/envlint/t0/verdicts/r1-a1-t{1,2,3}.json`). The full `node --test` suite passed 46 of 46.\n- **What exists:** `src/parse.mjs`, `src/rules.mjs` and `bin/envlint.mjs`, three test files, and a `bin` entry in `package.json`. The plan is under `shapeup/envlint/`.\n\n**Round 1 verdict: FAIL, 3 bugs** (`.shapeup/envlint/results/evaluate-r1.json`, report in `.shapeup/envlint/evaluation/EVAL-FEATURE-envlint.md`)\n1. **The CLI passes control characters through.** An escape byte inside an env value is printed to stdout as-is, which breaks the spec's \"no escape sequences in output\" rule (`bin/envlint.mjs:67`, message built at `src/rules.mjs:66`). This one needs a code fix.\n2. **A rules-engine rule has no acceptance check.** The spec's \"neither function throws\" invariant for the rules engine is not graded by any of its task's checks. This is my planning gap, not a code bug.\n3. **The same invariant has no test-surface row** in the rules use case. Also my planning gap.\n\nThe other 28 test-surface rows passed, and the evaluator's test-coverage dimension (`tdd-surface`) passed.\n\n**Things I settled myself, with no PO present:**\n- **Data shapes and exit codes.** The pitch left the data shapes and the exit codes undefined, so I picked the simplest reading: exit 0 when clean, 1 for findings, 2 for usage or file errors, plus strict `int`/`bool`/`url` checks. They are written down for you to overturn in `shapeup/envlint/spec/_index.md` under \"Planning decisions\".\n- **Appetite.** The pitch has no frontmatter appetite, so I treated \"small batch\" as about one week.\n- **Model.** The run is recorded with `sonnet` models, but the dispatch receipts show the workers ran on `claude-opus-5-5`.\n- **Fence stall.** I stalled the write fence once by stamping an order with a time later than its result was written. I fixed it by refreshing the result file's timestamp, and later orders take their time from the clock.\n\n**On resume:** the next step is fixing bug 1 in the `cli` scope. Bugs 2 and 3 are spec changes that need a reconcile pass on the spec and board first. Then the evaluator runs again for round 2."
+}

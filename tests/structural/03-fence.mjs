@@ -38,6 +38,7 @@ export async function run(ctx) {
     });
     const open = kernel(ROOT, ["order", "open", "--slug", SLUG, "--order", path], { cwd: root });
     check(open.status === 0 && existsSync(join(root, ".shapeup/active-order")), "order open writes the pointer and reads it back");
+    check(Math.abs(Date.now() - Date.parse(json(path).compiled_at)) < 10_000, "order open stamps the order with the real time");
     put(root, "bad.json", "{ not json");
     const bad = kernel(ROOT, ["order", "open", "--slug", SLUG, "--order", join(root, "bad.json")], { cwd: root });
     check(bad.status === 1, "order open refuses an order that is not JSON (exit 1)");
@@ -52,6 +53,15 @@ export async function run(ctx) {
     check(denied(r), "the run's own order directory is frozen to the worker");
     r = write(`.shapeup/${SLUG}/results/build-r1-a1.json`, "{}");
     check(!denied(r), "the order's own result path is writable even though the run trace is frozen");
+
+    // A stamp typed by hand and wrong must not stall the run: open overwrites it, so the result is newer.
+    const future = order("typed-by-hand", { allowed: ["other/**"], frozen: [`.shapeup/${SLUG}/**`] });
+    put(root, `.shapeup/${SLUG}/orders/typed-by-hand.json`, { ...json(future), compiled_at: "2999-01-01T00:00:00Z" });
+    kernel(ROOT, ["order", "open", "--slug", SLUG, "--order", future], { cwd: root });
+    put(root, `.shapeup/${SLUG}/results/typed-by-hand.json`, "{}");
+    kernel(ROOT, ["order", "open", "--slug", SLUG, "--order", path], { cwd: root });
+    r = write("other/x.js");
+    check(denied(r), "an answered order whose stamp was typed a thousand years ahead no longer permits writes (it would, if the stamp had been kept)");
 
     // The two ways the fence lifts, distinguished by rule.
     put(root, `.shapeup/${SLUG}/results/build-r1-a1.json`, "{}");

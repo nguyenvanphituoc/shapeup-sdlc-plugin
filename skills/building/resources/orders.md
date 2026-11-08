@@ -12,7 +12,7 @@ template for the operation and filling the bracketed fields from the files named
   "order_id": "<slug>/<stem>",
   "kernel": "<absolute path of this plugin copy's kernel entry point>",
   "run_id": "<run_id from .shapeup/<slug>/receipt.json>",
-  "compiled_at": "<ISO time now>",
+  "compiled_at": "<any ISO time; `order open` replaces it with the real one>",
   "worker": "<orient | task-executor | spec-evaluator | qa-edge-hunter | building>",
   "mode": "orchestrated",
   "operation": "<orient | execute | fix | evaluate | hunt | plan>",
@@ -22,7 +22,7 @@ template for the operation and filling the bracketed fields from the files named
 }
 ```
 
-`kernel` is the absolute path, never a variable: a worker runs it as a command, and a command that spells it through a
+`compiled_at` is not yours to get right: `order open` overwrites it with the clock, because the fence compares it with the result's age and a time typed by hand that runs ahead of the clock keeps the order live after its worker returned. `kernel` is the absolute path, never a variable: a worker runs it as a command, and a command that spells it through a
 variable is refused in a headless session. A `plan` order takes `"worker": "building"` and `"mode": "standalone"` —
 no sub-agent answers it, it only opens the fence.
 

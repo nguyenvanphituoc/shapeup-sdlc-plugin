@@ -68,44 +68,24 @@ console.log(s.\$defs.Operation.description);
 
 ## Operation ownership and write contracts
 
-The enum says an operation exists; the compiler says who owns it and what it may write. Both must
-agree, and a doc's table of write targets is derived from the second.
+The enum says an operation exists; the loop's orders resource says what each may write, and the write fence
+enforces whatever the order carries. A doc's table of write targets is derived from the resource and
+checked by executing the fence.
 
 ```bash
-# The routing map — grep the OP_OWNER literal
-grep -n "OP_OWNER" -A 12 kernel/compile.mjs
-
-# The actual substrate an operation is compiled with (authoritative — it is what the hook enforces)
+# The roster and the operations, from the schema
 node -e "
-const ops = JSON.parse(require('fs').readFileSync('kernel/schemas/domain.schema.json','utf8')).\$defs.Operation.enum;
-import('./kernel/compile.mjs').then(m=>{
-  for (const op of ops) console.log(op, JSON.stringify(m.substrateFor(op,{slug:'demo'})));
-});
+const s=JSON.parse(require('fs').readFileSync('kernel/schemas/domain.schema.json','utf8'));
+console.log(s.\$defs.WorkerName.enum, s.\$defs.Operation.enum);
 "
+
+# The substrate table the loop copies from
+sed -n '/## Substrate per operation/,/## Payload per operation/p' skills/building/resources/orders.md
 ```
 
-An operation with no `substrateFor` case silently falls to the default whitelist, which is usually
-wrong and always worth flagging.
-
-"No `OP_OWNER` entry" is *not* the same as "cannot be routed", and reading the map alone will
-mislead you twice. Its keys are **unquoted** (`analyze:`, not `'analyze':`), so a grep for `'<op>'`
-reports every entry missing. And `execute`/`fix`/`spike` are absent from the map by design — they
-resolve through the `scopePath || --task || --next` branch just below it. Settle it by running the
-compiler, which is the only thing that answers the question:
-
-```bash
-node <repo>/kernel/compile.mjs --operation <op> --slug demo --cwd "$PWD"
-# exit 2 + "could not resolve --worker/--operation" = genuinely unroutable in that invocation
-```
-
-Compile a real order end to end when you want certainty:
-
-```bash
-mkdir -p /tmp/gt/.shapeup/demo/tasks && cd /tmp/gt
-printf -- '---\nfeature: demo\n---\n| ID | Title | Status |\n|---|---|---|\n' > .shapeup/demo/tasks/_index.md
-node <repo>/kernel/compile.mjs --operation coverage --slug demo --cwd "$PWD"
-cat .shapeup/demo/orders/coverage.json
-```
+An operation in the enum with no row in that table is an operation the loop has no template for — flag it. What
+the fence actually does with a substrate is settled by firing `hooks/sandbox-guard.mjs` against a fixture order
+(`tests/structural/03-fence.mjs` does exactly that); never by reading the hook's header.
 
 ## Hook inventory and registration
 
@@ -210,10 +190,9 @@ removed. Expect **no `evals/` directory** and no `examples/eval-planted-bug*`; a
 a measured activation rate, a craft delta, or a Tier-1/Tier-2 fixture is drift to fix, not a file to
 go looking for.
 
-The read-only projections in `kernel/probe/stats.mjs` (`--ratchet`, `--hooks`, and the
-harvest report) are **not** part of that apparatus and must not be swept up with it: they reduce
-over ledgers the harness writes during ordinary work, cost zero model tokens, and are the only
-measurement surface that still exists.
+The decision ledger (`.shapeup/decisions.jsonl`), the gate ledger and the dispatch receipts are written
+during ordinary work at zero model tokens; they are the only measurement surface that still exists, and
+no command reads them back into a report.
 
 **Section numbers are not unique, so do not use one to decide whether something still exists.** The
 removal above took out a section numbered **16** (`02-skills.mjs`, "Tier-1 trigger-eval datasets…")
