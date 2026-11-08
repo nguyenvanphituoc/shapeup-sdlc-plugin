@@ -50,8 +50,7 @@
 //   5  no answer and on_missing=abort → the run aborts here, attributably
 //   2  usage / validation error
 
-import { readFileSync, writeFileSync, appendFileSync, existsSync, mkdirSync } from "node:fs";
-import { parseBoard } from "./reduce/board.mjs";
+import { readFileSync, writeFileSync, appendFileSync, existsSync, mkdirSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { runArgs } from "./lib/argv.mjs";
 import { gateAnswerCandidates, gates as gatesPath, LOCAL, resultsDir, tasksDir, hammerCensus, readRunId, harnessRun } from "./lib/paths.mjs";
@@ -236,7 +235,7 @@ export function narrowToEvidence(r, cwd, slug) {
   // among allowed answers and cannot supply the evidence that makes one allowed.
   if (r?.gate === "L2" && r?.status === "ok" && r?.decision === "proceed" && slug) {
     let tasks = 0;
-    try { tasks = parseBoard(tasksDir(cwd, slug)).length; } catch { tasks = 0; }
+    try { tasks = readdirSync(tasksDir(cwd, slug)).filter((f) => /^TASK-[\w.-]+\.md$/i.test(f)).length; } catch { tasks = 0; }
     if (tasks === 0) {
       return {
         gate: r.gate, status: "ask", source: r.source, decision: "ask", note: r.note,

@@ -92,7 +92,7 @@ import { resolve, join, relative, dirname, basename, sep } from "node:path";
 import { isMain } from "../kernel/lib/argv.mjs";
 import { LOCAL, SHARED, activeOrder, ordersDir, resultsDir, metricsShard, dispatchReceipts } from "../kernel/lib/paths.mjs";
 import { runHook, readStdin, settle, projectRoot } from "./lib/decision.mjs";
-import { SCANNED, tierLeaks } from "../kernel/verify/spec.mjs";
+import { SCANNED, tierLeaks } from "./lib/tier.mjs";
 
 // --- tiny glob matcher: supports *, **, ? — enough for substrate globs, zero dependencies ---
 export function globToRegExp(glob) {

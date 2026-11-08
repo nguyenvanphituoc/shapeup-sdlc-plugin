@@ -80,23 +80,11 @@ import { isMain } from "./lib/argv.mjs";
  */
 export const ROUTES = {
   verify: {
-    t0: "./verify/t0.mjs", budget: "./verify/budget.mjs", envelope: "./verify/envelope.mjs",
-    spec: "./verify/spec.mjs", skills: "./verify/skills.mjs",
-    dispatch: "./verify/dispatch.mjs", build: "./verify/build.mjs",
+    t0: "./verify/t0.mjs", envelope: "./verify/envelope.mjs", skills: "./verify/skills.mjs",
   },
-  reduce: {
-    ingest: "./reduce/ingest.mjs", hill: "./reduce/hill.mjs",
-    ship: "./reduce/ship.mjs", board: "./reduce/board.mjs",
-  },
-  probe: {
-    resume: "./probe/resume.mjs", t0: "./probe/t0.mjs",
-    leg: "./probe/leg.mjs", eval: "./probe/eval.mjs", owner: "./probe/owner.mjs",
-    requirements: "./probe/requirements.mjs", attempts: "./probe/attempts.mjs", hunt: "./probe/hunt.mjs",
-    next: "./probe/next.mjs",
-  },
-  init: { run: "./init/run.mjs", fit: "./init/fit.mjs" },
   gate: "./gate.mjs",
-  compile: "./compile.mjs",
+  init: { run: "./init/run.mjs" },
+  order: "./order.mjs",
 };
 
 /** Every `<verb> <action>` pair, for the usage text and the unknown-verb rejection. */
