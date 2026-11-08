@@ -175,8 +175,8 @@ round. Write it so someone without your context can answer it in one reply.
 ```
 
 **Every Test Surface row is its own criterion.** Name the row's id (`TS-05-05`) in `criterion`, one
-row per entry — never a range (`TS-01-04/05`) and never a group ("device rows"). Ingest refuses a
-PASS that leaves any row of the spec unnamed, because the requirement matrix, the next round's bugs
+row per entry — never a range (`TS-01-04/05`) and never a group ("device rows"). A PASS that
+leaves any row of the spec unnamed is incomplete, because the requirement matrix, the next round's bugs
 and the rewritten-check list all read the verdict one row at a time.
 
 **`traces_to` is copied, not invented.** Fill it from the `(covers: REQ-…)` clause of the
@@ -186,7 +186,7 @@ clause yields no anchor — leave the array empty rather than guessing, and neve
 supply one. This changes nothing you grade: the anchor is a navigation path, never a grading input,
 and a criterion passes or fails on its evidence exactly as before. It matters downstream because
 the requirement matrix at GATE L4 and the census at GATE H are projected from these anchors; a
-verdict that drops them grades the build and says nothing about what the pitch asked for. Ingest refuses a verdict that anchors no criterion at all while the board's ACs carry `covers:` clauses, and you are sent back once.
+verdict that drops them grades the build and says nothing about what the pitch asked for. A verdict that anchors no criterion at all while the board's ACs carry `covers:` clauses has dropped the link the loop reads.
 
 **Every FAIL criterion's `evidence` MUST carry a `file:line` locator** — schema-enforced, not
 advice: the envelope is validated against `work-result.schema.json` when the loop reads it and a locatorless

@@ -11,8 +11,7 @@ that runs a full Shape Up lifecycle — idea → pitch → build → evaluate �
 important rules are enforced by the runtime instead of asked for in a prompt.
 
 The ceremony is sized by the pitch's appetite: `/ship` runs the full gated loop, and a small
-pitch is a one-scope run with a short round budget — the gates and the verification floor are the same. (The
-separate `--tiny` lane was retired; `/ship --tiny` now says so and points here.)
+pitch is a one-scope run with a short round budget — the gates and the verification floor are the same.
 
 <p align="center">
   <img src="docs/assets/demo-gate.svg" alt="Terminal recording: a worker tries to edit a file outside the scope it was given, a PreToolUse hook denies the write and names the path, and the next edit inside the scope is permitted." width="700">
@@ -36,9 +35,9 @@ the tool call never reaches the worker. The same layer denies any write the orde
 does not permit. A run that left no receipt did not happen.
 → *Prevents: an agent inventing its own brief, then reporting against it.*
 
-(GATE L2 — Round Close, the board-green check before evaluation, is advisory: it warns when a round's evaluation
+(The Round Close gate, the board-green check before evaluation, is advisory: it warns when a round's evaluation
 runs over unfinished tasks rather than denying it. The board is local to the machine running the
-harness — see [ADR-0001](docs/design/adr/0001-consumer-file-organization.md).)
+harness.)
 
 **2. Progress is measured, not claimed.** A scope counts as built only when `verify t0` runs
 its fixtures and its DB probe and writes an artifact to disk — with each command's exit code,
@@ -121,14 +120,14 @@ rest of this README after this table and nothing will be a surprise.
 
 | Term | In plain English |
 |---|---|
-| **board** | The round's task list. "Green" means every task is done. GATE L2 (Round Close) reads this before an evaluation and warns if it is not green. |
+| **board** | The round's task list. "Green" means every task is done. The Round Close gate reads this before an evaluation and warns if it is not green. |
 | **round** | One build → evaluate cycle. A FAIL verdict starts round *r+1*. |
 | **T0** | The smoke test a scope must pass before it counts as built: its fixtures and a DB probe. Writes an artifact to disk that the evaluator must cite. |
 | **substrate** | The exact list of files one dispatch is allowed to write, stamped into its work order. A hook blocks anything outside it — and anything the order marks frozen. |
 | **scope contract** | The file defining one vertical slice: its substrate, its fixtures, its affordances. |
 | **affordance** | The thing a user can actually click, type or call. UI is graded on affordances, not on looks. |
 | **hill / hill phase** | How much of a scope is still *unknown* versus merely *unfinished*. The Scout reports a signal at orient; nothing later derives it. |
-| **gate (L0–L4, QA, H, COACH-1)** | A checkpoint in a run, named by a short id. [`AGENTS.md`'s Gate Vocabulary & Symbol Legend](AGENTS.md#gate-vocabulary--symbol-legend) spells out what each one is called and checks. Most pause for you; GATE L2 (Round Close) is the one a hook observes and reports on without pausing. |
+| **gate** | A checkpoint in a run, called by its plain name: Intake & Config, Orient Review, Wiring Review, Board Review, Round Close, Verdict, QA Edge Hunt, Cut-List Review, Ship Sign-off and Retro Ownership. [`AGENTS.md`'s Gate names](AGENTS.md#gate-names) says what each one checks. Most pause for you; the Round Close gate is advisory: it can be crossed over unfinished work, recorded as a flagged `warn`. |
 | **covers-closure** | Every requirement clause is graded by at least one acceptance criterion or claimed by a scope, or the PO marks it `CUT`. The loop reads the plan back for this before the board review; nothing silently drops. |
 | **discovery ledger** | The one file everything found mid-run gets written to, so nothing is lost between rounds. |
 
@@ -143,19 +142,18 @@ document as a whole starts at [`docs/design/`](docs/design/README.md). This diag
 full phase and gate mechanism — simpler than that per-attempt detail, but the whole pipeline:
 
 <p align="center">
-  <img src="docs/assets/workflow-mechanism.svg" alt="The shapeup-sdlc harness pipeline from raw idea to Retro: Shaping produces a Pitch, the Betting Table bets into the loop-driven run or rejects back to raw idea, Kick-off through Ship Sign-off cross gates Intake & Config (L0), Orient Review (L1a), Wiring Review (L1a.5), Board Review (L1b), the advisory Round Close (L2), Verdict (L3), Cut-List Review (GATE H) and Ship Sign-off (L4), the Build/Evaluate round loops on FAIL, and a circuit breaker routes straight to Cut-List Review (GATE H) — bypassing QA — when the round or wall-clock budget runs out." width="900">
+  <img src="docs/assets/workflow-mechanism.svg" alt="The shapeup-sdlc harness pipeline from raw idea to Retro: Shaping produces a Pitch, the Betting Table bets into the loop-driven run or rejects back to raw idea, Kick-off through Ship Sign-off cross gates Intake & Config, Orient Review, Wiring Review, Board Review, the advisory Round Close, Verdict, Cut-List Review and Ship Sign-off, the Build/Evaluate round loops on FAIL, and a circuit breaker routes straight to Cut-List Review — bypassing QA — when the round budget runs out." width="900">
 </p>
 
 <p align="center"><sub>
 Plan-phase skills in blue, build-phase in green, QA-phase in pink; amber pills are gates —
-the outlined <b>L2</b> (Round Close) is advisory, the rest block. The dashed region marks what
+the outlined <b>Round Close</b> gate is advisory, the rest block. The dashed region marks what
 <code>/ship</code> drives end to end.
 </sub></p>
 
 Since v1.3 the pipeline carries a **traceability spine**: the plan activity's requirements
 substep writes a requirement registry (`requirements.md`), its wire substep commits a
-per-use-case wiring map (`wiring-map.md`, gate L1a.5 — Wiring Review) resolved against the L0
-(Intake & Config) `project-profile.md`, and the loop reads the plan back at the board review for a
+per-use-case wiring map (`wiring-map.md`, the Wiring Review gate) resolved against the Intake & Config `project-profile.md`, and the loop reads the plan back at the board review for a
 registered requirement that no acceptance criterion grades. It is advisory until `covers:` is
 populated; every arm is skipped when its artifact is absent, so older specs are unaffected.
 
@@ -163,17 +161,17 @@ populated; every arm is skipped when its artifact is absent, so older specs are 
 
 ### Skills
 
-| Phase | Skill | Version | What it does |
-|-------|-------|---------|--------------|
-| Shaping (1–4) | `shapeup` | — | Frame the problem, breadboard affordances, spike risks, write the pitch. Sub-commands: `full`, `shaping`, `spike`, `breadboarding`, `framing-doc`, `kickoff-doc`, `breadboard-reflection`. |
-| Intake (GATE L0) | `building` | v1.0 | The `intake` sub-command, done by the loop itself: a non-English intake (pitch/PRD/transcript) becomes a faithful English `<name>.en.md` plus a persisted glossary, verified (residual-language scan, structural diff) before the run opens on it. The harness is English-only downstream. |
-| Orient (7) | `orient` | — | Builder-led recon: reads the code, spikes the single riskiest area, emits a code-surface map, spike findings, discovered-task seed, and a hill signal. Writes no production code. |
-| Plan (GATE L1a.5, L1b) | `building` | v1.0 | The loop that drives a run in your session, reading the run's files to decide what comes next. Planning is its `plan` activity, done in the loop's own context — no sub-agent — under a write fence (a fence-only `plan` order): requirements registry (`requirements.md`) → linked DDD spec tree + board (use cases with BDD scenarios, a system flow and a derived `## Test Surface`) → the committed wiring map (`wiring-map.md`: per-UC engine → seam → entry-point call site → affordance, resolved against `project-profile.md`) → write-whitelisted scope contracts (`scopes/*.md`). The loop reads the plan back against each substep's checklist; no script lints it. |
-| Build (9) | `task-executor` | v2.0 | Pure worker: work order in → code out. Assumption scan, minimum-code/surgical-change discipline, Layer 1/2/3 UI rules, substrate-sandboxed, zero-memory. Never writes boards/ledgers/run-state. |
-| Evaluate (GATE L3) | `spec-evaluator` | v1.0 | The single judge (pure worker). Verifies spec-conformance, TDD surface, and integration against the running app — skeptical, files `file:line` bugs, runs exactly once per build round. Requires a T0 artifact citation, grades UI affordance-only; verdict + refuted boxes return as data. |
-| QA (post-PASS) | `qa-edge-hunter` | v1.1 | Exploratory edge hunt on the running app through six fixed lenses, charting edges *outside* what the evaluator probed. Findings go to the ledger as `~`; never blocks ship. |
-| Stop (11) | `building` | v1.0 | The `stop` sub-command — GATE H (Cut-List Review), done by the loop itself: must-have census (every ownership, exhaustion and requirement claim names the file it came from) → baseline comparison (never vs. the ideal) → cut list + ship verdict, written as data that GATE L4 reads. Handles the normal stop and both circuit-breaker triggers. |
-| Retro (post-L4) | `building` | v1.0 | The `retro` sub-command — RLHF for the harness: turns raw PO/TL feedback at Ship Sign-off into per-reader guidelines under committed `shapeup/knowledge-base/<reader>.md` (readers: `task-executor`, `orient`, `qa-edge-hunter`, the `plan` activity, and the loop itself at GATE L0 — workflow guidance, never a gate answer). `--scan` seeds the same files from the project on disk before the first run; `--research <stack>` seeds them from the platform's official documentation when the project has nothing to scan, and cross-checks a scan's rules when it has. GATE COACH-1 (Retro Ownership) asks the PO which reader owns each rule — never assumes; mechanism defects are filed to the harness-defect register instead. |
+| Phase | Skill | What it does |
+|-------|-------|--------------|
+| Shaping | `shapeup` | Frame the problem, breadboard affordances, spike risks, write the pitch. Sub-commands: `full`, `shaping`, `spike`, `breadboarding`, `framing-doc`, `kickoff-doc`, `breadboard-reflection`. |
+| Intake & Config | `building` | The `intake` sub-command, done by the loop itself: a non-English intake (pitch/PRD/transcript) becomes a faithful English `<name>.en.md` plus a persisted glossary, verified (residual-language scan, structural diff) before the run opens on it. The harness is English-only downstream. |
+| Orient | `orient` | Builder-led recon: reads the code, spikes the single riskiest area, emits a code-surface map, spike findings, discovered-task seed, and a hill signal. Writes no production code. |
+| Plan (Wiring Review, Board Review) | `building` | The loop that drives a run in your session, reading the run's files to decide what comes next. Planning is its `plan` activity, done in the loop's own context — no sub-agent — under a write fence (a fence-only `plan` order): requirements registry (`requirements.md`) → linked DDD spec tree + board (use cases with BDD scenarios, a system flow and a derived `## Test Surface`) → the committed wiring map (`wiring-map.md`: per-UC engine → seam → entry-point call site → affordance, resolved against `project-profile.md`) → write-whitelisted scope contracts (`scopes/*.md`). The loop reads the plan back against each substep's checklist; no script lints it. |
+| Build | `task-executor` | Pure worker: work order in → code out. Assumption scan, minimum-code/surgical-change discipline, Layer 1/2/3 UI rules, substrate-sandboxed, zero-memory. Never writes boards/ledgers/run-state. |
+| Evaluate (Verdict) | `spec-evaluator` | The single judge (pure worker). Verifies spec-conformance, TDD surface, and integration against the running app — skeptical, files `file:line` bugs, runs exactly once per build round. Requires a T0 artifact citation, grades UI affordance-only; verdict + refuted boxes return as data. |
+| QA (post-PASS) | `qa-edge-hunter` | Exploratory edge hunt on the running app through six fixed lenses, charting edges *outside* what the evaluator probed. Findings go to the ledger as QA findings; never blocks ship. |
+| Stop (Cut-List Review) | `building` | The `stop` sub-command — the Cut-List Review gate, done by the loop itself: must-have census (every ownership, exhaustion and requirement claim names the file it came from) → baseline comparison (never vs. the ideal) → cut list + ship verdict, written as data that the Ship Sign-off gate reads. Handles the normal stop and both circuit-breaker triggers. |
+| Retro (after Ship Sign-off) | `building` | The `retro` sub-command — RLHF for the harness: turns raw PO/TL feedback at Ship Sign-off into per-reader guidelines under committed `shapeup/knowledge-base/<reader>.md` (readers: `task-executor`, `orient`, `qa-edge-hunter`, the `plan` activity, and the loop itself at the Intake & Config gate — workflow guidance, never a gate answer). `--scan` seeds the same files from the project on disk before the first run; `--research <stack>` seeds them from the platform's official documentation when the project has nothing to scan, and cross-checks a scan's rules when it has. The Retro Ownership gate asks the PO which reader owns each rule — never assumes; mechanism defects are filed to the harness-defect register instead. |
 
 ### Commands
 
@@ -184,15 +182,15 @@ learnable from `/`-completion alone. Names are written short here; the real name
 | Command | Phase | Description |
 |---------|-------|-------------|
 | `/ship` | all | Run the full harness on a pitch (interactive gates by default; `--auto`, `--unattended`). |
-| `/shape` | 1 | Shape a raw idea into a pitch: boundaries → breadboard → spike → `pitch.md`. |
-| `/orient` | 7 | Builder-led recon; spikes the riskiest area, writes no production code. |
-| `/wire` | L1a.5 — Wiring Review | Alias of `/ship plan`, through the wiring map — engine → seam → entry-point call site, per use case. |
-| `/scopes` | 8 | Alias of `/ship plan`: spec tree + board, then scope contracts. |
-| `/build` | 9 | Implement one task's acceptance criteria exactly. |
-| `/eval` | L3 — Verdict | The single judge. Round mode is hook-gated — see the demo above. |
+| `/shape` | Shaping | Shape a raw idea into a pitch: boundaries → breadboard → spike → `pitch.md`. |
+| `/orient` | Orient | Builder-led recon; spikes the riskiest area, writes no production code. |
+| `/wire` | Wiring Review | Alias of `/ship plan`, through the wiring map — engine → seam → entry-point call site, per use case. |
+| `/scopes` | Board Review | Alias of `/ship plan`: spec tree + board, then scope contracts. |
+| `/build` | Build | Implement one task's acceptance criteria exactly. |
+| `/eval` | Verdict | The single judge. Round mode crosses the Round Close gate first. |
 | `/qa` | post-PASS | Exploratory edge hunt; findings never block ship. |
-| `/hammer` | H — Cut-List Review | Must-have census, baseline comparison, cut list + ship verdict. |
-| `/retro` | post-L4 | File ship-gate feedback into the per-reader knowledge base; `--scan` and `--research <stack>` seed it. |
+| `/hammer` | Cut-List Review | Must-have census, baseline comparison, cut list + ship verdict. |
+| `/retro` | after Ship Sign-off | File ship-gate feedback into the per-reader knowledge base; `--scan` and `--research <stack>` seed it. |
 
 ### What is enforced, and by what
 
@@ -271,8 +269,8 @@ These hold across the harness and are the reason it stays predictable:
 - **QA is a level-up, not a gate** — `--no-qa` skips it; the circuit breaker outranks the hunter; findings default to `~`.
 - **Role separation** — evaluator grades, task-executor fixes, QA discovers; no one does another's job.
 - **Two circuit breakers** — an outer `round_budget` (build+eval cycles) nests an inner per-scope
-  `attempt_budget` (T0 attempts); an exhausted scope queues a GATE H (Cut-List Review) proposal instead of
-  blocking the round, and running out of rounds routes to GATE H too, so a run out of budget ships what is
+  `attempt_budget` (T0 attempts); an exhausted scope queues a Cut-List Review proposal instead of
+  blocking the round, and running out of rounds routes to the Cut-List Review too, so a run out of budget ships what is
   green instead of being killed and shipping nothing.
 - **The witness is mechanical** — a T0 verdict is a command's exit code and a hash, not a report; the
   evaluator re-hashes the artifact it cites.
@@ -321,14 +319,14 @@ hooks/                # hooks.json + the three walls: safety-spine, sandbox-guar
                       #   + dispatch-receipt (PostToolUse, denies nothing, attests which worker ran and what the host measured)
                       #   + lib/decision.mjs (every hook records allow / deny / error)
 oracles/              # the evaluation-contract oracle registry (test · snapshot · http · process)
-bin/init.mjs          # `npx shapeup-sdlc init` — scaffolds all three CLI targets
+bin/init.mjs          # `npx shapeup-sdlc init` — the permission grant, the AGENTS.md harness block, the ignore rules
 scripts/install-harness.sh, migrate.sh   # stable public entrypoints (fresh install / update)
 scripts/shapeup-sdlc/lib/                # shell libs both entrypoints source
 tools/                # repo-only: demo/
                       #   demo/record-demo.mjs (regenerates docs/assets/demo-gate.svg)
 tests/structural.mjs, tests/structural/*.mjs   # Tier 0 — ten modules, zero LLM calls
 docs/install.md, upgrading.md, glossary.md
-docs/design/          # the design document (pipeline, gates, circuit breaker, ERD) + adr/
+docs/design/          # the design document (pipeline, gates, circuit breaker, ERD)
 docs/visualize/       # the before-and-after view of the v4 loop
 .github/workflows/    # CI + release (release publishes to npm via OIDC)
 ```

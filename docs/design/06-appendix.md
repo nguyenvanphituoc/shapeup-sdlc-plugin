@@ -45,12 +45,13 @@ examples/                worked fixtures + negative controls for the oracle regi
   evaluation pass.
 - **Ledger is the single source of truth.** Orient, task-executor, and QA discoveries all funnel
   into one ledger; each writes only its own section.
-- **QA is a level-up, not a gate.** `--no-qa` can skip it; the circuit breaker always outranks
-  the hunter.
+- **QA is a level-up, not a gate.** It never blocks on what it finds; `--no-qa` or a `skip` answer skips
+  it on the record, and the circuit breaker always outranks the hunter. What it cannot do is go
+  missing unrecorded: the Ship Sign-off gate refuses `ship` over a hunt the run owed and never paid.
 - **Role separation.** Evaluator grades, task-executor fixes, QA discovers — no one does
   another's job.
 - **Two circuit breakers, one exit.** An exhausted scope queues a proposal and never blocks the
-  round; the outer round budget ends the loop. Both route to GATE H — the run's ending is a ship
+  round; the outer round budget ends the loop. Both route to the Cut-List Review gate — the run's ending is a ship
   decision made against what is green, never a kill.
 - **The witness is mechanical.** A T0 verdict is a command's exit code and a hash, never a worker's
   account of its own progress.
@@ -61,8 +62,6 @@ examples/                worked fixtures + negative controls for the oracle regi
   (`SafetyOverrides`), itself write-protected and logged when exercised.
 - **Nothing advisory blocks.** The ship report is the loop's own statement of the run; no hook fires at
   `Stop`, and no check waits behind the judge.
-- **Lanes thin ceremony, never verification** *(§4.7 — the lane design is withdrawn; the invariant stands)*. No lane
-  skips EVAL, T0, or the hooks; a lane may only remove PO ceremony and scout work.
 
 ---
 [← Verification & Quality Strategy](05-verification-and-quality-strategy.md) · [Back to index](README.md)

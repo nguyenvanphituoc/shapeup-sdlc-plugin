@@ -15,7 +15,7 @@ against a fixture, or validates a shipped file against the thing it names; none 
 | `03-fence` | `sandbox-guard` against fixture orders, and the `order` verb that arms and retires it: outside-substrate deny, frozen, own, no-pointer allow, tier-rule deny, fail-open |
 | `04-ledger` | every hook records a decision; `safety-spine` denies and allows; the dispatch receipt names the agent that ran |
 | `05-t0` | green, red, truncated tails, the environment fingerprint, the ratchet's keep and revert, the cited hash |
-| `06-gate` | presets, live answers, the L2 and L4 refusals, answer files, the source of every decision |
+| `06-gate` | presets, live answers, the Round Close and Ship Sign-off refusals, answer files, the source of every decision |
 | `07-envelope` | the order gate in hook mode and the result check in command mode |
 | `08-shipped-set` | no bookkeeping in shipped files; every hook documented and registered; cited paths and relative links resolve; counted claims match the tree |
 | `09-init` | `init run`'s record and refusals, `--force`, and the installer's grant and harness block |

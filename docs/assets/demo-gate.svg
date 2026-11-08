@@ -17,10 +17,10 @@
   <text x="317" y="23" fill="#7d8590" font-size="12" text-anchor="middle">shapeup-sdlc — sandbox-guard</text>
   <text class="l l0" x="22" y="72" fill="#7d8590">$ claude</text>
   <text class="l l1" x="22" y="93" fill="#f0f6fc">&gt; /ship "add dark mode"</text>
-  <text class="l l3" x="22" y="135" fill="#7d8590">  GATE L0   intake + config ................. ok</text>
-  <text class="l l4" x="22" y="156" fill="#7d8590">  GATE L1a  orient (code surface, risk) ..... ok</text>
-  <text class="l l5" x="22" y="177" fill="#7d8590">  GATE L1a.5 wiring map: 4 use cases ........ ok</text>
-  <text class="l l6" x="22" y="198" fill="#7d8590">  GATE L1b  board: 4 tasks .................. ok</text>
+  <text class="l l3" x="22" y="135" fill="#7d8590">  Intake &amp; Config: intake + config .......... ok</text>
+  <text class="l l4" x="22" y="156" fill="#7d8590">  Orient Review: code surface, risk ......... ok</text>
+  <text class="l l5" x="22" y="177" fill="#7d8590">  Wiring Review: 4 use cases ................ ok</text>
+  <text class="l l6" x="22" y="198" fill="#7d8590">  Board Review: 4 tasks ..................... ok</text>
   <text class="l l8" x="22" y="240" fill="#7d8590">  BUILD  scope tokens   substrate: src/theme/*.ts</text>
   <text class="l l10" x="22" y="282" fill="#f0f6fc">&gt; the worker decides billing needs a tweak too</text>
   <text class="l l11" x="22" y="303" fill="#7d8590">  Edit(src/billing/charge.ts)</text>

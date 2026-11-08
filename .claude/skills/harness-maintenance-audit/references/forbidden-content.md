@@ -46,14 +46,14 @@ evidence in the README is doing deliberate credibility work for the product. The
 user wants a clean npm surface, is a short npm-facing README rather than gutting the GitHub one.
 
 **Do not delete repo-only documentation as a cleanliness measure.** That the tree is public is a
-recorded decision, not an oversight — `docs/design/adr/0002-plugin-repo-organization.md` states it
+recorded decision, not an oversight — it was stated
 plainly: the repo/publish split is *a legibility boundary, not an access-control one; nothing here
 is secret*. The repo is public on GitHub, so removing files would not un-publish them anyway. If
-the premise has changed, that is an ADR to revisit with the user, not something a cleanliness pass
+the premise has changed, that is a decision to revisit with the user, not something a cleanliness pass
 reverses on its own initiative.
 
 (`docs/internal/` was the standing example here until it was retired outright — the working record
-was folded into the design record, and ADR-0002 now carries that outcome. The rule is unchanged;
+was folded into the design record. The rule is unchanged;
 only the example is gone. Deleting it was a decision taken with the user, which is exactly the bar
 this paragraph sets.)
 
@@ -207,9 +207,9 @@ received.
 - **ID formats offered as templates.** `- **HD-001** — <symptom>` inside a template for the
   consumer's own harness-defect register is product vocabulary — the user files their own
   `HD-NNN` entries. It is a format example, not a reference to our bookkeeping.
-- **`ADR-0001`-style decision records** cited as a *name* rather than a path. The consumer inherits
-  the concepts (the two storage roots, contracts as markdown); "since ADR-0001" reads as a version
-  marker. Citing `docs/design/adr/0001-....md` as a path does not — the file is not in their copy.
+- **Decision-record names** (`ADR-NNNN`) cited in a shipped file. The consumer inherits the concepts
+  (the two storage roots, contracts as markdown); "since ADR-0001" reads as a version marker, and
+  the repo keeps no decision records to open.
 - **The plugin's own name in installer strings.** `npx shapeup-sdlc init` is an instruction.
 - **Ordinary words that collide with markers.** "coverage" as a noun, "audit" as a verb,
   `--split` as a flag. The reliable repeat offender is the **task-type enum**

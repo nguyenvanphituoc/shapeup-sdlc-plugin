@@ -13,11 +13,11 @@ its first gate needs a task file, and **at Orient time no board exists yet** —
 mapped *after* this pass, by the plan activity at step 8.
 
 So the Scout's whole job is to make the planner's board **reality-born instead of imagined**.
-It hands `ba` a map of where the pitch lands in real code, the findings from de-risking the
+It hands the plan step a map of where the pitch lands in real code, the findings from de-risking the
 single scariest area, and a seed list of tasks (imagined + already-discovered). Nothing more.
 
 ```
-PO: shaping → bet → kick-off ──► the loop ──► ORIENT (you) ──► ba (Map Scopes) ──► build
+PO: shaping → bet → kick-off ──► the loop ──► ORIENT (you) ──► plan (Map Scopes) ──► build
                                                   reads code, spikes, seeds
 ```
 
@@ -29,7 +29,7 @@ PO: shaping → bet → kick-off ──► the loop ──► ORIENT (you) ─�
 |------|----------|
 | Read the kicked-off pitch + breadboard | Re-shape, re-bet, or question the appetite (PO already did) |
 | Trace pitch elements to real files/modules | Write production code |
-| Spike the **single** riskiest area, time-boxed | Build the scope board / tasks (that is `ba`, step 8) |
+| Spike the **single** riskiest area, time-boxed | Build the scope board / tasks (that is the plan step, step 8) |
 | Seed the discovered-task list (imagined + discovered) | Keep `run-state` (the loop owns it) |
 | Emit raw hill **signal** (per-area unknowns) | Render the hill **report** (the loop renders it) |
 
@@ -52,10 +52,10 @@ write surface — the orient output dir. Anything absent = unknown: confirm at G
 `--pitch/--spec/--stack` flags below carry the same fields; the output dir derives from the
 spec path (`.shapeup/<feat>/orient/`).
 
-## Output — the four artifacts (the `orient → ba` contract) + a WorkResult
+## Output — the four artifacts (the `orient → plan` contract) + a WorkResult
 
 All four land in the orient output dir (orchestrated: the order's substrate; standalone:
-`.shapeup/<feat>/orient/`). These ARE the contract `ba` Phase 1 consumes, so `ba` does
+`.shapeup/<feat>/orient/`). These ARE the contract the plan step's Phase 1 consumes, so it does
 not re-scan the codebase. Keep them factual and link real `file:line` so the planner can trust
 them. When dispatched with an order, also write the WorkResult envelope
 (`.shapeup/<feat>/results/<order-suffix>.json`, `work-result.schema.json`): `status`,
@@ -63,9 +63,9 @@ them. When dispatched with an order, also write the WorkResult envelope
 
 | File | Purpose | Consumed by |
 |------|---------|-------------|
-| `orient/code-surface.md` | where the pitch lands in real code: modules, files, existing entities, seams | `ba` Phase 1 (ingest), Phase 2 (DDD) |
-| `orient/spike-<area>.md` | findings from de-risking the single riskiest area | `ba` Phase 1b / contracts; the loop L1a |
-| `orient/discovered-seed.md` | imagined + already-discovered tasks, grouped by suspected scope | `ba` Phase 6 (task gen) |
+| `orient/code-surface.md` | where the pitch lands in real code: modules, files, existing entities, seams | the plan step's Phase 1 (ingest), Phase 2 (DDD) |
+| `orient/spike-<area>.md` | findings from de-risking the single riskiest area | the plan step's Phase 1b / contracts; the loop L1a |
+| `orient/discovered-seed.md` | imagined + already-discovered tasks, grouped by suspected scope | the plan step's Phase 6 (task gen) |
 | `orient/hill-signal.md` | per-area inventory of open unknowns (raw signal, not a report) | `building` GATE L1a hill render |
 
 ---
@@ -160,7 +160,7 @@ Rank candidate areas by **(open unknowns) × (integration risk)**. The riskiest 
 where the pitch meets an unproven seam: a third-party API, a data-shape you can't confirm from
 code, a cross-layer contract, a performance assumption. Pick the **single** highest — the
 Scout spikes one thing well, not five things shallowly. List the rest as known unknowns (they
-feed the hill signal and `ba`'s rabbit-hole handling).
+feed the hill signal and the plan step's rabbit-hole handling).
 
 ## GATE O-B — Spike scope
 
@@ -187,13 +187,13 @@ the time-box; a partial answer with a clear residual unknown is a valid result.
 
 ## Phase 5 — Seed discovered tasks → `discovered-seed.md`
 
-Write the task seed `ba` Phase 6 will turn into the board. Two kinds, clearly labelled:
+Write the task seed the plan step's Phase 6 will turn into the board. Two kinds, clearly labelled:
 - **Imagined** — what you'd expect from the pitch alone.
 - **Discovered** — what the code-surface scan and spike actually surfaced (the higher-value
   set; in Shape Up these dominate). **Every discovered task must cite `file:line` or seam.**
   If you can't cite a real location, it belongs in Imagined, not Discovered.
 
-Group by **suspected scope** so `ba` can map scopes naturally. Do **not** assign IDs, order,
+Group by **suspected scope** so the plan step can map scopes naturally. Do **not** assign IDs, order,
 or dependencies — that is the planner's job. You are handing over raw material, not a plan.
 
 > This is the seed for the planner's first board. The *in-build* discovered-task loop
@@ -207,7 +207,7 @@ For each suspected scope/area, list its **open unknowns** (unresolved spike ques
 data shape, unproven seam, ambiguous requirement). This is the raw input `building` renders
 into the Hill at GATE L1a — a scope with open unknowns sits **uphill**; one whose approach the
 spike proved sits toward the **crest**. Emit the *facts*; let `building` position the dots.
-Keep it per-area (not per-slice) — slices don't exist until `ba` maps them at step 8.
+Keep it per-area (not per-slice) — slices don't exist until the plan step maps them at step 8.
 
 ---
 
@@ -225,12 +225,12 @@ in standalone mode):
     discovered-seed.md — <N imagined> + <M discovered> tasks seeded across <K> scopes
     hill-signal.md    — <summary line from hill, e.g. "No uphill areas; spike at crest.">
 
-  Ready for ba (step 8):
+  Ready for the plan step (step 8):
     The plan activity's spec step carries .shapeup/<feat>/orient/ as its orient directory.
     Its INGEST phase skips its own codebase scan and reads code-surface.md as its authoritative map.
 ```
 
-Tech-lead uses this to render the GATE L1a Hill and confirm the spike before handing to `ba`.
+The loop uses this to render the GATE L1a Hill and confirm the spike before handing to the plan step.
 
 ---
 
@@ -242,7 +242,7 @@ Tech-lead uses this to render the GATE L1a Hill and confirm the spike before han
 | Writes the four artifacts, nothing else | The Scout is a pure worker; no code, no board, no run-state, no report |
 | Spike exactly one area OR declare SPIKE-NOT-NEEDED | Depth on the scariest unknown beats shallow coverage; don't spike for its own sake |
 | Every Discovered task in the seed cites `file:line` | If no real location exists, it belongs in Imagined, not Discovered |
-| Never assign task IDs/order/deps in the seed | Mapping scopes is `ba`'s job (step 8) — the Scout hands over raw material |
+| Never assign task IDs/order/deps in the seed | Mapping scopes is the plan step's job (step 8) — the Scout hands over raw material |
 | Receives `feature`/`spec`/`stack` as args; never touches run-state | `building` is the sole run-state writer |
 | Emits hill *signal*, never a hill *report* | `building` renders progress; workers emit facts |
 

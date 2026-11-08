@@ -24,7 +24,7 @@ session drives.
 | A stuck agent either loops forever or silently gives up. | A **two-level circuit breaker**: an outer round budget and an inner per-scope attempt budget. An exhausted scope is queued as a proposal for a human decision — it never blocks the run and never loops silently. |
 | Parallel or multi-scope work steps on itself. | Each vertical scope gets a write-whitelisted file substrate, mechanically enforced by a `PreToolUse` hook — one scope's generator physically cannot edit another's files. |
 | Lessons learned in one sprint evaporate by the next. | PO feedback at ship sign-off is filed, by a categorization gate, into a committed **knowledge base** that the relevant skill reads back on its next run — team-shared on `git pull`, not trapped in one session. |
-| The human loses the thread of a long automated run. | Five numbered gates (`L0–L4`) pause the run at exactly the points Shape Up already treats as decisions — intake, orient, plan, verdict, ship — and refuse to auto-proceed without sign-off. |
+| The human loses the thread of a long automated run. | Five gates (Intake & Config through Ship Sign-off) pause the run at exactly the points Shape Up already treats as decisions — intake, orient, plan, verdict, ship — and refuse to auto-proceed without sign-off. |
 | Tooling only works in one editor. | One source of truth (`skills/`, `commands/`, `hooks/`) ships as a native Claude Code plugin — the one runtime whose hooks make the gates *enforced* rather than instructed. |
 
 The recurring design move, visible in almost every mechanism in this document, is turning a

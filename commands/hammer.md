@@ -1,5 +1,5 @@
 ---
-description: GATE H — must-have census, baseline comparison, cut list + ship verdict
+description: The Cut-List Review gate — must-have census, baseline comparison, cut list + ship verdict
 ---
 Use the **building** skill's `stop` sub-command on $ARGUMENTS.
 
@@ -12,5 +12,5 @@ contracts, the dispatch receipts and trials, the verdict and `requirements.md`.
 Handles all three arrival paths: the normal stop (all scopes finished), an exhausted round
 budget, and an exhausted per-scope attempt budget. The verdict is a proposal — promotion of cut
 items is the human's call at the gate, not the census's — and it is written as data to
-`reports/hammer-census.json` under the run's local root, which GATE L4 reads before any answer set
+`reports/hammer-census.json` under the run's local root, which the Ship Sign-off gate reads before any answer set
 may say `ship`.

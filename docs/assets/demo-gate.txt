@@ -12,10 +12,10 @@ harness verify envelope and safety-spine.
 $ claude
 > /ship "add dark mode"
 
-  GATE L0   intake + config ................. ok
-  GATE L1a  orient (code surface, risk) ..... ok
-  GATE L1a.5 wiring map: 4 use cases ........ ok
-  GATE L1b  board: 4 tasks .................. ok
+  Intake & Config: intake + config .......... ok
+  Orient Review: code surface, risk ......... ok
+  Wiring Review: 4 use cases ................ ok
+  Board Review: 4 tasks ..................... ok
 
   BUILD  scope tokens   substrate: src/theme/*.ts
 

@@ -85,7 +85,7 @@ between a demo and a tool:
 | E5 | missing store, first run | creates it, exit 0 |
 | E6 | store with two items | lists both, exit 0 — proves the CLI reads the store it was given |
 
-⏸ **GATE L1b** pauses here. Review the board before a line of code is written — this is the
+**Board Review gate.** pauses here. Review the board before a line of code is written — this is the
 last cheap moment to change your mind.
 
 ## 4. Build it
@@ -110,7 +110,7 @@ Suppose two tasks are still unfinished and the agent decides it has done enough:
 **Verbatim output** — this is the gate's real warning, not a paraphrase:
 
 ```
-⚠ GATE L2 — the board is NOT green and the EVAL is proceeding anyway.
+⚠ the Round Close gate — the board is NOT green and the EVAL is proceeding anyway.
 Unfinished (2): TASK-003, TASK-004
 EVAL is designed to run once per round, after every task is done. A verdict taken
 now grades a partial board, so a PASS does not mean the feature is complete — it
@@ -119,13 +119,13 @@ or use --task for a deliberate single-task check.
 ```
 
 That text is derived from the board read twice — per-task frontmatter *and* the board table — and
-it travels in the GATE L2 block itself, so whoever answers the gate sees it. **GATE L2 is
+it travels in the Round Close gate block itself, so whoever answers the gate sees it. **The Round Close gate is
 advisory**: the operator asked for the call and the board is local to this machine, so it reports
 rather than refuses. What it buys is that "evaluated a green board" and "evaluated a half-green
 board anyway" are two different, countable facts — a PASS over an incomplete board can never later
 be read as a complete one.
 
-> **The layers that do refuse.** Advisory is GATE L2's own choice, not the harness's posture.
+> **The layers that do refuse.** Advisory is the Round Close gate's own choice, not the harness's posture.
 > `harness verify envelope` denies a worker dispatch whose order is missing or schema-invalid;
 > `sandbox-guard.mjs` denies a write no live order's substrate permits; and
 > `safety-spine.mjs` denies `rm -rf ~`, force-push, `DROP TABLE` and secret reads.
@@ -174,7 +174,7 @@ FAIL — and the run does not proceed to ship on five out of six.
 > **Absence of evidence is a FAIL.** A criterion the evaluator could not probe does not pass by
 > default. This is the rule that makes the verdict worth anything.
 
-⏸ **GATE L3.** FAIL routes back to BUILD for round 2 — and round 2 builds *only* the bugs, plus
+**Verdict gate.** FAIL routes back to BUILD for round 2 — and round 2 builds *only* the bugs, plus
 the full Test Surface of any use case that was touched. It does not rebuild the world.
 
 ## 7. Fix, then PASS
@@ -221,10 +221,10 @@ a store that is a JSON array of the wrong shape, a 10,000-item list).
 `/hammer` compares against the **baseline — what people live with today, which is nothing** —
 not against an ideal todo app. That is what makes it possible to stop.
 
-⏸ **GATE L4.** You sign off. Feedback you give here is not lost: `/retro` files it under the
+**Ship Sign-off gate.** You sign off. Feedback you give here is not lost: `/retro` files it under the
 responsible skill in `shapeup/knowledge-base/<skill>.md`, committed, and the coachable
 skills read it back on their next run — including the loop itself (`building`), whose file holds workflow
-guidance it reads at the next GATE L0 (what to ask, what to pin; never how to answer a gate).
+guidance it reads at the next Intake & Config gate.
 Before a first run on a new codebase, `/retro --scan` can seed those files from the project's
 own build files, and on an empty project `/retro --research "<stack>"` from the platform's
 official documentation, with every drafted rule confirmed by you.
@@ -234,8 +234,8 @@ official documentation, with every drafted rule confirmed by you.
 Five things, none of which depended on the agent being honest:
 
 1. You reviewed a **pitch** and a **board** before any code existed.
-2. A hook **recorded** that the evaluation ran over unfinished work — mechanically, not by
-   request — and other hooks **denied** the malformed dispatch and the out-of-substrate write
+2. The Round Close gate **recorded** that the evaluation ran over unfinished work — as a flagged `warn`, not by
+   request — and hooks **denied** the malformed dispatch and the out-of-substrate write
    outright.
 3. The verdict was built from **commands, exit codes, and observed output**, with a criterion
    that could not be probed counted as a FAIL.

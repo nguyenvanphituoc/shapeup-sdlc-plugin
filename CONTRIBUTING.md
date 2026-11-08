@@ -14,10 +14,10 @@ first PR will get read quickly, and there is a lot of low-hanging fruit.
 ## Ways to help
 
 **Easiest and most valuable: tell us where it confused you.** This harness has invented
-vocabulary and eight gates. If you bounced off the README, or a gate denied something you
+vocabulary and ten gates. If you bounced off the README, or a gate denied something you
 thought was reasonable, that is a bug report — open an issue with the
 *Onboarding friction* template. We would rather fix the twentieth confusing sentence than add
-the fourteenth skill.
+the seventh skill.
 
 Beyond that, the open items are listed as
 [`good first issue`](https://github.com/nguyenvanphituoc/shapeup-sdlc-plugin/issues?q=is%3Aopen+label%3A%22good+first+issue%22).
@@ -53,7 +53,6 @@ behaviour. Do not hand-edit `docs/assets/demo-gate.svg`.
 
 ```
 skills/<name>/SKILL.md    one skill = one craft. Markdown. This is most of the project.
-skills/*/scripts/         mechanics belonging to one skill, co-located with it
 skills/building/         the loop: a skill that drives a run over the run's own files
 kernel/                   the deterministic half: t0, the gate resolver, the envelope check, init run, order
 kernel/schemas/           domain.schema.json + the envelope schemas

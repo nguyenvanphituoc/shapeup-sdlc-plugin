@@ -3,17 +3,16 @@
   <desc>
     A raw idea flows through Shaping into a Pitch, decided at the Betting Table: Bet
     continues to build, Reject loops back to raw idea. The building loop then
-    runs Kick-off and Orient behind gates L0 (Intake &amp; Config) and L1a (Orient Review),
-    Wire behind gate L1a.5 (Wiring Review), Map Scopes behind gate L1b (Board Review), and
+    runs Kick-off and Orient behind the Intake &amp; Config and Orient Review gates,
+    Wire behind the Wiring Review gate, Map Scopes behind the Board Review gate, and
     Build Vertically, whose scopes build concurrently and are T0-verified. Evaluate
-    follows, advised by the advisory gate L2 (Round Close), then judged at gate L3
-    (Verdict): FAIL loops back to Build Vertically for round r+1, PASS continues to QA
-    Edge Hunt. A circuit breaker can route directly from the build/evaluate loop to Ship
-    and Triage at GATE H (Cut-List Review) when the round budget or wall-clock budget
-    runs out, bypassing QA and shipping what is green. Ship and Triage passes through
-    GATE H (Cut-List Review) and then GATE L4 (Ship Sign-off) sign-off into Retro,
-    which records feedback in the team knowledge base. The Gate key below the legend
-    spells out every gate pill's plain name.
+    follows, advised by the advisory Round Close gate, then judged at the Verdict gate:
+    FAIL loops back to Build Vertically for round r+1, PASS continues to QA Edge Hunt.
+    A circuit breaker can route directly from the build/evaluate loop to Ship and Triage
+    at the Cut-List Review gate when the round budget runs out, bypassing QA and shipping
+    what is green. Ship and Triage passes through the Cut-List Review gate and then the
+    Ship Sign-off gate into Retro, which records feedback in the team knowledge base. The
+    gate list below the legend spells out every gate pill's plain name.
   </desc>
 
   <defs>
@@ -153,12 +152,12 @@
   <text class="label-sm" font-size="11" x="1000" y="177" text-anchor="start" dominant-baseline="central">Bet</text>
   <g>
     <rect class="gate-pill" x="950" y="185" width="70" height="22" rx="11"/>
-    <text class="gate-text" font-size="12" font-weight="500" x="985" y="196" text-anchor="middle" dominant-baseline="central">L0</text>
+    <text class="gate-text" font-size="11" font-weight="500" x="985" y="196" text-anchor="middle" dominant-baseline="central">Intake</text>
   </g>
   <path class="edge flow e4" d="M985,207 L985,225"/>
   <g>
     <rect class="gate-pill" x="950" y="225" width="70" height="22" rx="11"/>
-    <text class="gate-text" font-size="12" font-weight="500" x="985" y="236" text-anchor="middle" dominant-baseline="central">L1a</text>
+    <text class="gate-text" font-size="11" font-weight="500" x="985" y="236" text-anchor="middle" dominant-baseline="central">Orient</text>
   </g>
   <path class="edge flow e5" d="M985,247 L985,322" marker-end="url(#arrow)"/>
 
@@ -171,7 +170,7 @@
   <line class="edge flow e6" x1="885" y1="350" x2="880" y2="350"/>
   <g>
     <rect class="gate-pill" x="810" y="339" width="70" height="22" rx="11"/>
-    <text class="gate-text" font-size="12" font-weight="500" x="845" y="350" text-anchor="middle" dominant-baseline="central">L1a.5</text>
+    <text class="gate-text" font-size="11" font-weight="500" x="845" y="350" text-anchor="middle" dominant-baseline="central">Wiring</text>
   </g>
   <line class="edge flow e6" x1="810" y1="350" x2="805" y2="350" marker-end="url(#arrow)"/>
 
@@ -183,7 +182,7 @@
   <line class="edge flow e7" x1="625" y1="350" x2="615" y2="350"/>
   <g>
     <rect class="gate-pill" x="545" y="339" width="70" height="22" rx="11"/>
-    <text class="gate-text" font-size="12" font-weight="500" x="580" y="350" text-anchor="middle" dominant-baseline="central">L1b</text>
+    <text class="gate-text" font-size="11" font-weight="500" x="580" y="350" text-anchor="middle" dominant-baseline="central">Board</text>
   </g>
   <line class="edge flow e7" x1="545" y1="350" x2="535" y2="350" marker-end="url(#arrow)"/>
 
@@ -214,7 +213,7 @@
   <path class="edge flow e9" d="M175,378 L175,390"/>
   <g>
     <rect class="gate-adv" x="140" y="390" width="70" height="22" rx="11"/>
-    <text class="gate-text" font-size="12" font-weight="500" x="175" y="401" text-anchor="middle" dominant-baseline="central">L2</text>
+    <text class="gate-text" font-size="11" font-weight="500" x="175" y="401" text-anchor="middle" dominant-baseline="central">Round Close</text>
   </g>
   <path class="edge flow e9" d="M175,412 L175,522" marker-end="url(#arrow)"/>
 
@@ -226,7 +225,7 @@
   <!-- circuit breaker: build/eval loop straight to Ship &amp; Triage, bypassing QA -->
   <path class="edge breaker e-breaker" d="M60,480 L715,480 L715,522" marker-end="url(#arrow)"/>
   <text class="label-sm" font-size="11" x="387" y="452" text-anchor="middle" dominant-baseline="central">round_budget or wall-clock exhausted</text>
-  <text class="label-sm" font-size="11" x="387" y="466" text-anchor="middle" dominant-baseline="central">&#8594; ship what's green (GATE H)</text>
+  <text class="label-sm" font-size="11" x="387" y="466" text-anchor="middle" dominant-baseline="central">&#8594; ship what's green (Cut-List Review)</text>
 
   <!-- ROW 3: Evaluate -> QA Edge Hunt -> Ship &amp; Triage -> Ship Sign-off -->
   <g>
@@ -237,7 +236,7 @@
   <line class="edge flow e10" x1="265" y1="550" x2="275" y2="550"/>
   <g>
     <rect class="gate-pill" x="275" y="539" width="70" height="22" rx="11"/>
-    <text class="gate-text" font-size="12" font-weight="500" x="310" y="550" text-anchor="middle" dominant-baseline="central">L3</text>
+    <text class="gate-text" font-size="11" font-weight="500" x="310" y="550" text-anchor="middle" dominant-baseline="central">Verdict</text>
   </g>
   <line class="edge flow e10" x1="345" y1="550" x2="355" y2="550" marker-end="url(#arrow)"/>
 
@@ -249,7 +248,7 @@
   <line class="edge flow e11" x1="535" y1="550" x2="545" y2="550"/>
   <g>
     <rect class="gate-pill" x="545" y="539" width="70" height="22" rx="11"/>
-    <text class="gate-text" font-size="12" font-weight="500" x="580" y="550" text-anchor="middle" dominant-baseline="central">GATE H</text>
+    <text class="gate-text" font-size="11" font-weight="500" x="580" y="550" text-anchor="middle" dominant-baseline="central">Cut-List</text>
   </g>
   <line class="edge flow e11" x1="615" y1="550" x2="625" y2="550" marker-end="url(#arrow)"/>
 
@@ -261,7 +260,7 @@
   <line class="edge flow e12" x1="805" y1="550" x2="815" y2="550"/>
   <g>
     <rect class="gate-pill" x="815" y="539" width="70" height="22" rx="11"/>
-    <text class="gate-text" font-size="12" font-weight="500" x="850" y="550" text-anchor="middle" dominant-baseline="central">L4</text>
+    <text class="gate-text" font-size="11" font-weight="500" x="850" y="550" text-anchor="middle" dominant-baseline="central">Sign-off</text>
   </g>
   <line class="edge flow e12" x1="885" y1="550" x2="895" y2="550" marker-end="url(#arrow)"/>
 
@@ -297,10 +296,10 @@
   </g>
   <g>
     <rect class="gate-adv" x="932" y="745" width="40" height="16" rx="8"/>
-    <text class="legend-text" font-size="12" x="980" y="753" dominant-baseline="central">L2 (advisory)</text>
+    <text class="legend-text" font-size="12" x="980" y="753" dominant-baseline="central">Gate (advisory)</text>
   </g>
 
   <!-- gate key: every pill's plain name, spelled out once, so the pills can stay compact -->
-  <text class="label-sm" font-size="11" x="60" y="782" dominant-baseline="central">Gate key — L0 Intake &amp; Config · L1a Orient Review · L1a.5 Wiring Review · L1b Board Review</text>
-  <text class="label-sm" font-size="11" x="60" y="800" dominant-baseline="central">L2 Round Close (advisory) · L3 Verdict · GATE H Cut-List Review · L4 Ship Sign-off</text>
+  <text class="label-sm" font-size="11" x="60" y="782" dominant-baseline="central">Gates — Intake &amp; Config · Orient Review · Wiring Review · Board Review</text>
+  <text class="label-sm" font-size="11" x="60" y="800" dominant-baseline="central">Round Close (advisory) · Verdict · Cut-List Review · Ship Sign-off</text>
 </svg>

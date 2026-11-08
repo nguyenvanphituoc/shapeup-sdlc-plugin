@@ -171,7 +171,7 @@ subagents 0 → 4.
 
 ## Left for the PO
 
-1. Accept or reject ADR-0005, and V4-REQ-14 to 17 (each is annotated in the registry with what was done).
+1. Accept or reject the native-first cut, and V4-REQ-14 to 17 (each is annotated in the registry with what was done).
 2. `safety-spine`: keep, or replace with a `permissions.deny` block and give up the Bash audit trail (one commit).
 3. Release: the version files still read 4.0.0 and the changelog entry is under `[Unreleased]`. The removals (a hook, a verb, a
    dashboard screen, a profile field) are breaking for anyone who named them, so this is not a patch release.
@@ -414,5 +414,5 @@ real run on this tree has not been made, so the cost and the QA behaviour after 
 
 On 2026-11-08 the PO typed `/goal clear` in the session, as a command, which ends the goal that held the plan open. It is the first
 typed input in this record, and it is taken as acceptance of the plan's outcome: the engine removed, QA kept as one L4 refusal, and the
-open items below. It is not an approval of the ADRs: ADR-0005 and ADR-0006 stay `Proposed` until the PO says otherwise, and the release,
+open items below. It is not an approval of the native-first cut or the engine removal, which stay undecided until the PO says otherwise (the ADR files that held them were deleted on 2026-11-08), and the release,
 the version tag and any push remain separate decisions. The second real run after the QA change was not made.

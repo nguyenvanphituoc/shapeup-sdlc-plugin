@@ -1,9 +1,7 @@
 # v4 working record
 
 This folder is the working record for the v4 change: what was asked, what was read, what was
-decided. It is not shipped and it is not a decision record. When the change ships, the decision goes
-to an ADR and this folder is retired (the rule in ADR-0002; the ADR is
-[`../adr/0004-single-loop.md`](../adr/0004-single-loop.md)).
+decided. It is not shipped. When the change ships, this folder is retired.
 
 ## Files
 

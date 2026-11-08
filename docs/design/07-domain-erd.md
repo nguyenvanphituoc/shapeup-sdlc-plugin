@@ -1,6 +1,6 @@
 # 07 — Domain ERD
 
-> **Read the writers and readers below with the engine removed (ADR-0006).** Where a row names `compile`, `ingest`, `probe` or `reduce`, the loop now does that job; the records `HillShard`, `RoundBuildVerdict`, `ResumeFacts` and `LegRow` are retired and no longer written.
+> **Read the writers and readers below with the engine removed.** Where a row names `compile`, `ingest`, `probe` or `reduce`, the loop now does that job; the records `HillShard`, `RoundBuildVerdict`, `ResumeFacts` and `LegRow` are retired and no longer written.
 
 [← Back to index](README.md)
 
@@ -211,7 +211,7 @@ erDiagram
         string db_probe "catches the hardcoded-array Layer-2 violation"
         enum hill_phase "authored UPHILL_UNKNOWN, always"
         string[] superseded_by
-        string business_goal "the must-have trace for GATE H census"
+        string business_goal "the must-have trace for the Cut-List Review gate census"
     }
     AffordanceEntry {
         string test_id "data-testid the element binds to"
@@ -227,7 +227,7 @@ erDiagram
 |---|---|---|---|---|
 | `VerdictLedgerLine` | LOCAL | `evaluation/.verdicts-<target>.jsonl` | the loop | spec-evaluator (flip detection) |
 | `MetricsRow` | LOCAL | `metrics/<machine-id>.jsonl` | none — the ship-time harvest step retired; rows an earlier release wrote keep this shape | none |
-| `ActiveScopePointer` | LOCAL | `.shapeup/active-scope` | harness init run (GATE L0) — write-once per run, not writable by any worker | the loop. **No hook reads it**: the advisory hooks that once did were retired with the hook diet, and `sandbox-guard` never read it |
+| `ActiveScopePointer` | LOCAL | `.shapeup/active-scope` | harness init run (the Intake & Config gate) — write-once per run, not writable by any worker | the loop. **No hook reads it**: the advisory hooks that once did were retired with the hook diet, and `sandbox-guard` never read it |
 | `ActiveOrderPointer` | LOCAL | `.shapeup/active-order` | the loop (published as it writes each order); retired by the loop and harness init run --force | sandbox-guard hook. It names the RUN and nothing more: the guard enforces the substrate of *every* live order for that run — compiled, with no result at least as new as the order's own `compiled_at` — because with scopes building concurrently the writer may not be the order the pointer happens to name, and because an order the pointer named is not thereby still executing |
 | `DispatchReceipt` | LOCAL | `<slug>/receipts/dispatch.jsonl` | dispatch-receipt hook (PostToolUse, append-only) — a sub-agent cannot write its own attestation | the loop (refuses an orchestrated result with no matching receipt), the export (a leg's start) |
 | `SafetyOverrides` (v1.2) | LOCAL | `.shapeup/safety-overrides.json` | **human PO only** — outside the run-trace carve-out, so no worker can write it | safety-spine hook |

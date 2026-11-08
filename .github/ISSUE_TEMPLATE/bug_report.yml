@@ -14,7 +14,7 @@ body:
       label: What happened
       description: What did you run, and what did the harness do?
       placeholder: |
-        I ran `/ship "..."`. At GATE L1b the run stopped with ...
+        I ran `/ship "..."`. At the Board Review gate the run stopped with ...
     validations:
       required: true
 
@@ -34,7 +34,7 @@ body:
         1. Fresh repo, `npx playwright install chromium`
         2. Install the plugin
         3. `/ship "add a health endpoint"`
-        4. At GATE L2 ...
+        4. At the Round Close gate ...
 
   - type: dropdown
     id: surface

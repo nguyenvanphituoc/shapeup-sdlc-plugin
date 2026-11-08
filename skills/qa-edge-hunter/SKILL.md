@@ -1,6 +1,6 @@
 ---
 name: qa-edge-hunter
-description: "Use this skill for the post-PASS exploratory QA pass — Shape Up's \"QA is for the edges\", made explicit for the harness. Triggers on: \"hunt edge cases\", \"QA pass on this feature\", \"exploratory test the running app\", \"edge hunt before ship\", \"run qa-edge-hunter\", \"the evaluator passed — what did it miss?\". the loop invokes it after the run's first PASS at GATE L3, before SHIP; it also runs standalone given a spec folder, a PASS EVAL report, and a running app, or on a loop --order dispatch. It charters edges OUTSIDE what the evaluator probed and hunts them through six fixed lenses. NOT for checking AC (spec-evaluator), deriving test cases (ba), or fixing bugs (task-executor)."
+description: "Use this skill for the post-PASS exploratory QA pass — Shape Up's \"QA is for the edges\", made explicit for the harness. Triggers on: \"hunt edge cases\", \"QA pass on this feature\", \"exploratory test the running app\", \"edge hunt before ship\", \"run qa-edge-hunter\", \"the evaluator passed — what did it miss?\". the loop invokes it after the run's first PASS at the Verdict gate, before ship; it also runs standalone given a spec folder, a PASS EVAL report, and a running app, or on a loop --order dispatch. It charters edges OUTSIDE what the evaluator probed and hunts them through six fixed lenses. NOT for checking AC (spec-evaluator), deriving test cases (ba), or fixing bugs (task-executor)."
 ---
 
 # QA Edge Hunter — the post-PASS edge pass (v1.1)
@@ -22,7 +22,7 @@ the loop: ... GATE L2 → EVAL → GATE L3 PASS ──► QA EDGE HUNT (you) ─
 
 | Tier | Owner | When |
 |---|---|---|
-| Derivable tests (boundaries, error codes, no-go breaches the spec implies) | `ba` `## Test Surface` + evaluator `test-surface-conformance` | spec time / every EVAL |
+| Derivable tests (boundaries, error codes, no-go breaches the spec implies) | the plan step's `## Test Surface` + evaluator `test-surface-conformance` | spec time / every EVAL |
 | **Exploratory edges (this skill)** | `/qa-edge-hunter` | once, post-first-PASS |
 
 ---
@@ -111,7 +111,7 @@ Out-of-bounds? (max 2 questions) …
 ## Phase Q1 — Charter Map
 
 A **charter** is a hunting ground + a mission — NOT a test case (test cases are the
-derivable tier; writing them here would re-do `ba`'s job badly). Generate charters by
+derivable tier; writing them here would re-do the plan step's job badly). Generate charters by
 crossing the UC tree with the **six fixed lenses**, then subtract covered territory.
 
 | Lens | Mission | Typical prey |

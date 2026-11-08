@@ -30,7 +30,7 @@ register.
 Pin to a released version:
 
 ```
-/plugin marketplace add nguyenvanphituoc/shapeup-sdlc-plugin@v3.6.0
+/plugin marketplace add nguyenvanphituoc/shapeup-sdlc-plugin@<release-tag>
 ```
 
 > **This path installs the plugin and nothing else — in particular, no permission grant.**

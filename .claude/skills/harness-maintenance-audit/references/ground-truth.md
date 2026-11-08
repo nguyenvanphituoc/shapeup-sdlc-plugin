@@ -228,7 +228,7 @@ import('./kernel/lib/paths.mjs').then(m=>{
 grep -rn '"\.shapeup\|\x27\.shapeup\|"shapeup/' --include="*.mjs" --include="*.js" kernel skills hooks bin \
   | grep -v "lib/paths.mjs"
 
-# The pre-ADR-0001 root is a live trap, not history: receipts written to `.shapeup-sdlc/` are
+# The earlier `.shapeup-sdlc/` root is a live trap, not history: receipts written to `.shapeup-sdlc/` are
 # invisible to every reader, so the symptom is zero telemetry rather than an error.
 grep -rn "shapeup-sdlc/" --include="*.mjs" --include="*.js" kernel skills hooks bin | grep -v "lib/paths.mjs"
 find . -name ".shapeup-sdlc" -type d -not -path "./.git/*"

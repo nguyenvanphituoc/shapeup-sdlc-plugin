@@ -36,10 +36,10 @@ never `.mjs` paths.
   the `building` skill's phase table and its order in `resources/orders.md`. Step 1 alone yields a skill the loop can't dispatch.
 - `tools/` is repo-only and never ships; what ships is the `files` allowlist in `package.json`.
 - Commit subjects: `type(scope): lowercase declarative`.
-- A gate code, or a new custom notation symbol in the spirit of `✦ ✚ ★ ✧ ⚙ ⏸ ~` (not an ordinary
-  character like `✅`), introduced in `AGENTS.md` needs a matching row in its Gate Vocabulary &
-  Symbol Legend section, in the same commit — `harness-maintenance-audit` checks this both ways (an
-  unglossed code/symbol, and a legend row nothing uses).
+- Public documents (`README.md`, `AGENTS.md`, `docs/`, `commands/`, `SECURITY.md`) name a gate by its plain name
+  (Round Close, Ship Sign-off …), never by a code (`L2`, `H`) and never by a notation symbol (`⏸ ✦ ★ ✧`). The machine id
+  appears only in the "Gate names" table of `AGENTS.md`, as the id the ledgers and answer files carry. A new gate
+  needs a row there in the same commit — `harness-maintenance-audit` checks both ways (an unlisted gate, and a row nothing uses).
 
 ## Keeping the docs and the plugin honest
 

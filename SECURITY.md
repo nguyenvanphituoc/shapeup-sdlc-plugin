@@ -20,7 +20,7 @@ node -e "const h=require('./hooks/hooks.json').hooks;
 
 Use [GitHub private vulnerability reporting](https://github.com/nguyenvanphituoc/shapeup-sdlc-plugin/security/advisories/new)
 for anything exploitable — especially anything that would let a run **escape a deny** (write
-outside a substrate, dispatch on an uncompiled order, widen its own safety overrides) or
+outside a substrate, dispatch without a schema-valid order, widen its own safety overrides) or
 exfiltrate data.
 For non-sensitive hardening ideas, an ordinary issue is fine.
 

@@ -60,7 +60,7 @@ Workers never write boards, ledgers, or run-state. Everything a worker used to w
 
 ## 3.2 — Runtime-enforced guardrails (hooks)
 
-Three `PreToolUse` hooks and one kernel check turn the harness's load-bearing rules from things the model is asked to respect into things it cannot get past:
+Two `PreToolUse` hook scripts and the kernel's envelope check turn the harness's load-bearing rules from things the model is asked to respect into things it cannot get past:
 
 | Hook | Fires on | Enforces |
 |---|---|---|
@@ -80,9 +80,9 @@ All of them are deliberately **fail-open** when there is nothing to verify (no a
 
 ## 3.2d — The run receipt and the gate answer set
 
-`harness init run` is the act that makes "a run started" a fact on disk. It refuses a model below the floor (`exec` and `eval`: sonnet or above) and a plugin copy whose worker roster does not resolve, then writes `receipt.json` (the run id, the intake's digest, the plugin copy), `run-args.json` (the launch record: models, budgets, answer set, skip switches), `intake.md`, the `active-scope` pointer, and the GATE L0 ledger row. A run already open is refused (exit 3) and keeps its record; `--force` resolves every order nobody answered with a self-labelled abandoned marker, retires the fence's pointer and writes a fresh record.
+`harness init run` is the act that makes "a run started" a fact on disk. It refuses a model below the floor (`exec` and `eval`: sonnet or above) and a plugin copy whose worker roster does not resolve, then writes `receipt.json` (the run id, the intake's digest, the plugin copy), `run-args.json` (the launch record: models, budgets, answer set, skip switches), `intake.md`, the `active-scope` pointer, and the Intake & Config gate ledger row. A run already open is refused (exit 3) and keeps its record; `--force` resolves every order nobody answered with a self-labelled abandoned marker, retires the fence's pointer and writes a fresh record.
 
-`harness gate --resolve <id>` resolves a gate from an answer set — a preset (`ci`, `guarded`, `interactive`) or a file (`gate --init` writes one naming who authorised it) — or from a live PO answer, and appends a row naming the source to `gates.jsonl`. Exit 0 crossed, 4 stop for the PO, 5 abort. An answer set chooses among the answers a gate allows and never supplies the evidence that makes one allowed: GATE L2 narrows `proceed` to `ask` over a board with no tasks, and GATE L4 narrows `ship` to `ask` unless the census file on disk carries a verdict that clears the run.
+`harness gate --resolve <id>` resolves a gate from an answer set — a preset (`ci`, `guarded`, `interactive`) or a file (`gate --init` writes one naming who authorised it) — or from a live PO answer, and appends a row naming the source to `gates.jsonl`. Exit 0 crossed, 4 stop for the PO, 5 abort. An answer set chooses among the answers a gate allows and never supplies the evidence that makes one allowed: The Round Close gate narrows `proceed` to `ask` over a board with no tasks, and the Ship Sign-off gate narrows `ship` to `ask` unless the census file on disk carries a verdict that clears the run.
 
 ## 3.2f — T0 and the ratchet
 
@@ -97,19 +97,19 @@ this need to survive a `git pull` by a teammate, or can it be rebuilt from what'
 
 | Root | Scope | Contents |
 |---|---|---|
-| **SHARED** — `shapeup/<slug>/` | Committed — the durable deliverable | `shaping/` (pitch, framing, breadboard, baseline, glossary), `spec/` (domain model, use cases, contracts, ux-behavior, scope-summary), `scopes/*.md`, `wiring-map.md`, `project-profile.md`, `requirements.md`, `REPORT.md` (frozen at GATE L4), and — at the `shapeup/` root — `knowledge-base/<skill>.md` |
+| **SHARED** — `shapeup/<slug>/` | Committed — the durable deliverable | `shaping/` (pitch, framing, breadboard, baseline, glossary), `spec/` (domain model, use cases, contracts, ux-behavior, scope-summary), `scopes/*.md`, `wiring-map.md`, `project-profile.md`, `requirements.md`, `REPORT.md` (frozen at the Ship Sign-off gate), and — at the `shapeup/` root — `knowledge-base/<skill>.md` |
 | **LOCAL** — `.shapeup/<slug>/` | Gitignored — run trace and machine state | `receipt.json`, `close.json`, `orient/`, `tasks/` (the board), `working/` (spec analysis that is not contract), `orders/` + `results/` (the envelope port), `t0/verdicts/` + `trials.jsonl`, `receipts/dispatch.jsonl`, `evaluation/`, `qa/`, `discovery/ledger.md`, `gates.jsonl`, `run-args.json` (the launch record), and — at the `.shapeup/` root, outside any slug — `active-scope`, `active-order`, `decisions.jsonl`, `metrics/*.jsonl`, `gate-answers.json`, `safety-overrides.json` |
 
-The rule (ADR-0001): **prose is the team's, structured data is the machine's.** The three
+The rule: **prose is the team's, structured data is the machine's.** The three
 contracts are the named exception — they are structured, but they are also low-level design a
 reviewer must read, so they are converted to markdown rather than hidden. The knowledge base is
 the second: it is policy, but coaching rules describe how an agent should work *in this codebase*,
 which is a team property. A third exception once covered the migration bookkeeping files; the
-upgrade path no longer migrates data, so it was withdrawn with its subject (ADR-0001).
+upgrade path no longer migrates data, so it was withdrawn with its subject.
 
 The split matters operationally: a second developer who pulls a branch mid-run has the SHARED
 spec but no LOCAL board — the loop sees the committed spec tree and no board, and plans the board again from the tree rather than treating a missing file as a broken run. They also see no run
-evidence until the run ends: `REPORT.md` is written once, by the loop, before GATE L4 and carries the verdict, QA
+evidence until the run ends: `REPORT.md` is written once, by the loop, before the Ship Sign-off gate and carries the verdict, QA
 findings, T0 summary and adjudicated decisions, so the deliverable tier gets the conclusions
 without the per-attempt churn.
 
@@ -135,7 +135,7 @@ contract (`scripts/FROZEN.md`): they may never be renamed or moved.
 
 ## 3.5 — What was removed, and where its job went
 
-An earlier design put a scripted decision engine between the loop and the files: a compiler that built every order, a single writer that applied every result, a state machine that answered "what next", a spec lint, a round build gate, a ship-report generator and a census check. A measured comparison on a three-scope pitch found the scripted sequencing completed 2 of 2 runs and the same loop reading its own phase table completed 0 of 1 at 59% higher cost. The engine was removed anyway, on the PO's decision, to leave the plugin with the five mechanisms above; ADR-0006 records the decision and the measurement.
+An earlier design put a scripted decision engine between the loop and the files: a compiler that built every order, a single writer that applied every result, a state machine that answered "what next", a spec lint, a round build gate, a ship-report generator and a census check. A measured comparison on a three-scope pitch found the scripted sequencing completed 2 of 2 runs and the same loop reading its own phase table completed 0 of 1 at 59% higher cost. The engine was removed anyway, on the PO's decision, to leave the plugin with the five mechanisms above; the decision and the measurement are in [the v4 report](v4/report-v4-2026-11-08.md).
 
 | Was a script | Is now |
 |---|---|
@@ -144,5 +144,5 @@ An earlier design put a scripted decision engine between the loop and the files:
 | "what next" state machine | the phase table in the `building` skill, read against the run's files |
 | spec lint at the board review | the planning step reads its own output back against the checklist; the tier rule is still refused at the write |
 | round build gate | the loop builds and launches the feature with the profile's commands before it dispatches the evaluator |
-| ship report, census check | the loop writes both; GATE L4 still reads the census file and refuses `ship` without one that clears the run |
+| ship report, census check | the loop writes both; the Ship Sign-off gate still reads the census file and the run's QA record, and refuses `ship` without a census that clears the run or over a hunt the run owed and never paid |
 | hill reducer and the hill chart | removed |
