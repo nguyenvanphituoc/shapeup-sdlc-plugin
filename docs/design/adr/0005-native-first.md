@@ -6,6 +6,7 @@
 | **Date** | 2026-11-08 |
 | **Decision** | Where the host (Claude Code) provides a mechanism, the plugin uses it and drops its own; where the plugin's script is a witness the host cannot be, or the engine of the loop, it stays. |
 | **Supersedes** | decision 3 of [ADR-0004](0004-single-loop.md) — "`hill-chart` is untouched, so `reduce graph` and `reduce hill` stay" |
+| **Superseded in part by** | [ADR-0006](0006-engine-removed.md) — decision 3's "kept" engine was removed |
 | **Affects** | `agents/`, `hooks/`, `kernel/reduce/`, `kernel/report/`, `kernel/verify/`, `kernel/probe/`, `skills/hill-chart/`, `skills/building/` |
 
 ## Context

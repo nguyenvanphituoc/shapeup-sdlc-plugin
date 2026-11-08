@@ -49,8 +49,8 @@ time is worth, not something a skill should touch.
 | Kick-off | **L0** Intake & Config | Language check (the loop translates a non-English pitch itself), workspace roots, model/budget matrix |
 | Orient | **L1a** Orient Review | delegate → `/orient` (Scout reads real code before any board exists) |
 | Plan ✚ | **L1a.5** Wiring Review (after the wiring map) · **L1b** Board Review (after the scopes) | done by the loop in its own context — `/building`'s `plan` activity, no sub-agent, under a fence-only `plan` order per substep: requirements registry ✚ → spec tree + board → `wiring-map.md` (per-UC engine → seam → entry-point call site → affordance against `project-profile.md`, front-loading the integration seam so no engine ships orphaned) → scope contracts |
-| Build Vertically | **L2** Board 100% + T0-green | per dispatch: compile-order → `/task-executor` → ingest-result, sandboxed per scope |
-| Eval (once/round) | **L3** Verdict | delegate → `/spec-evaluator`; refuted boxes applied by ingest |
+| Build Vertically | **L2** Board 100% + T0-green | per dispatch: write the order → `/task-executor` → check and apply the result, sandboxed per scope |
+| Eval (once/round) | **L3** Verdict | delegate → `/spec-evaluator`; refuted boxes applied by the loop |
 | Fix round r+1 | — | bugs + full Test Surface of the touched use case, never the whole board |
 | Ship | **L4** Ship Sign-off | the loop's `stop` step (census, cut list, ship verdict) |
 

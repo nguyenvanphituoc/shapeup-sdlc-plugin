@@ -13,6 +13,30 @@ working. The consequence is stated here rather than left to be discovered: **an 
 to predate the current layout is not converted for you.** Run `install-harness.sh` against it
 instead and treat it as a fresh install.
 
+## Upgrading to the native-first release
+
+This release removes the scripted decision engine. The loop that drives a run still lives in the `building`
+skill, but it now reads the run's files and follows its own phase table instead of asking the kernel what
+comes next, and it writes and applies orders itself. Nothing in your project's committed tree changes;
+what changes is the command surface and what the runtime still checks.
+
+**Removed kernel commands** — any script, CI step or note of yours that names one will fail:
+`compile`, `reduce ingest`, `reduce board`, `reduce ship`, `reduce hill`, `verify spec`, `verify build`,
+`verify budget`, `verify dispatch`, `probe resume | next | eval | owner | attempts | hunt | leg | requirements | t0 | digest`,
+and `init fit`. **Kept:** `verify t0 | envelope | skills`, `gate`, `init run`. **Added:** `order open | close`, which arms and retires the
+write fence.
+
+**Removed with them:** the `hill-chart` skill and the `/hill` command (their only writer was the removed hill
+reducer); the wall-clock breaker and `--wall-clock-budget`; `--dimensions` and `--breadboard` on `init run`
+(the dimension set goes in each evaluate order, the breadboard is copied to the run's trace by the loop);
+`--lens` (carried in each plan order); and `--adversarial-verify`. The local `harness-run.md` ledger is no longer
+written; the run's ending is `close.json`.
+
+**What the runtime no longer checks** is stated in `AGENTS.md`: spec lint at the board review, single-writer
+ingest with its send-back-once refusals, the attested-attempt census, the round build gate, and the ship-report
+generator are now the loop's discipline. The write fence, the dispatch receipts, the T0 witness, the gate
+resolver and the envelope check are unchanged in what they refuse.
+
 ## Running it
 
 **Option A — remote one-liner** (no clone needed; auto-detects installed CLIs):
@@ -85,6 +109,8 @@ keep.
 
 ## Upgrading into 4.0 — the single loop
 
+> History. The kernel commands named in this section were removed by the native-first release above.
+
 4.0 is a breaking release. `/ship` now drives the run in your own session: the `building` skill asks
 the kernel (`probe next`) what comes next, does it, and asks again. The `tech-lead` skill, the Workflow
 script it launched, the courier sub-agents that script spawned to type kernel commands, the staged
@@ -127,6 +153,8 @@ close options. A run that ships now exports its records at its close, like every
 skill). Rules filed in `shapeup/knowledge-base/tech-lead.md` are still read, as `building` guidance.
 
 ## Upgrading into v2.0
+
+> History. The kernel commands named in this section were removed by the native-first release above.
 
 **Nothing on your disk changes format.** Boards, scope contracts, ledgers, receipts and `shapeup/`
 all keep their shapes; the run graph a v2.0 run reads is *projected* from those same artifacts on

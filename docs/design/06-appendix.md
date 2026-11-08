@@ -6,24 +6,19 @@
 
 ```
 .claude-plugin/          plugin.json · marketplace.json
-skills/<name>/SKILL.md   the 7 harness skills (+ references/ and resources/)
+skills/<name>/SKILL.md   the 6 harness skills (+ references/ and resources/)
 agents/<worker>.md       the 4 workers as plugin subagents; each preloads its skill
 kernel/harness.mjs       the deterministic half behind ONE entry point (and therefore one
                          permission prefix). Subcommands:
-                          compile — the envelope port's order compiler
-                          verify  — t0 · spec · envelope · dispatch · skills · budget ·
-                                    build
-                          reduce  — ingest (the single writer) · board · hill ·
-                                    graph · ship
-                          probe   — resume · t0 · digest · leg · eval ·
-                                    owner · requirements · attempts · hunt · next
-                          init    — run (writes the launch record) · fit
+                          verify  — t0 · envelope · skills
+                          init    — run (writes the launch record)
                           gate    — the gate answer set
-                          lib/    — argv · contract · paths
+                          order   — open · close: arms and retires the write fence
+                          lib/    — argv · contract · paths · floor
 kernel/schemas/          WorkOrder · WorkResult · gate-answers · domain registry
 bin/init.mjs             `npx shapeup-sdlc init` — pure-Node scaffolding + permission grant
-commands/*.md            11 slash commands (/shape /orient /scopes /wire /build /eval /qa
-                         /hammer /ship /retro /hill)
+commands/*.md            10 slash commands (/shape /orient /scopes /wire /build /eval /qa
+                         /hammer /ship /retro)
 hooks/                   hooks.json + PreToolUse: safety-spine ·
                          sandbox-guard (+ the kernel's harness verify envelope) ·
                          PostToolUse: dispatch-receipt (records only, no deny path) ·
@@ -34,15 +29,11 @@ oracles/                 the evaluation-contract oracle registry (test · snapsh
                          process), proven to discriminate against negative controls
 tools/                   repo-only, never shipped — demo/
 tests/structural.mjs     Tier 0 runner — threads tests/lib/ helpers through the per-domain
-tests/{lib,structural}/  suites in tests/structural/*.mjs; 1800+ checks, zero LLM calls (a
-                         FLOOR, deliberately not the exact count — this line is where the suite
-                         parses it, and pinning it to the running total would fail on every
-                         legitimate removal. It may only grow EXCEPT when checks are deliberately
-                         removed with the code they covered: lowered during v2.0 when six hooks were retired into the
-                         runtime and their behavioural checks went with them, and again in 4.0 when the run
-                         script's source-reading tests were ported to the kernel or retired with it;
-                         raised to 1000 once the v2 suite settled above it. A floor
-                         left far below the real count is a check that can no longer fail)
+tests/{lib,structural}/  ten modules in tests/structural/*.mjs, zero LLM calls; the runner holds a
+                         floor on the check count so a refactor that silently deletes checks fails
+                         loudly. The floor was reset in the native-first release, when the suite
+                         went from 110 modules that pinned the removed engine to ten that execute
+                         shipped code, and it should be raised again as the suite grows
 examples/                worked fixtures + negative controls for the oracle registry
 ```
 
@@ -58,19 +49,18 @@ examples/                worked fixtures + negative controls for the oracle regi
   the hunter.
 - **Role separation.** Evaluator grades, task-executor fixes, QA discovers — no one does
   another's job.
-- **Three circuit breakers, one exit.** An exhausted scope queues a proposal and never blocks the
-  round; the outer round budget and the opt-in wall-clock budget both end the loop. All three
-  route to GATE H — the run's ending is a ship decision made against what is green, never a kill.
-- **Hill phase is mechanical.** Derived only from T0 / T1 facts — never self-reported
-  by a worker.
+- **Two circuit breakers, one exit.** An exhausted scope queues a proposal and never blocks the
+  round; the outer round budget ends the loop. Both route to GATE H — the run's ending is a ship
+  decision made against what is green, never a kill.
+- **The witness is mechanical.** A T0 verdict is a command's exit code and a hash, never a worker's
+  account of its own progress.
 - **Envelope port.** Every dispatch is WorkOrder in / WorkResult out; shared state is written
-  only by `harness reduce ingest`. A malformed envelope is denied before it reaches a worker.
+  only by the loop. A malformed order is denied before it reaches a worker.
 - **Safety spine.** Destructive commands and secret reads are denied mechanically
   (`hooks/safety-spine.mjs`); the only override is a human-authored, schema-governed local file
   (`SafetyOverrides`), itself write-protected and logged when exercised.
-- **Advisory checks never block.** The claim-versus-facts census and the leftovers scan may only
-  inform, and they do it as *sections of the ship report* rather than as Stop hooks; either one
-  blocking would be a second gate behind the judge. No hook fires at `Stop`.
+- **Nothing advisory blocks.** The ship report is the loop's own statement of the run; no hook fires at
+  `Stop`, and no check waits behind the judge.
 - **Lanes thin ceremony, never verification** *(§4.7 — the lane design is withdrawn; the invariant stands)*. No lane
   skips EVAL, T0, or the hooks; a lane may only remove PO ceremony and scout work.
 

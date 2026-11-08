@@ -211,7 +211,7 @@ every generated artifact path. This is the same remedy applied twice before in t
 hand-rolled flag parsing — and it is what turns a 90-file rename from *hope the grep was
 complete* into *the test fails if it was not*.
 
-`tests/structural/45-paths.mjs` asserts that no file constructs a harness path except through
+A structural check once asserted (and was retired with that suite in ADR-0006) that no file constructs a harness path except through
 `paths.mjs`, mirroring test #11a's guard against reintroducing the fragile main guard.
 
 | Phase | Work | Shipped |

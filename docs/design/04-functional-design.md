@@ -8,11 +8,10 @@
 |---|---|---|
 | `shapeup` | Shaper | Set boundaries, breadboard, spike risk, write the pitch (Shape Up steps 1–4). |
 | `orient` | Scout | Builder-led recon (step 7): reads the real code, spikes the single riskiest area, emits a code-surface map *before any board exists*, so the board is reality-born. |
-| `building` | Loop | Drives a run in the session over the kernel's `probe next`: opens the run, does the one step the kernel names, crosses each gate with the PO, closes. Its `plan` activity is the whole of planning, done in the loop's own context with no sub-agent — requirements registry → linked DDD spec tree + board (BDD scenarios, a system flow, a derived Test Surface) → the committed wiring map at GATE L1a.5 (per use case: engine → seam → entry-point call site → affordance, resolved against `project-profile.md`) → write-whitelisted scope contracts — under a fence-only `plan` order per substep that the kernel answers from the files it finds. The same loop does three more acts itself, as sub-commands: **intake** (a non-English pitch becomes a faithful English `<name>.en.md` plus a glossary, verified before the run opens on it — every downstream step HARD-FAILs on non-English input), **stop** (GATE H: must-have census, every claim citing a kernel probe → baseline comparison, never against a perfect ideal → cut list + ship verdict, written as data GATE L4 reads; proposes only, a human promotes or ships) and **retro** (turns PO feedback at ship sign-off — or, with `--scan`, the project on disk, or with `--research`, the platform's official documentation, a source and never a verification — into knowledge-base rules filed by reader after asking the PO to categorize each one, never assumed: `task-executor`, `orient`, `qa-edge-hunter`, `plan` and `building` guidance. Guidance never decides a gate). |
+| `building` | Loop | Drives a run in the session: opens the run, takes the first phase of its table whose condition holds over the run's files, crosses each gate with the PO, closes. Its `plan` activity is the whole of planning, done in the loop's own context with no sub-agent — requirements registry → linked DDD spec tree + board (BDD scenarios, a system flow, a derived Test Surface) → the committed wiring map at GATE L1a.5 (per use case: engine → seam → entry-point call site → affordance, resolved against `project-profile.md`) → write-whitelisted scope contracts — under a fence-only `plan` order per substep. The same loop does three more acts itself, as sub-commands: **intake** (a non-English pitch becomes a faithful English `<name>.en.md` plus a glossary, verified before the run opens on it — every downstream step HARD-FAILs on non-English input), **stop** (GATE H: must-have census, every claim naming the file it came from → baseline comparison, never against a perfect ideal → cut list + ship verdict, written as data GATE L4 reads; proposes only, a human promotes or ships) and **retro** (turns PO feedback at ship sign-off — or, with `--scan`, the project on disk, or with `--research`, the platform's official documentation, a source and never a verification — into knowledge-base rules filed by reader after asking the PO to categorize each one, never assumed: `task-executor`, `orient`, `qa-edge-hunter`, `plan` and `building` guidance. Guidance never decides a gate). |
 | `task-executor` | Generator | Implements a WorkOrder's acceptance criteria exactly. Zero-memory (each attempt is a fresh subagent), substrate-sandboxed, never writes boards or ledgers. |
 | `spec-evaluator` | Single judge | Verifies the running app against the committed spec. Skeptical by default; requires a T0 artifact citation on scoped specs; verdict returns as data, never edits anything. |
 | `qa-edge-hunter` | Explorer | Post-PASS exploratory hunt through six fixed lenses, outside what the evaluator already probed. Findings go to the ledger as `~`; never blocks ship, never issues a verdict. |
-| `hill-chart` | Dashboard | Renders the committed hill shards as one dashboard; invoked directly, not a pipeline worker. |
 
 ## 4.2 — The build round, in detail
 
@@ -21,10 +20,10 @@ first:
 
 ```mermaid
 flowchart TD
-    S0["Compile the scope order\n(its substrate is the fence)"] --> A1
+    S0["Write the scope order\n(its substrate is the fence)"] --> A1
     subgraph LOOP["attempt 1 .. attempt_budget (default 5)"]
-      A1["harness compile\n(scope contract + tasks + prior decisions\n+ last attempt's digested errors)"] --> A2["task-executor\n(fresh Agent — zero prior chat history)"]
-      A2 --> A3["harness reduce ingest\n(board + ledger writes)"]
+      A1["write the order\n(scope contract + tasks + prior decisions\n+ last attempt's digested errors)"] --> A2["task-executor\n(fresh Agent — zero prior chat history)"]
+      A2 --> A3["the loop applies the result\n(board + ledger writes)"]
       A3 --> A6["harness verify t0\nfixtures + DB probe"]
       A6 --> A7{"T0 result"}
     end
@@ -35,9 +34,9 @@ flowchart TD
 ```
 
 Two facts make this loop safe to run unattended: **zero-memory handoff** — each attempt is a
-fresh subagent that only ever sees what `harness compile` chose to put in the envelope, never
-prior chat — and the **round build gate**, which builds and launches the whole feature once per
-round, so a scope that broke its neighbour cannot be mistaken for progress.
+fresh subagent that only ever sees what the loop put in the envelope, never
+prior chat — and the **build and launch** the loop runs once per round before it dispatches the
+evaluator, so a scope that broke its neighbour cannot be mistaken for progress.
 
 > This round is row **2** of the measurement table
 > ([§5.1](05-verification-and-quality-strategy.md#51--the-measurement-table)). Its verdicts are
@@ -47,41 +46,31 @@ round, so a scope that broke its neighbour cannot be mistaken for progress.
 
 ## 4.3 — The circuit breakers
 
-Two count *events* and are always on; a third counts the *clock* and is opt-in.
+Two breakers, both counting *events*.
 
 | Level | Unit | Default | On exhaustion |
 |---|---|---|---|
 | Outer — `round_budget` | Build + eval cycles for the whole run | 3 (appetite-informed) | Route to GATE H — ship what is green, with the residual bug list |
 | Inner — `attempt_budget` | T0 attempts for one scope, inside one round | 5 | Queue a hammer proposal for GATE H; move on to the next scope — never blocks the round |
-| Wall clock — `wall_clock_budget_s` | Elapsed seconds for the whole run | **off** (opt-in, `--wall-clock-budget`) | `harness verify budget --strict` at every round boundary; a trip opens no further round and routes to GATE H |
 
-The wall-clock axis exists because the other two are blind to it: a single round can run for half
-an hour without spending a round or an attempt. Set it *below* any external kill so the harness
-trips its own breaker first — a run killed from outside ships nothing, including the scopes that
-already passed T0. All three exits route to **GATE H**, never to a hard stop: the run's ending is
-always a ship decision made against what is green.
+Both exits route to **GATE H**, never to a hard stop: the run's ending is always a ship decision made
+against what is green, because a run killed from outside ships nothing, including the scopes that already
+passed T0.
 
-> The build+eval loop therefore breaks exactly three ways: EVAL PASS → QA → Ship, outer
-> `round_budget` exhausted, or the opt-in wall-clock budget tripped.
+> The build+eval loop therefore breaks exactly two ways: EVAL PASS → QA → Ship, or the outer
+> `round_budget` exhausted.
 
-## 4.4 — Hill position (mechanical, never self-reported)
+## 4.4 — Hill position
 
-Progress is reported by Shape Up's Hill position, never by a task count — a 90%-done scope can
-still be stuck uphill on the one unknown that matters. The phase is derived only from facts on
-disk, per scope, at each round boundary:
-
-| Phase | Derived when |
-|---|---|
-| `UPHILL_UNKNOWN` | Open unknowns > 0 in the ledger for this scope |
-| `UPHILL_SOLVED` | Unknowns resolved, but no T0-green attempt recorded yet |
-| `DOWNHILL_EXECUTION` | At least one T0-green attempt in a round whose build gate is not red; the judge's final PASS still pending |
-| `FINISHED` | Evaluator PASS *and* a T0-green from a round that built |
+Progress is reported by Shape Up's Hill position, never by a task count — a 90%-done scope can still be
+stuck uphill on the one unknown that matters. The Scout reports an area-level signal at orient, printed at
+GATE L1a. Nothing derives it after that: an earlier version computed a per-scope phase from T0 facts and
+rendered it as a dashboard, and both were removed with the engine (§3.5).
 
 ## 4.5 — Gate walkthrough
 
 The numbered gates pause an interactive or `--auto` run; `--unattended` crosses them from the
-pre-recorded `ci` answer set (§3.2d) and stops only on PASS, max-rounds, or a hard error. (GATE
-L1a.5 is a traceability-spine gate ✚ — present only when the spine artifacts exist.)
+pre-recorded `ci` answer set (§3.2d) and stops only on PASS, max-rounds, or a hard error. 
 
 ```
 ⏸ GATE L0 — Intake & Run Config
@@ -101,7 +90,7 @@ Spiked area + result — confirm before a single scope is cut
 ```
 
 ```
-⏸ GATE L1a.5 — Wiring Review ✚
+⏸ GATE L1a.5 — Wiring Review
 Per-UC reachability chain: engine → seam → entry-point call site → player-visible affordance
 Committed wiring-map.md checked against project-profile.md entry_point — no orphaned engine
 ```
@@ -110,15 +99,15 @@ Committed wiring-map.md checked against project-profile.md entry_point — no or
 ⏸ GATE L1b — Board Review
 UC count + actors · scope board (topology, substrate size) · SPIKE blockers
 Deferred Places (breadboard Places this shape will not build) — each needs the PO's yes
-Substrate-disjointness and breadboard placement re-asserted via harness verify spec — any red is a hard stop
+Substrate-disjointness and breadboard placement read back by the loop before the gate — any problem is a hard stop
 ```
 
 ```
 ⏸ GATE L2 — Build Round Complete
 Board        : [N]/[N] tasks ✅   (derived from the board, advisory)
 T0           : [k]/[k] touched scopes T0-green
-Build gate   : [green | red — <failing step> | undeclared]   (harness verify build: run_cmd → build_probe → launch_probe)
-Ready to EVAL: yes   (a red build gate ends the round with no EVAL; the failing step is round r+1's bug list)
+Build        : [green | red — <failing step> | undeclared]   (the loop runs run_cmd → build_probe → launch_probe)
+Ready to EVAL: yes   (a red build ends the round with no EVAL; the failing step is round r+1's bug list)
 ```
 
 ```
@@ -180,7 +169,7 @@ no matter what the auto level is.
 |---|---|---|
 | 1 | Run mode = `--unattended` | Auto-confirms all L-gates. Proceeds without a human until PASS, max-rounds, or a hard error — the only three stop conditions in this mode. |
 | 2 | Inner breaker (`attempt_budget`) exhausted for one scope | Does **not** stop anything — queues a hammer proposal and moves to the next scope in sequence (DD-9: a struggling scope must not freeze the others). |
-| 3 | *(none — see note)* | A worker `ESCALATE` is **not** auto-resolved. `harness reduce ingest` queues it; a phase that produced no artifact is sent back once and then **stops the run**, naming the phase, because dispatching it again would hit the same wall. Resolving it is a human step in every mode. |
+| 3 | *(none — see note)* | A worker `ESCALATE` is **not** auto-resolved. The loop records it; a phase that produced no artifact is sent back once and then **stops the run**, naming the phase, because dispatching it again would hit the same wall. Resolving it is a human step in every mode. |
 | 4 | GATE L2's board census | A different axis entirely — runtime-vs-model, not PO-vs-model. Never asks a human; the gate block carries `green_scopes` and `hammer_proposals` derived from the round's own results, so an EVAL over unfinished work is visible to whoever answers the gate. Advisory since ADR-0001 — the board is per-machine and the operator asked for the call. |
 | 5 | `--no-eval` | PO instruction (or the loop's recommendation) for trivial features — skips the evaluator, goes straight to SHIP with verdict `not-evaluated` recorded. |
 | 6 | `--no-qa` | Skips the post-PASS edge hunt; ledger records `qa: skipped`. |

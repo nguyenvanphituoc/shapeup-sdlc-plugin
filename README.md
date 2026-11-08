@@ -33,17 +33,16 @@ prompt-based harness:
 **1. A worker cannot act on an order nobody compiled.** Every dispatch carries a schema-validated
 WorkOrder, and a `PreToolUse` hook hard-denies the call when that order is missing or malformed —
 the tool call never reaches the worker. The same layer denies any write the order's own substrate
-does not permit, and blocks a session that dispatched the orchestrator and left no run receipt.
+does not permit. A run that left no receipt did not happen.
 → *Prevents: an agent inventing its own brief, then reporting against it.*
 
 (GATE L2 — Round Close, the board-green check before evaluation, is advisory: it warns when a round's evaluation
 runs over unfinished tasks rather than denying it. The board is local to the machine running the
 harness — see [ADR-0001](docs/design/adr/0001-consumer-file-organization.md).)
 
-**2. Progress is measured, not claimed.** A scope counts as built only when `t0-verify` runs
+**2. Progress is measured, not claimed.** A scope counts as built only when `verify t0` runs
 its fixtures and its DB probe and writes an artifact to disk — with each command's exit code,
-its captured output, and whether it ran at all. The evaluator must cite that artifact, and the
-hill phase is derived from artifacts rather than from a worker's own account of its progress.
+its captured output, and whether it ran at all. The evaluator must cite that artifact, and a worker's own account of its progress counts for nothing.
 Two limits, stated here because the point of this section is that a claim without a mechanism
 behind it is the thing this harness exists to prevent: a citation is re-hashed from disk, checked
 against the scope, round and run the artifact records, and refused unless it names a file this
@@ -57,7 +56,7 @@ told from a regression. That block measures and judges nothing.
 → *Prevents: "done" asserted with nothing behind it.*
 
 **3. Parallel work can't corrupt shared state.** Each scope gets a write-whitelist of files
-enforced by a hook, and one script performs every board/ledger/verdict write.
+enforced by a hook, and the loop alone applies every board and ledger change.
 → *Prevents: two parallel executors both rewriting the board, and one's completions vanishing.*
 
 Under the hood this rests on a typed worker envelope and a single-writer state layer. Those
@@ -109,9 +108,9 @@ installer, and troubleshooting are in
 ## Agent support
 
 The harness targets **Claude Code only**. The reason is the row that never travelled when we
-compiled to other CLIs: hooks. The 7 skills, 11 slash commands and the kernel are
-portable prose and plain Node — but hook-enforced gates (envelope validation, substrate
-sandbox, safety spine, the zero-work block) are a per-CLI mechanism, and without them every gate degrades from
+compiled to other CLIs: hooks. The 6 skills, 10 slash commands and the kernel are
+portable prose and plain Node — but hook-enforced gates (envelope validation, the substrate
+fence, the safety spine, dispatch receipts) are a per-CLI mechanism, and without them every gate degrades from
 **enforced** to **instructed** — the same honor system every other framework runs on
 everywhere. If the deny hooks are why you're here, that means Claude Code.
 
@@ -122,16 +121,15 @@ rest of this README after this table and nothing will be a surprise.
 
 | Term | In plain English |
 |---|---|
-| **board** | The round's task list. "Green" means every task is done. GATE L2 (Round Close)'s hook reads this before an evaluation and warns if it is not green. |
+| **board** | The round's task list. "Green" means every task is done. GATE L2 (Round Close) reads this before an evaluation and warns if it is not green. |
 | **round** | One build → evaluate cycle. A FAIL verdict starts round *r+1*. |
 | **T0** | The smoke test a scope must pass before it counts as built: its fixtures and a DB probe. Writes an artifact to disk that the evaluator must cite. |
 | **substrate** | The exact list of files one dispatch is allowed to write, stamped into its work order. A hook blocks anything outside it — and anything the order marks frozen. |
 | **scope contract** | The file defining one vertical slice: its substrate, its fixtures, its affordances. |
 | **affordance** | The thing a user can actually click, type or call. UI is graded on affordances, not on looks. |
-| **hill / hill phase** | How much of a scope is still *unknown* versus merely *unfinished*. Derived from T0 facts — never self-reported. |
+| **hill / hill phase** | How much of a scope is still *unknown* versus merely *unfinished*. The Scout reports a signal at orient; nothing later derives it. |
 | **gate (L0–L4, QA, H, COACH-1)** | A checkpoint in a run, named by a short id. [`AGENTS.md`'s Gate Vocabulary & Symbol Legend](AGENTS.md#gate-vocabulary--symbol-legend) spells out what each one is called and checks. Most pause for you; GATE L2 (Round Close) is the one a hook observes and reports on without pausing. |
-| **covers-closure** | Every requirement clause has at least one task claiming to cover it. Nothing silently drops. |
-| **wiring reachability** | Every engine has a call site reachable from the app's real entry point. Catches "built, but never wired up". Reports itself unchecked, with a reason, when the import walk cannot be rooted — an unfollowable import, or no reachable engine to control it. |
+| **covers-closure** | Every requirement clause is graded by at least one acceptance criterion or claimed by a scope, or the PO marks it `CUT`. The loop reads the plan back for this before the board review; nothing silently drops. |
 | **discovery ledger** | The one file everything found mid-run gets written to, so nothing is lost between rounds. |
 
 A longer version, including the internals, is in [docs/glossary.md](docs/glossary.md).
@@ -157,7 +155,7 @@ the outlined <b>L2</b> (Round Close) is advisory, the rest block. The dashed reg
 Since v1.3 the pipeline carries a **traceability spine**: the plan activity's requirements
 substep writes a requirement registry (`requirements.md`), its wire substep commits a
 per-use-case wiring map (`wiring-map.md`, gate L1a.5 — Wiring Review) resolved against the L0
-(Intake & Config) `project-profile.md`, and the board review's covers-closure lint reds a
+(Intake & Config) `project-profile.md`, and the loop reads the plan back at the board review for a
 registered requirement that no acceptance criterion grades. It is advisory until `covers:` is
 populated; every arm is skipped when its artifact is absent, so older specs are unaffected.
 
@@ -170,11 +168,11 @@ populated; every arm is skipped when its artifact is absent, so older specs are 
 | Shaping (1–4) | `shapeup` | — | Frame the problem, breadboard affordances, spike risks, write the pitch. Sub-commands: `full`, `shaping`, `spike`, `breadboarding`, `framing-doc`, `kickoff-doc`, `breadboard-reflection`. |
 | Intake (GATE L0) | `building` | v1.0 | The `intake` sub-command, done by the loop itself: a non-English intake (pitch/PRD/transcript) becomes a faithful English `<name>.en.md` plus a persisted glossary, verified (residual-language scan, structural diff) before the run opens on it. The harness is English-only downstream. |
 | Orient (7) | `orient` | — | Builder-led recon: reads the code, spikes the single riskiest area, emits a code-surface map, spike findings, discovered-task seed, and a hill signal. Writes no production code. |
-| Plan (GATE L1a.5, L1b) | `building` | v1.0 | The loop that drives a run in your session, asking the kernel (`probe next`) what comes next. Planning is its `plan` activity, done in the loop's own context — no sub-agent — under a write fence (a fence-only `plan` order the kernel answers): requirements registry (`requirements.md`) → linked DDD spec tree + board (use cases with BDD scenarios, a system flow and a derived `## Test Surface`) → the committed wiring map (`wiring-map.md`: per-UC engine → seam → entry-point call site → affordance, resolved against `project-profile.md`) → write-whitelisted scope contracts (`scopes/*.md`). Graph math and audits are the kernel's (`harness reduce board`, `harness verify spec`). |
+| Plan (GATE L1a.5, L1b) | `building` | v1.0 | The loop that drives a run in your session, reading the run's files to decide what comes next. Planning is its `plan` activity, done in the loop's own context — no sub-agent — under a write fence (a fence-only `plan` order): requirements registry (`requirements.md`) → linked DDD spec tree + board (use cases with BDD scenarios, a system flow and a derived `## Test Surface`) → the committed wiring map (`wiring-map.md`: per-UC engine → seam → entry-point call site → affordance, resolved against `project-profile.md`) → write-whitelisted scope contracts (`scopes/*.md`). The loop reads the plan back against each substep's checklist; no script lints it. |
 | Build (9) | `task-executor` | v2.0 | Pure worker: work order in → code out. Assumption scan, minimum-code/surgical-change discipline, Layer 1/2/3 UI rules, substrate-sandboxed, zero-memory. Never writes boards/ledgers/run-state. |
 | Evaluate (GATE L3) | `spec-evaluator` | v1.0 | The single judge (pure worker). Verifies spec-conformance, TDD surface, and integration against the running app — skeptical, files `file:line` bugs, runs exactly once per build round. Requires a T0 artifact citation, grades UI affordance-only; verdict + refuted boxes return as data. |
 | QA (post-PASS) | `qa-edge-hunter` | v1.1 | Exploratory edge hunt on the running app through six fixed lenses, charting edges *outside* what the evaluator probed. Findings go to the ledger as `~`; never blocks ship. |
-| Stop (11) | `building` | v1.0 | The `stop` sub-command — GATE H (Cut-List Review), done by the loop itself as a `kind: stop` step: must-have census (every ownership, exhaustion and requirement claim cites `harness probe owner` / `attempts` / `requirements`) → baseline comparison (never vs. the ideal) → cut list + ship verdict, written as data that GATE L4 reads. Handles the normal stop and both circuit-breaker triggers. |
+| Stop (11) | `building` | v1.0 | The `stop` sub-command — GATE H (Cut-List Review), done by the loop itself: must-have census (every ownership, exhaustion and requirement claim names the file it came from) → baseline comparison (never vs. the ideal) → cut list + ship verdict, written as data that GATE L4 reads. Handles the normal stop and both circuit-breaker triggers. |
 | Retro (post-L4) | `building` | v1.0 | The `retro` sub-command — RLHF for the harness: turns raw PO/TL feedback at Ship Sign-off into per-reader guidelines under committed `shapeup/knowledge-base/<reader>.md` (readers: `task-executor`, `orient`, `qa-edge-hunter`, the `plan` activity, and the loop itself at GATE L0 — workflow guidance, never a gate answer). `--scan` seeds the same files from the project on disk before the first run; `--research <stack>` seeds them from the platform's official documentation when the project has nothing to scan, and cross-checks a scan's rules when it has. GATE COACH-1 (Retro Ownership) asks the PO which reader owns each rule — never assumes; mechanism defects are filed to the harness-defect register instead. |
 
 ### Commands
@@ -212,22 +210,19 @@ the layer that carries it, and the three layers here fail differently:
 - `PreToolUse` (`Skill|Agent`) — **`harness verify envelope` denies any worker dispatch whose order
   file is missing or fails the WorkOrder schema.** A malformed envelope never reaches a worker.
 - `PreToolUse` (`Edit|Write|MultiEdit`) — **`hooks/sandbox-guard.mjs` blocks a write that no LIVE
-  order's substrate permits.** It reads every order that is compiled and not yet answered — a result
-  at least as new as the order itself — rather than a pointer to one, so scopes building
-  concurrently are each held to their own contract and a finished run fences nothing. A phase
-  dispatch the run has already moved past stops fencing too: once a later phase compiles its order,
-  an evaluation or a QA leg that never returned a result no longer holds the board. `frozen` is
-  checked first and outranks everything, across every live contract — including the carve-out that
-  otherwise keeps the active feature's own run trace writable, so a path a live order froze stays
-  frozen wherever it lives. An order's own result answers to the sub-agent that took its
-  dispatch, so with two legs live neither can write the other's.
-- `PreToolUse` (`Edit|Write|MultiEdit`) — **the same hook, `hooks/sandbox-guard.mjs`, also refuses a committed-tier write
-  whose content names a path into the local run trace or a board id.** Same rule spec-lint reds at
-  GATE L1b (Board Review), asked at the moment of writing: four different producers wrote a committed file their
-  own lint then rejected, and one of them did it twice in one session, an hour apart, after fixing
-  the first occurrence itself. A worker carries no lesson across a dispatch, so the remedy is a
-  refusal the writer can act on while it still knows what it meant to say. The knowledge base is
-  outside it — those files are instructions, not references a reader has to resolve.
+  order's substrate permits.** It reads every order that is written and not yet answered rather than
+  a pointer to one, so scopes building concurrently are each held to their own contract and a finished
+  run fences nothing. `frozen` is checked first and outranks everything, across every live contract,
+  and an order's own result answers to the sub-agent that took its dispatch, so with two legs live
+  neither can write the other's. The fence is armed by a pointer the loop sets with `harness order open`
+  and retires with `harness order close`; with no pointer it allows every write, which is why those are
+  commands that read the pointer back rather than a file the loop edits.
+- `PreToolUse` (`Edit|Write|MultiEdit`) — **the same hook also refuses a committed-tier write whose
+  content names a path into the local run trace or a board id.** Four different producers wrote a
+  committed file that a later check rejected, and one did it twice in a session, because a worker carries
+  no lesson across a dispatch; the remedy is a refusal the writer can act on while it still knows what
+  it meant to say. The knowledge base is outside it — those files are instructions, not references a
+  reader has to resolve.
 - `PreToolUse` (`Bash|Read|Write|Edit|MultiEdit`) — **`hooks/safety-spine.mjs` denies destructive
   commands** (`rm -rf` on unrecoverable targets, force-push/push-to-main, `git reset --hard`,
   `DROP TABLE`) and secret-file reads. A machine guard, not a pipeline guard; the escape hatch is
@@ -235,29 +230,25 @@ the layer that carries it, and the three layers here fail differently:
 
 **One recorder**, which denies nothing and is what makes a wall possible one layer down:
 
-- `PostToolUse` (`Skill|Agent`) — **`hooks/dispatch-receipt.mjs` writes down which skill actually
+- `PostToolUse` (`Skill|Agent`) — **`hooks/dispatch-receipt.mjs` writes down which agent actually
   ran.** Until it existed, a dispatch that failed — plugin absent, disabled, or a different version
-  loaded — was indistinguishable from one that succeeded: the sub-agent would do the craft itself
-  from the prose in its own prompt, the artifacts landed in exactly the place the order permitted, so
-  the order gate and the sandbox guard both passed and the run advanced having applied none of the
-  shipped craft. A green run was consistent with zero worker craft. The hook appends
-  `{order_id, worker_declared, skill_invoked, dispatch_ok, at}` to `.shapeup/<slug>/receipts/`, and
-  `harness reduce ingest` refuses an orchestrated result with no matching receipt. A failed dispatch
-  never reaches `PostToolUse` at all, so the receipt's *existence* is the evidence. It has no deny
-  path, every write is guarded, and `--no-receipt-check` is the documented way through when the
-  channel itself fails.
+  loaded — was indistinguishable from one that succeeded: the sub-agent would do the craft itself from
+  the prose in its own prompt, the artifacts landed where the order permitted, so the order gate and the
+  fence both passed and the run advanced having applied none of the shipped craft. The hook appends
+  `{order_id, worker_declared, skill_invoked, dispatch_ok, usage, at}` to `.shapeup/<slug>/receipts/`,
+  with the tokens, duration and model the host measured. A failed dispatch never reaches `PostToolUse`
+  at all, so the receipt's *existence* is the evidence. The loop counts an attempt against a receipt, not
+  against the artifact. It has no deny path and every write is guarded.
 
-**What the runtime carries instead** (v2.0 retired six hooks whose work moved here):
+**What the runtime no longer carries.** Earlier versions also checked, with scripts, that a spec was
+well-linked at the board review, that a worker's result was applied exactly once, that a run's attempts
+and rounds were counted from attested records, that the build and launch probes were green before
+evaluation, and that a ship report matched the board. Those are now the loop's own discipline, written
+in the `building` skill and checked by the PO and the evaluator. A measured comparison found the scripted
+sequencing completed more runs than the same loop reading its own table, at lower cost; the scripted
+engine was removed on the PO's decision anyway, and the record of that decision names the result.
 
-| Was a hook | Is now | What changed |
-|---|---|---|
-| `gate-l2` (EVAL over an unfinished board) | The GATE L2 (Round Close) block, which names `green_scopes` and `hammer_proposals` | It was advisory either way; now the same facts reach the human who answers the gate rather than a warning line above it. |
-| `gate-deadline` (deny builds past the wall clock) | `harness verify budget --strict`, checked at every round boundary | **A real coverage change, stated rather than hidden:** the round loop stops the run from opening ANOTHER round, but no longer interrupts a single build leg that runs long. `attempt_budget` bounds that leg by attempts instead. |
-| `session-rehydrate` + `compact-snapshot` | `harness probe next --restart` on a fresh session's first call | A hook fired at two moments the platform chose; a command answers whenever the question is asked, including the moments a hook never saw. |
-| `anti-rationalization` (claims the facts contradict) | The ship report's census, derived from the board and the T0 artifacts | The facts are in an artifact a teammate finds on `git pull`, not in a transcript nobody re-reads. |
-| `slop-cleaner` (TODO/`console.log` leftovers) | The ship report's **Leftovers** section | Same scan, same added-lines-only rule; it lands somewhere checkable. |
-
-**Nothing load-bearing depends on permission mode.** The three walls run
+**Nothing load-bearing depends on permission mode.** The walls run
 under every mode. The kernel needs a grant to be *invoked* — two Bash lines `npx shapeup-sdlc init`
 writes — but a session that never gets that grant is a session that cannot run the pipeline at all,
 not one that runs it unguarded.
@@ -279,22 +270,14 @@ These hold across the harness and are the reason it stays predictable:
 - **Ledger is the single source of truth** — orient, task-executor, and QA all write to `discovery/ledger.md`.
 - **QA is a level-up, not a gate** — `--no-qa` skips it; the circuit breaker outranks the hunter; findings default to `~`.
 - **Role separation** — evaluator grades, task-executor fixes, QA discovers; no one does another's job.
-- **Three-level circuit breaker** — an outer `round_budget` (build+eval cycles) nests an inner
-  per-scope `attempt_budget` (T0 attempts); an exhausted scope queues a GATE H (Cut-List Review) proposal instead
-  of blocking the round. An opt-in third breaker bounds the **wall clock**, because the other two
-  count events and neither can notice a single round running for half an hour — tripping it routes
-  to GATE H, so a run out of time ships what is green instead of being killed and shipping nothing.
-- **Hill phase is mechanical, never self-reported** — derived only from T0/T1 facts, closing the
-  self-reported-confidence risk. A scope with no
-  discovery ledger derives no phase rather than a solved one, so absence no longer reads as
-  progress on that arm.
-- **One writer per shared file** — every board/ledger/verdict write goes through
-  `harness reduce ingest`; workers return data and never touch shared state.
-- **Traceability is lint-checked, opt-in** — the board review (`harness verify spec`) verifies
-  covers-closure from the committed spine artifacts; it ships advisory and every arm is skipped
-  when its artifact is absent, so older specs are non-regressed. Whether the built engine is wired
-  into the app is a build-time fact: the round build gate's `build_probe` and `launch_probe` measure
-  it, and the evaluator grades it on the running app.
+- **Two circuit breakers** — an outer `round_budget` (build+eval cycles) nests an inner per-scope
+  `attempt_budget` (T0 attempts); an exhausted scope queues a GATE H (Cut-List Review) proposal instead of
+  blocking the round, and running out of rounds routes to GATE H too, so a run out of budget ships what is
+  green instead of being killed and shipping nothing.
+- **The witness is mechanical** — a T0 verdict is a command's exit code and a hash, not a report; the
+  evaluator re-hashes the artifact it cites.
+- **One writer per shared file** — the loop applies every board and ledger change; workers return data
+  and never touch shared state.
 
 ## Known rough edges
 
@@ -325,10 +308,11 @@ claude --plugin-dir .                # load this working copy without installing
 .claude-plugin/
   plugin.json         # plugin manifest
   marketplace.json    # marketplace listing (points at this repo)
-skills/<name>/SKILL.md # the 7 harness skills (+ references/, resources/ and assets/)
+skills/<name>/SKILL.md # the 6 harness skills (+ references/, resources/ and assets/)
 agents/<worker>.md    # the 4 workers as plugin subagents: each preloads its skill; a dispatch names the agent
 kernel/harness.mjs    # ONE entry point for every deterministic step; the whole permission grant
-kernel/{verify,reduce,probe,init,report}/ #   its subcommands, plus compile and gate at the root
+kernel/{verify,init}/ #   its subcommands: the T0 witness, the envelope check, the roster check, init run
+kernel/{gate,order}.mjs #   the gate resolver, and the verb that arms and retires the fence
 kernel/lib/           # argv (the typed CLI boundary), paths (+ the run key), contract (shape)
 kernel/schemas/       # the envelope port: WorkOrder, WorkResult, domain registry
 commands/*.md         # slash commands (/ship + the 9 phase commands)
@@ -342,7 +326,7 @@ scripts/install-harness.sh, migrate.sh   # stable public entrypoints (fresh inst
 scripts/shapeup-sdlc/lib/                # shell libs both entrypoints source
 tools/                # repo-only: demo/
                       #   demo/record-demo.mjs (regenerates docs/assets/demo-gate.svg)
-tests/structural.mjs, tests/structural/*.mjs   # Tier 0 — 880+ checks, zero LLM calls
+tests/structural.mjs, tests/structural/*.mjs   # Tier 0 — ten modules, zero LLM calls
 docs/install.md, upgrading.md, glossary.md
 docs/design/          # the design document (pipeline, gates, circuit breaker, ERD) + adr/
 docs/visualize/       # rendered views of the tree and the pipeline
