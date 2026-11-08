@@ -16,8 +16,8 @@ Status and the open PO decision are in `execution-native-first-2026-11-08.md`, s
 | `kernel/lib/` `breadboard`, `census`, `plan`, `ratchet`, `requirements`, `schedule` | 6 / 766 | — | deleted; `argv`, `contract`, `floor`, `paths` stay (`contract` 852 → 768, `paths` 553 → 509) |
 | `kernel/order.mjs`, `hooks/lib/tier.mjs` | — | 2 / 163 | new |
 | the 19 kept modules (`harness`, `gate`, `init run`, `verify` ×5, three hooks and `decision`, `argv`, `contract`, `floor`, `paths`, `digest`, installer, grant) | 19 / 6,692 | 19 / 6,111 | kept; net −581: `init run` −388, `contract` −84, `harness` −45, `paths` −44, `sandbox-guard` −23, `gate` +3 |
-| **Kernel, hooks, installer** | **46 / 16,541** | **21 / 6,274** | −10,267 lines = 9,849 deleted whole files + 581 trimmed − 163 added |
-| `tests/structural/` modules | 110 / 19,954 | 10 / 779 | 994 lines with the runner and two helpers; 208 checks |
+| **Kernel, hooks, installer** | **46 / 16,541** | **21 / 6,274** at the count; **21 / 6,343** after the Ship Sign-off QA refusal (`gate` +69) | −10,267 lines = 9,849 deleted whole files + 581 trimmed − 163 added; re-counted 2026-11-09 |
+| `tests/structural/` modules | 110 / 19,954 | 10 / 779 at the count; 10 / 805 after the QA refusal's 7 checks | 994 lines with the runner and two helpers; 208 checks, then 215 |
 | Kernel subcommands | 24 | 6 | `verify t0 \| envelope \| skills`, `gate`, `init run`, `order` |
 | Hook registrations | 4 | 4 | the same four |
 | Plugin worker agents | 4 | 4 | the same four |
