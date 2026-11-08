@@ -53,7 +53,7 @@
 import { readFileSync, writeFileSync, appendFileSync, existsSync, mkdirSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { runArgs } from "./lib/argv.mjs";
-import { gateAnswerCandidates, gates as gatesPath, LOCAL, resultsDir, tasksDir, hammerCensus, readRunId, harnessRun } from "./lib/paths.mjs";
+import { gateAnswerCandidates, gates as gatesPath, LOCAL, resultsDir, tasksDir, hammerCensus, readRunId, harnessRun, insideRunTrace } from "./lib/paths.mjs";
 
 export const GATE_IDS = ["L0", "L1a", "L1a.5", "L1b", "L2", "L3", "QA", "H", "L4", "COACH-1"];
 
@@ -459,6 +459,10 @@ function die(msg, code = 2) {
 export function cli(rawArgv) {
   const args = runArgs(ARGV_SPEC, rawArgv);
   const cwd = args.cwd || process.cwd();
+  if (args.resolve && insideRunTrace(cwd)) {
+    console.error(`✋ gate: ${cwd} is inside a run trace (${LOCAL}/); run it from the project root, or its row lands in a nested ledger.`);
+    process.exit(2);
+  }
 
   if (args.init) {
     const presetName = args.preset ?? "ci";

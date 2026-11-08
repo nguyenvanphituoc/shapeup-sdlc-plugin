@@ -30,6 +30,7 @@ export async function run(ctx) {
     check(r.status === 4, "preset guarded stops the judgment gate L1b for the PO");
     r = gate("L1a", "ci", ["--answer", "abort"]);
     check(r.status === 5 && rows().at(-1)?.source === "PO (live)", "a live answer of abort exits 5 and is ledgered with the source PO (live)");
+    check(kernel(ROOT, ["gate", "--resolve", "L1a", "--slug", "w", "--preset", "ci"], { cwd: join(cwd, ".shapeup/w") }).status === 2, "a gate resolved from inside a run trace is refused rather than ledgered in a nested one");
     r = gate("NOPE", "ci");
     check(r.status === 2, "an unknown gate id is a usage error (exit 2)");
 

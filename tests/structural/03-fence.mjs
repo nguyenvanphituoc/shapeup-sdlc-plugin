@@ -39,6 +39,13 @@ export async function run(ctx) {
     const open = kernel(ROOT, ["order", "open", "--slug", SLUG, "--order", path], { cwd: root });
     check(open.status === 0 && existsSync(join(root, ".shapeup/active-order")), "order open writes the pointer and reads it back");
     check(Math.abs(Date.now() - Date.parse(json(path).compiled_at)) < 10_000, "order open stamps the order with the real time");
+    put(root, "invalid.json", { schema_version: 1, order_id: "demo/invalid", mode: "orchestrated", payload: {} });
+    const before = json(join(root, ".shapeup/active-order")).order_path;
+    const invalid = kernel(ROOT, ["order", "open", "--slug", SLUG, "--order", join(root, "invalid.json")], { cwd: root });
+    check(invalid.status === 1 && json(join(root, ".shapeup/active-order")).order_path === before,
+      "order open refuses an order the dispatch gate would refuse, and arms nothing (an invalid order opened first could be neither edited nor withdrawn)");
+    const nested = kernel(ROOT, ["order", "open", "--slug", SLUG, "--order", path], { cwd: join(root, ".shapeup") });
+    check(nested.status === 2, "order refuses to run from inside a run trace, where its records would land in a nested trace");
     put(root, "bad.json", "{ not json");
     const bad = kernel(ROOT, ["order", "open", "--slug", SLUG, "--order", join(root, "bad.json")], { cwd: root });
     check(bad.status === 1, "order open refuses an order that is not JSON (exit 1)");

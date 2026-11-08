@@ -17,7 +17,7 @@
 // touching no filesystem. The run-key half reads receipts and fails open (`null`, never a throw),
 // because hooks call it and telemetry must never break a tool call.
 
-import { join } from "node:path";
+import { join, resolve, sep } from "node:path";
 import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 
@@ -81,6 +81,18 @@ export const sharedRoot = (cwd, slug) => join(cwd, SHARED, slug);
  * @param {string} slug - Feature slug.
  * @returns {string} `<cwd>/.shapeup/<slug>`.
  */
+/**
+ * Whether a working directory is inside a run trace (a `.shapeup/` folder).
+ *
+ * A kernel command resolves every path from the working directory, so run from inside the trace it
+ * would open a second, empty run nested in the first and write its records there — a real run did
+ * exactly that. The commands that write run state refuse instead.
+ *
+ * @param {string} cwd - The directory the command was run from.
+ * @returns {boolean} True when `.shapeup` is one of its path segments.
+ */
+export const insideRunTrace = (cwd) => resolve(cwd).split(sep).includes(LOCAL);
+
 export const localRoot = (cwd, slug) => join(cwd, LOCAL, slug);
 
 // ---------------------------------------------------------------------------

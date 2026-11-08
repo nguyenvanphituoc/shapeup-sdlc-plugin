@@ -107,9 +107,7 @@ Done-when statements; `_index.md` Non-Go list. Which UCs are in scope comes from
   contract triplet + Non-Go). Overall PASS only if ALL active dimensions pass — the halo
   effect is banned; a strong dimension never lifts a failing one.
 - **T0 citation (scoped specs).** Recompute each cited artifact's sha256 from disk — never
-  trust a handed hash. Use any hasher you may run; when none is available to you,
-  `harness probe t0 --slug <slug> --scope <scope_id> --round <r>` prints the digest of that
-  scope's green verdict as the file is at that moment. A digest from any other place — a ledger
+  trust a handed hash. Use any hasher you may run (`shasum -a 256 <path>`, or `node -e` with `node:crypto`). A digest from any other place — a ledger
   line, an earlier report, an error message — is a handed hash, however correct it looks. A verdict on a scoped spec without a T0 citation is structurally
   invalid, regardless of how convincing your own probing looked; generator prose ("tests
   pass", "verified locally") is never admissible evidence.

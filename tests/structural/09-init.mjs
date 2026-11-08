@@ -41,6 +41,8 @@ export async function run(ctx) {
     check(init(["--slug", "z", "--intake-text", "t"], { SHAPEUP_EXEC_MODEL: "nano" }).status === 2, "the environment knob is held to the same floor");
     check(init(["--slug", "q", "--intake-text", "   "]).status === 2, "an empty intake is refused: a run over no requirement reads like a success");
     check(init(["--slug", "q", "--intake-text", "t", "--tiny"]).status === 2, "a retired switch is refused by name rather than ignored");
+    const inTrace = kernel(ROOT, ["init", "run", "--slug", "n", "--intake-text", "t"], { cwd: join(cwd, ".shapeup") });
+    check(inTrace.status === 2 && !existsSync(join(cwd, ".shapeup/.shapeup")), "init run refuses to run from inside a run trace instead of opening a nested run");
     const ghost = join(cwd, "ghost-plugin");
     put(cwd, "ghost-plugin/.claude-plugin/plugin.json", { name: "ghost", version: "0.0.1" });
     check(init(["--slug", "r", "--intake-text", "t", "--plugin-root", ghost]).status === 3, "a plugin copy that cannot name its roster is refused (exit 3), not thrown");

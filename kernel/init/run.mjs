@@ -35,7 +35,7 @@ import { join, dirname, resolve, relative, sep } from "node:path";
 import { createHash } from "node:crypto";
 import { discover, resolve as resolveGate, appendGateLedger, PRESETS } from "../gate.mjs";
 import { runArgs } from "../lib/argv.mjs";
-import { mintRunId } from "../lib/paths.mjs";
+import { mintRunId, insideRunTrace } from "../lib/paths.mjs";
 import { launchProblems, floorProblems, AUTO_LEVELS } from "../lib/floor.mjs";
 import {
   localRoot, activeScope, activeOrder, globLocal, globShared, ordersDir, resultsDir, runArgsPath,
@@ -223,6 +223,9 @@ function fail(code, msg) {
 export function cli(rawArgv) {
   const args = runArgs(ARGV_SPEC, rawArgv);
   const cwd = args.cwd || process.cwd();
+  if (insideRunTrace(cwd)) {
+    fail(2, `✋ init-run: ${resolve(cwd)} is inside a run trace (.shapeup/). Run it from the project root: from here it would open a second run nested in the first.`);
+  }
 
   // THE MODEL FLOOR, before anything is written and before the already-open refusal.
   const models = resolveModels(args);

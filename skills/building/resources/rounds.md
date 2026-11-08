@@ -17,7 +17,7 @@ PASS.
 **Evaluation fires once per round.** It is never called per task, inside the build, or over a partly built board. Before you
 dispatch it, build and launch the feature yourself with the project profile's run command: a feature that does not build or
 launch has nothing for a judge to grade, and the failing step is what round r + 1 fixes — skip the evaluation and go to the next
-round with that failure as the bug.
+round with that failure as the bug. Write each step's command, exit code and output tail to `.shapeup/<slug>/build/r<R>.md`: the evaluate order names it, and a `[ui]` row is graded on an app that note says launched.
 
 **Regression rule (r > 1).** A fix changes code, and a fix can break what passed. So a fix round's evaluation
 is the fixed bugs' criteria, plus a full re-run of the Test Surface rows of every use case a re-opened scope

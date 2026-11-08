@@ -17,7 +17,8 @@
 import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { runArgs } from "./lib/argv.mjs";
-import { activeOrder, activeScope, localRoot } from "./lib/paths.mjs";
+import { activeOrder, activeScope, localRoot, insideRunTrace } from "./lib/paths.mjs";
+import { validate, SCHEMAS_DIR } from "./verify/envelope.mjs";
 
 /** The endings a run may record. */
 export const CLOSE_STATUSES = ["shipped", "escalated", "aborted"];
@@ -51,6 +52,11 @@ export function openOrder(cwd, slug, orderPath) {
   try { order = JSON.parse(readFileSync(orderPath, "utf8")); }
   catch (e) { return { ok: false, reason: `order is not readable JSON: ${e.message}` }; }
   if (!order || typeof order !== "object") return { ok: false, reason: "order is not an object" };
+  // The same check the dispatch gate makes, made BEFORE the order is armed: an invalid order that was
+  // opened first is live with no way to be edited (the fence freezes it) and no way to be withdrawn.
+  const schema = JSON.parse(readFileSync(join(SCHEMAS_DIR, "work-order.schema.json"), "utf8"));
+  const { valid, errors } = validate(order, schema);
+  if (!valid) return { ok: false, reason: `order fails the order schema, so it was not opened: ${errors.slice(0, 5).join("; ")}` };
   order.compiled_at = new Date().toISOString();
   writeFileSync(orderPath, `${JSON.stringify(order, null, 2)}\n`);
   const p = activeOrder(cwd);
@@ -89,6 +95,7 @@ export function cli(rawArgv) {
   const [action, ...rest] = rawArgv;
   const args = runArgs(ARGV_SPEC, rest);
   const cwd = args.cwd || process.cwd();
+  if (insideRunTrace(cwd)) { console.error(`✋ order: ${resolve(cwd)} is inside a run trace (.shapeup/); run it from the project root.`); process.exit(2); }
   if (action === "open") {
     if (!args.order) { console.error("order open: --order <path> is required"); process.exit(2); }
     const r = openOrder(cwd, args.slug, resolve(cwd, args.order));

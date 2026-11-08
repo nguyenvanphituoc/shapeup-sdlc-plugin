@@ -94,8 +94,8 @@ The same five moves for every worker. `resources/orders.md` has the order for ea
    against the order schema before it leaves, and leaves a receipt naming the agent that ran.
 4. **Read the result** at `<run>/results/<stem>.json`: `K verify envelope "<run>/results/<stem>.json" "${CLAUDE_PLUGIN_ROOT}/kernel/schemas/work-result.schema.json"`.
    Invalid, or absent, goes back **once** with the reason; a second failure is a phase that did not complete — name it and stop at that phase.
-5. **Apply it yourself**: update the board's `status:` for the tasks the result closed, append each discovery to `<run>/discovery/ledger.md`, and
-   state what the result changed. Nobody else writes these.
+5. **Apply it yourself**: update the board's `status:` for the tasks the result closed, append each discovery to `<run>/discovery/ledger.md`, append the
+   evaluator's verdict-ledger lines to `<run>/evaluation/.verdicts-<target>.jsonl`, and state what the result changed. Nobody else writes these.
 
 ## Build a scope
 
