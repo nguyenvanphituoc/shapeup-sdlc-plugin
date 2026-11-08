@@ -239,7 +239,13 @@ export function cli(rawArgv) {
 
   // GATE L0 — the worker roster, before any spend. It says the files exist at this root at this
   // version; whether the SESSION resolves that copy is answered by the first dispatch's receipt.
-  const plugin = resolveWorkers(args.pluginRoot ? resolve(args.pluginRoot) : undefined);
+  let plugin;
+  try { plugin = resolveWorkers(args.pluginRoot ? resolve(args.pluginRoot) : undefined); }
+  catch (e) {
+    // A root with no domain registry cannot name its own roster: a broken installation, refused the
+    // same way as a missing worker rather than thrown as a stack trace.
+    fail(3, `✋ init-run: refusing to open a run — the plugin copy cannot name its worker roster (${e.message}).`);
+  }
   if (plugin.missing.length) {
     fail(3, [
       `✋ init-run: refusing to open a run — ${plugin.missing.length} of ${plugin.workers.length} workers are missing.`,

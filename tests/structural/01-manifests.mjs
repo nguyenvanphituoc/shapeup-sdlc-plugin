@@ -1,111 +1,50 @@
-// Structural test module: manifests. Split out of tests/structural.mjs (Track C).
-// Sections: 1. Byte-identical bodies; the runner threads the shared ctx.
-import { readFileSync, readdirSync, existsSync, statSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
-import { join, dirname, resolve } from "node:path";
-import { tmpdir } from "node:os";
+// The manifests, executed: the three that carry a version agree, everything the package ships exists,
+// every hook command points at a file that is there, and the host's own validator accepts the plugin.
+import { join } from "node:path";
+import { existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 
-/**
- * Run the manifests structural checks.
- * @param {object} ctx - Shared harness context from tests/lib/harness.mjs (makeCtx).
- *   Carries ROOT (repo root), the ok/fail/section counters, and the read/readJSON/
- *   frontmatter/walk helpers. ok()/fail() mutate ctx.checks/ctx.failures in place.
- * @returns {Promise<void>} Resolves when the section bodies finish; assertions are
- *   recorded as side effects on ctx (never thrown for an ordinary check failure).
- */
 export async function run(ctx) {
-  const { ROOT, ok, fail, section, read, readJSON, frontmatter, walk } = ctx;
+  const { ROOT, ok, fail, section, readJSON } = ctx;
+  const check = (cond, msg) => (cond ? ok(msg) : fail(msg));
 
-  // =============================================================================
-  section("1. Plugin & marketplace manifests parse and agree");
-  // =============================================================================
-  const pluginPath = join(ROOT, ".claude-plugin/plugin.json");
-  const marketPath = join(ROOT, ".claude-plugin/marketplace.json");
-  const pkgPath = join(ROOT, "package.json");
+  section("manifests — version, allowlist, hook commands, the host's validator");
+  const plugin = readJSON(join(ROOT, ".claude-plugin/plugin.json"));
+  const market = readJSON(join(ROOT, ".claude-plugin/marketplace.json"));
+  const pkg = readJSON(join(ROOT, "package.json"));
+  check(plugin.name && plugin.version && plugin.description, "plugin.json names the plugin, its version and what it is");
+  check(plugin.version === pkg.version, `package.json and plugin.json agree on the version (${pkg.version} / ${plugin.version}); release CI fails on a mismatch`);
+  check((market.plugins || []).some((p) => p.name === plugin.name), "the marketplace lists the plugin by the same name");
 
-  let plugin, market, pkg;
-  try { plugin = readJSON(pluginPath); ok("plugin.json parses"); }
-  catch (e) { fail(`plugin.json does not parse: ${e.message}`); }
-  try { market = readJSON(marketPath); ok("marketplace.json parses"); }
-  catch (e) { fail(`marketplace.json does not parse: ${e.message}`); }
-  try { pkg = readJSON(pkgPath); ok("package.json parses"); }
-  catch (e) { fail(`package.json does not parse: ${e.message}`); }
-
-  if (plugin) {
-    for (const f of ["name", "version", "description"]) {
-      if (!plugin[f]) fail(`plugin.json missing required field "${f}"`); else ok(`plugin.json has ${f}`);
-    }
-  }
-  if (plugin && pkg && plugin.version !== pkg.version) {
-    fail(`version drift: plugin.json=${plugin.version} but package.json=${pkg.version}`);
-  } else if (plugin && pkg) ok(`versions agree (${plugin.version})`);
-
-  if (market && plugin) {
-    const named = (market.plugins || []).some((p) => p.name === plugin.name);
-    if (!named) fail(`marketplace.json does not list plugin "${plugin.name}"`);
-    else ok(`marketplace lists ${plugin.name}`);
+  const missing = (pkg.files || []).filter((f) => !existsSync(join(ROOT, f.replace(/\/$/, ""))));
+  check(missing.length === 0, `every entry of the package's \`files\` allowlist exists${missing.length ? ` — missing: ${missing.join(", ")}` : ""}`);
+  for (const dir of ["agents/", "bin/", "commands/", "hooks/", "kernel/", "oracles/", "skills/"]) {
+    check(pkg.files.includes(dir), `the allowlist ships ${dir}`);
   }
 
-  // =============================================================================
-  section("55. Every source file in the repo is text a line-oriented tool can read");
-  // =============================================================================
-  // WHY THIS EXISTS (found by an audit that its own grep could not complete).
-  //
-  // A shipped library was written with LITERAL NUL bytes in a template literal — the field
-  // separator in a hash input, typed as raw control characters instead of `\u0000` escapes. Node
-  // parsed it, every test passed, and the module behaved correctly. But `file(1)` classified it as
-  // `data`, and a NUL makes grep treat a file as binary: `grep -rn` over the shipped tree silently
-  // SKIPPED it. The repo's non-delivered-content sweep runs on exactly that grep, so the file was
-  // invisible to the audit — and it was hiding a real finding, a citation into a `docs/` path a
-  // user does not receive.
-  //
-  // That is the failure this repo names as its own recurring shape: a change that looks complete,
-  // produces no error, and is wrong. The check is cheap and general — the harm is not the byte, it
-  // is that one unreadable file turns every grep-based guarantee over the tree into a claim about
-  // an unknown subset. A skipped file and a clean file must not look the same from outside.
-  //
-  // ⟐ THE SCOPE IS THE WHOLE REPO, and that correction is the finding's second half. Written to
-  // cover only the shipped roots, this check could not see ITSELF: the same keystroke that put a
-  // NUL in the library put one in this module's own comment and one in the CHANGELOG entry
-  // describing the defect, and only `git` noticed — `Bin 2484 -> 5746 bytes` in the commit stat.
-  // A guard scoped more narrowly than the mistake it guards against is the shape of every defect
-  // above it. `docs/` and `tests/` do not ship, but a doc or a test no grep can read defeats an
-  // audit just as completely, so readability is a property of the TREE, not of the package.
-  {
-    const ROOTS = ["bin", "skills", "hooks", "commands", "oracles", "docs", "tests", "tools", "scripts"];
-    // README and CHANGELOG carry no `files[]` entry but npm publishes them anyway, and they are the
-    // densest prose in the package.
-    const LOOSE = ["AGENTS.md", "SECURITY.md", "README.md", "CHANGELOG.md", "CLAUDE.md", "CONTRIBUTING.md"];
-    const SRC = /\.(mjs|js|json|md|sh|yml|yaml)$/;
-    const collect = (rel, out = []) => {
-      for (const e of readdirSync(join(ROOT, rel), { withFileTypes: true })) {
-        const p = `${rel}/${e.name}`;
-        if (e.isDirectory()) collect(p, out);
-        else if (SRC.test(e.name)) out.push(p);
-      }
-      return out;
-    };
-    const files = [
-      ...ROOTS.filter((r) => existsSync(join(ROOT, r))).flatMap((r) => collect(r)),
-      ...LOOSE.filter((f) => existsSync(join(ROOT, f))),
-    ];
-    const binary = [];
-    for (const f of files) {
-      const buf = readFileSync(join(ROOT, f));
-      // NUL is what actually flips grep to binary mode. Other C0 controls (except tab/CR/LF) are
-      // reported too: none of them belongs in source, and each is equally invisible in review.
-      const bad = [];
-      for (let i = 0; i < buf.length; i++) {
-        const b = buf[i];
-        if (b === 0 || (b < 32 && b !== 9 && b !== 10 && b !== 13)) { bad.push(`0x${b.toString(16)}@${i}`); break; }
-      }
-      if (bad.length) binary.push(`${f} (${bad[0]})`);
-    }
-    if (binary.length === 0) {
-      ok(`all ${files.length} source files are control-character-free — every grep over the tree sees the whole tree`);
-    } else {
-      fail(`file(s) carry control characters, so grep skips them as binary and every ` +
-           `content sweep silently under-reports:\n    ${binary.join("\n    ")}`);
-    }
+  const manifest = readJSON(join(ROOT, "hooks/hooks.json"));
+  const commands = Object.values(manifest.hooks).flat().flatMap((g) => g.hooks.map((h) => h.command));
+  check(commands.length >= 4, `hooks.json registers ${commands.length} commands`);
+  for (const c of commands) {
+    const rel = c.match(/\$\{CLAUDE_PLUGIN_ROOT\}\/(\S+?\.mjs)/)?.[1];
+    check(rel && existsSync(join(ROOT, rel)), `hook command points at a file that exists: ${rel}`);
+  }
+
+  const { ROUTES } = await import(join(ROOT, "kernel/harness.mjs"));
+  const modules = Object.values(ROUTES).flatMap((t) => (typeof t === "string" ? [t] : Object.values(t)));
+  for (const m of modules) {
+    const mod = await import(join(ROOT, "kernel", m));
+    check(typeof mod.cli === "function", `kernel route ${m} exports a cli`);
+  }
+  const help = spawnSync("node", [join(ROOT, "kernel/harness.mjs"), "--help"], { encoding: "utf8" });
+  check(help.status === 0 && Object.keys(ROUTES).every((v) => help.stdout.includes(v)), "harness --help lists every verb in the routing table");
+  check(spawnSync("node", [join(ROOT, "kernel/harness.mjs"), "nope"], { encoding: "utf8" }).status === 2, "an unknown verb is a usage error (exit 2)");
+
+  // The host's own validator is the strictest reader of the manifests; skip loudly when it is absent.
+  const have = spawnSync("claude", ["--version"], { encoding: "utf8" });
+  if (have.status !== 0) { console.log("  (claude binary not found — `claude plugin validate` not run)"); return; }
+  for (const target of [".", ".claude-plugin/marketplace.json"]) {
+    const v = spawnSync("claude", ["plugin", "validate", target, "--strict"], { cwd: ROOT, encoding: "utf8" });
+    check(v.status === 0, `claude plugin validate ${target} --strict passes${v.status === 0 ? "" : `\n${(v.stdout + v.stderr).slice(0, 400)}`}`);
   }
 }

@@ -264,7 +264,7 @@ export async function main() {
       rule: written ? "receipt-written" : "receipt-write-failed",
       reason: written
         ? `dispatch receipt: ${row.order_id} ran ${skillInvoked} (declared ${row.worker_declared}, ok=${row.dispatch_ok})`
-        : `dispatch receipt could not be written for ${row.order_id} — ingest will refuse this result unless --no-receipt-check`,
+        : `dispatch receipt could not be written for ${row.order_id} — this attempt cannot be counted as attested`,
     };
   });
 }

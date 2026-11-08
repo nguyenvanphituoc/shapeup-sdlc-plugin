@@ -10,7 +10,7 @@ template for the operation and filling the bracketed fields from the files named
 {
   "schema_version": 1,
   "order_id": "<slug>/<stem>",
-  "kernel": "<absolute path of kernel/harness.mjs in this plugin copy>",
+  "kernel": "<absolute path of this plugin copy's kernel entry point>",
   "run_id": "<run_id from .shapeup/<slug>/receipt.json>",
   "compiled_at": "<ISO time now>",
   "worker": "<orient | task-executor | spec-evaluator | qa-edge-hunter | building>",
