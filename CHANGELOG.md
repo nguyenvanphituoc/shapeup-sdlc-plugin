@@ -3,77 +3,57 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased] · Native first, then the engine removed
+## [4.0.0] — 2026-11-09 · One loop in the session, native agents, and no scripted engine
 
-Not released: the version files still read 4.0.0, and this work is on `plan/single-loop`, not pushed; the tag `engine-measured` marks the tree before it. It is **breaking** for
-anything that names a removed kernel command, the `hill-chart` skill or the `/hill` command.
+**Breaking.** The run is driven by one skill, `building`, in your own session. It reads the run's files, follows its own phase table, writes
+each order and applies each result itself. The Workflow-runtime launch, the agents that existed only to type one kernel command, the
+preflight canary and the relaunch after every gate are gone: a gate is answered in the session that reached it, and `/ship` again over an
+open run resumes from artifacts on disk. The runtime keeps five things and nothing more: the receipt, the gate resolver, the T0 witness,
+the write fence and the dispatch receipts. It is breaking for anything that names a removed kernel command, the `hill-chart` skill, the
+`/hill` command or the `--tiny` lane; `docs/upgrading.md` lists them.
 
+- **Skills 13 → 6, workers 10 → 4.** `tech-lead`, `ba-pitch-analyzer`, `solution-architect`, `scope-architect`, `scope-hammer`, `coach`,
+  `translator` and `hill-chart` are removed. Their craft lives in `building`'s resources: `plan` (requirements, spec tree and board, wiring
+  map, scope contracts, run in the loop's own context under a fence-only order), `stop` (the census and the Cut-List Review), `retro`
+  (feedback and Retro Ownership, with `--scan` and `--research`) and `intake` (the language check, which writes the `<name>.en.md` copy and
+  glossary itself). `/ship --tiny` is no longer served; run the full loop with a small appetite. `/scopes` and `/wire` remain as aliases of
+  `plan`; `/hammer` and `/retro` point at `stop` and `retro`.
 - **The four workers are plugin agents.** `agents/orient.md`, `task-executor.md`, `spec-evaluator.md` and `qa-edge-hunter.md` preload
-  their skill; the loop dispatches by agent name. The receipt hook attests the agent that ran and records the tokens, duration and
-  model the host measured. `verify skills` refuses a worker whose agent does not preload its skill. `package.json` ships `agents/`.
-- **The decision engine is removed (ADR-0006).** `compile`, `reduce ingest | board | ship | hill`, `verify spec | build | budget |
-  dispatch`, every `probe` verb and `init fit` are gone, with the `hill-chart` skill, the `/hill` command and the wall-clock breaker.
-  The loop writes each order from a template, opens it for the fence with the new `order open`, checks a result with `verify envelope`
-  and applies it itself; `order close` retires the fence's pointer and records how the run ended. The runtime keeps five things: the
-  receipt, the gate resolver, the T0 witness, the write fence and the dispatch receipts. The `tier-guard` and `Stop` hooks were
-  folded or removed earlier; hook registrations went 6 → 4.
-- **A comparison went the other way, and the removal was the PO's decision.** On a three-scope pitch the scripted sequencing shipped
-  2 of 2 runs and the same loop reading its own table 0 of 1, at 59% higher cost. The engine was removed anyway; the record says so.
-- **Size.** Kernel, hooks and installer 18,736 → 6,274 lines. The structural suite 21,872 lines in 115 files → 779 lines
-  in ten files that execute shipped code, with a floor on the check count.
-- **A shipped ending rests on a sign-off.** `order close --status shipped` reads the gate ledger and refuses (exit 1) unless a Ship
-  Sign-off row of the same run says `ship`; the close record names the sign-off it rests on (`signed_off_at`, `signed_off_by`).
-  `escalated` and `aborted` need no row. Before this, every refusal the ship gate makes — no clearing census, an owed hunt, a worker
-  below the floor — could be walked around by closing the run without crossing the gate; the real run did not, and nothing stopped it.
+  their skill; the loop dispatches by agent name. The receipt hook attests the agent that ran and records the tokens, duration and model
+  the host measured. `verify skills` refuses a worker whose agent does not preload its skill. `package.json` ships `agents/`.
+- **The decision engine is removed.** `compile`, `reduce ingest | board | ship | hill`, `verify spec | build | budget | dispatch`, every
+  `probe` verb and `init fit` are gone, with the wall-clock breaker. The loop writes each order from a template, opens it for the fence
+  with the new `order open`, checks a result with `verify envelope` and applies it itself; `order close` retires the fence's pointer and
+  records how the run ended. Kernel subcommands 29 → 6, hook registrations 6 → 4, kernel, hooks and installer 18,736 → 6,343 lines, and
+  the structural suite 21,872 lines in 115 files → 805 lines in ten files that execute shipped code, with a floor on the check count.
+- **A comparison went the other way, and the removal was the PO's decision.** On a three-scope pitch the scripted sequencing shipped 2 of 2
+  runs and the same loop reading its own table 0 of 1. The cost figures ($5.4 against $8.6 and $18.2) are not a like-for-like measurement:
+  the receipts show the engine runs used `sonnet` workers and the others `opus`, although every launch record asked for `sonnet`. The engine
+  was removed anyway; the tag `engine-measured` marks the last tree that kept it.
 - **The model that ran is evidence; the launch record is a request.** The loop passes the launch record's model for the role on every
   dispatch (the agent definitions stay `model: inherit`), the dispatch receipt records the model the call asked for (`model_requested`)
-  beside the one the host says ran (`usage.model`), and `gate --resolve L4` reads the receipts of the run: an `exec` or `eval` worker
-  that ran below the model floor refuses `ship`, and a model other than the record's is written into the gate's row and the ship report,
-  not refused. Found by reading the archived receipts: every run's record asked for `sonnet`, and the two arms of the one comparison on
-  record had run their workers on two different models. No new subcommand.
-- **QA can no longer go missing unrecorded.** `gate --resolve L4` refuses `ship` over a QA hunt the run owed and never ran (a passing round, no `noQa`, no `skip` answer): the hunt must have a result and, over a reachable app, at least one charter run. Answering GATE QA `skip` is the recorded way out. No new subcommand.
-- **A real run on this branch shipped, in two sessions.** On the same three-scope pitch it built every scope in round 1, drew an evaluator FAIL, stopped for budget, and — resumed — passed in round 2 and shipped ($18.2 in total, against $5.4 for the engine's runs; the QA hunt skipped by the loop's own call). It also found defects, fixed here: `order open` stamps the order's time and checks it against the schema before arming it; `init run`, `order` and `gate --resolve` refuse to run from inside `.shapeup/`.
-- **Fixed on the way.** `init run` now refuses a plugin copy that cannot name its worker roster instead of throwing a stack trace.
+  beside the one the host says ran (`usage.model`), and `gate --resolve L4` reads the receipts of the run: an `exec` or `eval` worker that
+  ran below the model floor refuses `ship`, and a model other than the record's is written into the gate's row and the ship report.
+- **QA can no longer go missing unrecorded.** `gate --resolve L4` refuses `ship` over a QA hunt the run owed and never ran (a passing round,
+  no `noQa`, no `skip` answer): the hunt must have a result and, over a reachable app, at least one charter run. Answering the QA Edge Hunt
+  gate `skip` is the recorded way out.
+- **A shipped ending rests on a sign-off.** `order close --status shipped` refuses (exit 1) unless a Ship Sign-off row of the same run says
+  `ship`; the close record names the sign-off it rests on. `escalated` and `aborted` need no row.
+- **The installer no longer adds the unscoped `Workflow` permission**, and deletes nothing from your settings. The grant is the two Bash
+  rules for the kernel. `--no-native-workflow` is accepted and does nothing.
+- **`init run` writes the launch record** and takes the launch switches (`--exec-model`, `--eval-model`, `--qa-model`, `--no-eval`,
+  `--no-qa`, `--parallel-scopes`). The model floor is refused at `init run`, in the kernel. `--adversarial-verify`, `--dimensions`,
+  `--breadboard` and `--lens` are gone from it; each is carried by the order that needs it.
+- **A real run on this tree shipped, in two sessions.** On the three-scope pitch it built every scope in round 1, drew an evaluator FAIL,
+  stopped for budget, and, resumed, passed in round 2 and shipped ($18.2 in total; the QA hunt skipped by the loop's own call). It found
+  defects, fixed here: `order open` stamps the order's time and checks it against the schema before arming it; `init run`, `order` and
+  `gate --resolve` refuse to run from inside `.shapeup/`; `init run` refuses a plugin copy that cannot name its worker roster instead of
+  throwing a stack trace. The fixes made after that run, the QA refusal, the sign-off rule and the model check, are exercised by tests and
+  have not yet been through a second real run.
+- **Fixed in the move.** A result that is not a WorkResult is sent back once with the reason, then stops the run naming it, rather than
+  closing the run with a cause that said the worker returned nothing.
 
-## [4.0.0] — 2026-11-07 · One loop in the session, in place of one workflow launch
-
-**Breaking.** The run is driven by one skill, `building`, in your own session. It asks the kernel
-what comes next (`probe next`), does exactly that, and asks again. The Workflow-runtime launch, the
-agents that existed only to type one kernel command, the preflight canary and the relaunch after
-every gate are gone: a gate is answered in the session that reached it, and `/ship` again over an
-open run resumes from artifacts on disk. Decision record: ADR-0004.
-
-- **Skills 13 → 7.** `tech-lead`, `ba-pitch-analyzer`, `solution-architect`, `scope-architect`,
-  `scope-hammer`, `coach` and `translator` are removed. Their craft lives in `building`'s resources:
-  `plan` (requirements, spec tree and board, wiring map, scope contracts — run in the loop's own
-  context under a fence-only order, so planning writes still have a substrate), `stop` (the census
-  and GATE H), `retro` (feedback and GATE COACH-1, with `--scan` and `--research`) and `intake` (the
-  language check, which now writes the `<name>.en.md` copy and glossary itself). Workers: 10 → 4
-  (`orient`, `task-executor`, `spec-evaluator`, `qa-edge-hunter`); operations 18 → 7.
-- **`/ship --tiny` is no longer served.** The small-change lane lived in `tech-lead` and went with it.
-  Run the full loop with a small appetite instead. `/scopes` and `/wire` remain, as aliases of the
-  loop's `plan`; `/hammer` and `/retro` keep their names and point at `stop` and `retro`.
-- **The installer no longer adds the unscoped `Workflow` permission**, and deletes nothing from your
-  settings: a token you already have is yours. The grant is the two Bash rules for the kernel.
-  `--no-native-workflow` is accepted and does nothing.
-- **`init run` writes the launch record** and now takes the launch switches (`--exec-model`,
-  `--eval-model`, `--qa-model`, `--no-eval`, `--no-qa`, `--parallel-scopes`, `--adversarial-verify`).
-  `init run-args` is removed. The model floor is refused at `init run`, in the kernel.
-- **Kernel.** New `probe next`. Removed: `reduce snapshot`, `reduce verdict`, `probe concurrency`,
-  `init run-args`; `probe stats` keeps only `--hooks`. 32 subcommands → 29.
-- **Hooks.** `gate-intake` is removed, `gate-zerowork` is keyed to the loop (and now also recognises
-  the wrapped form a typed `/ship` takes in a transcript), and the load-time echo is gone: 6 hook
-  scripts → 5.
-- **`--adversarial-verify`** is recorded and reported as not carried: the refutation wave was never
-  durable in the ledger and has no worker in a four-worker roster.
-- **Export.** The `leg` table carries `tokens_in`, `tokens_out`, `tokens_total`, `cost_usd` and
-  `usage_source`, null where the host reported nothing.
-
-**Fixed in the move.** A result that is not a WorkResult (a status outside the four the schema allows)
-is sent back once with the reason, then stops the run naming it, rather than closing the run with a
-cause that said the worker returned nothing.
-
-See `docs/upgrading.md`, "Upgrading into 4.0".
+See `docs/upgrading.md`, "Upgrading to 4.0".
 
 ## [3.18.4] — 2026-10-02 · A relaunch is marked, and a QA leg nothing applied stops reading as "carried to ledger"
 

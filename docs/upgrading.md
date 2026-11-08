@@ -13,9 +13,9 @@ working. The consequence is stated here rather than left to be discovered: **an 
 to predate the current layout is not converted for you.** Run `install-harness.sh` against it
 instead and treat it as a fresh install.
 
-## Upgrading to the native-first release
+## Upgrading to 4.0
 
-This release removes the scripted decision engine. The loop that drives a run still lives in the `building`
+This release (4.0.0) removes the scripted decision engine. The loop that drives a run still lives in the `building`
 skill, but it now reads the run's files and follows its own phase table instead of asking the kernel what
 comes next, and it writes and applies orders itself. Nothing in your project's committed tree changes;
 what changes is the command surface and what the runtime still checks.
