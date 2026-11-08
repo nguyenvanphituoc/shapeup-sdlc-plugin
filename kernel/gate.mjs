@@ -53,7 +53,7 @@
 import { readFileSync, writeFileSync, appendFileSync, existsSync, mkdirSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { runArgs } from "./lib/argv.mjs";
-import { gateAnswerCandidates, gates as gatesPath, LOCAL, resultsDir, tasksDir, hammerCensus, readRunId, harnessRun, insideRunTrace } from "./lib/paths.mjs";
+import { gateAnswerCandidates, gates as gatesPath, LOCAL, resultsDir, ordersDir, qaDir, tasksDir, hammerCensus, readRunId, harnessRun, insideRunTrace, runArgsPath } from "./lib/paths.mjs";
 
 export const GATE_IDS = ["L0", "L1a", "L1a.5", "L1b", "L2", "L3", "QA", "H", "L4", "COACH-1"];
 
@@ -206,6 +206,65 @@ export function censusVerdict(cwd, slug) {
 }
 
 /**
+ * The number of charters a hunt report says it ran.
+ *
+ * @param {(string|null)} text - The hunt report's text.
+ * @returns {(number|null)} The run count from its `charters: <run>/<approved>` line, or null.
+ */
+export function chartersRun(text) {
+  const m = String(text ?? "").match(/^charters:\s*(\d+)/m);
+  return m ? Number(m[1]) : null;
+}
+
+const readJson = (p) => { try { return JSON.parse(readFileSync(p, "utf8")); } catch { return null; } };
+
+/**
+ * Why a run that owes a QA hunt cannot ship, or null when it owes none or paid it.
+ *
+ * Derived from files, never from the census (the loop writes that itself). A hunt is owed when the
+ * evaluator passed a round (or the round was not evaluated) and the run was not launched with
+ * `noQa` and no QA row of this run says `skip`. It is paid when `results/hunt.json` exists and, for
+ * a `done` result over an app its order could reach, the hunt report ran at least one charter. A
+ * `failed` hunt says it could not hunt, which is honest and accepted. A run that never reached a
+ * passing round owes nothing: a build that has not passed is not worth edge-hunting.
+ *
+ * The case this exists for is the one nothing else sees: QA answered `run` and the hunter never
+ * dispatched, so no result exists to be wrong. An explicit `skip` answer is the recorded way out.
+ *
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug.
+ * @returns {(string|null)} A reason phrased for the PO, or null.
+ */
+export function qaProblem(cwd, slug) {
+  if (!slug) return null;
+  if (readJson(runArgsPath(cwd, slug))?.noQa) return null;
+  const runId = readRunId(cwd, slug);
+  let rows = [];
+  try {
+    rows = readFileSync(gatesPath(cwd, slug), "utf8").split("\n").filter(Boolean)
+      .map((l) => { try { return JSON.parse(l); } catch { return null; } })
+      .filter((r) => r && r.run_id === runId && r.status === "ok");
+  } catch { return null; }
+  const qa = rows.filter((r) => r.gate === "QA").at(-1);
+  if (qa?.decision === "skip") return null;
+  const owed = rows.some((r) => r.gate === "L3" && ["pass", "not-evaluated"].includes(r.verdict));
+  if (!qa) return owed ? "the round passed but GATE QA was never crossed" : null;
+  if (qa.decision !== "run") return null;
+  const hunt = join(resultsDir(cwd, slug), "hunt.json");
+  if (!existsSync(hunt)) return "GATE QA was answered run and no hunt was dispatched (no results/hunt.json)";
+  const result = readJson(hunt);
+  if (!result) return "the hunt result cannot be read";
+  if (result.status !== "done") return null;
+  const payload = readJson(join(ordersDir(cwd, slug), "hunt.json"))?.payload || {};
+  if (!payload.launch_cmd && !payload.app_url) return null;
+  let report = null;
+  try { report = readFileSync(join(qaDir(cwd, slug), "hunt-report.md"), "utf8"); } catch { /* no report */ }
+  const n = chartersRun(report);
+  if (n === null) return "the hunt returned done with no hunt report carrying a `charters:` line";
+  return n > 0 ? null : "the hunt returned done over an app its order could reach, having run 0 charters";
+}
+
+/**
  * Narrow a resolved gate answer to what the run's own evidence supports.
  *
  * THE RULE, and it is about answers rather than callers. An answer set chooses among the answers a
@@ -250,7 +309,17 @@ export function narrowToEvidence(r, cwd, slug) {
   }
   if (r?.gate !== "L4" || r?.status !== "ok" || r?.decision !== "ship") return r;
   const verdict = censusVerdict(cwd, slug);
-  if (verdict === "ship-now" || verdict === "ship-after-fixes") return r;
+  if (verdict === "ship-now" || verdict === "ship-after-fixes") {
+    const qa = qaProblem(cwd, slug);
+    if (!qa) return r;
+    return {
+      gate: r.gate, status: "ask", source: r.source, decision: "ask", note: r.note,
+      refused: "ship", census: verdict, qa,
+      reason: `GATE L4 cannot be answered "ship": ${qa}. Dispatch the hunt, or answer GATE QA \`skip\` ` +
+              `(a recorded decision) and resolve L4 again. An answer chooses among the answers a gate ` +
+              `allows; it cannot supply the evidence that makes one allowed.`,
+    };
+  }
   const why = verdict === "cannot-ship"
     ? "the census returned CANNOT SHIP"
     : "the census has not been written, so none exists";

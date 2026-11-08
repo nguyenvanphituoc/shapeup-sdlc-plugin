@@ -13,7 +13,7 @@ recommendation first**. The recommendation is yours; the answer is the PO's.
 | `L3` Verdict & Loop | the judge's verdict for the round | on FAIL `loop` while rounds remain, `stop` to cut; on PASS the answer only matters for the next phase |
 | `QA` QA Edge Hunt | whether to hunt past what the judge probed | `run` unless the PO is out of time; a hunt discovers and never blocks |
 | `H` Decide When to Stop | the census: what ships and what is cut, against the baseline and never the ideal | `accept-cut-list` for `ship-now` or `ship-after-fixes`; `cannot-ship` never reaches this question |
-| `L4` Ship Sign-Off | final go/no-go; `ship` is only offered when a census cleared the run | `ship` only after reading the status line the block carries |
+| `L4` Ship Sign-Off | final go/no-go; `ship` is only offered when a census cleared the run and any QA hunt the run owed ran (or GATE QA was answered `skip`) | `ship` only after reading the status line the block carries |
 
 An unattended run puts none of these to anyone: its answer set resolves them and the ledger names the
 set as the source. A gate with no answer and no human is a fast, attributable abort, not a silent wait.

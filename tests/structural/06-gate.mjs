@@ -59,6 +59,32 @@ export async function run(ctx) {
     r = gate("L4", "ci");
     check(r.status === 4, "a census that cannot be read proves nothing and does not clear the run");
 
+    section("gate — L4 will not ship over a QA hunt the run owed and never paid");
+    census("ship-now");
+    r = gate("L3", "ci", ["--verdict", "pass"]);
+    r = gate("QA", "ci");
+    check(r.out?.decision === "run", "after a passing round GATE QA is answered run");
+    r = gate("L4", "ci");
+    check(r.status === 4 && r.out?.refused === "ship" && /no hunt was dispatched/.test(r.out?.qa || ""), "QA answered run and no hunt on disk: ship is refused, with the reason");
+    r = gate("QA", "ci", ["--answer", "skip"]);
+    r = gate("L4", "ci");
+    check(r.status === 0 && r.out?.decision === "ship", "an explicit, ledgered skip of GATE QA lets the same census ship");
+    r = gate("QA", "ci");
+    put(cwd, ".shapeup/w/orders/hunt.json", { payload: { app_url: "http://localhost:1" } });
+    put(cwd, ".shapeup/w/results/hunt.json", { status: "done", discoveries: [] });
+    r = gate("L4", "ci");
+    check(r.status === 4 && /charters/.test(r.out?.qa || ""), "a done hunt with no charters line in its report does not pay the debt");
+    put(cwd, ".shapeup/w/qa/hunt-report.md", "charters: 0/3\n");
+    r = gate("L4", "ci");
+    check(r.status === 4 && /0 charters/.test(r.out?.qa || ""), "a done hunt over a reachable app that ran 0 charters does not pay it");
+    put(cwd, ".shapeup/w/qa/hunt-report.md", "charters: 2/3\n");
+    r = gate("L4", "ci");
+    check(r.status === 0 && r.out?.decision === "ship", "a hunt that ran a charter pays it");
+    put(cwd, ".shapeup/w/qa/hunt-report.md", "charters: 0/3\n");
+    put(cwd, ".shapeup/w/results/hunt.json", { status: "failed", discoveries: [] });
+    r = gate("L4", "ci");
+    check(r.status === 0, "a hunt that says failed is honest about not hunting, and is accepted");
+
     section("gate — an answer file, and a gate it does not answer");
     const file = join(cwd, "answers.json");
     const made = k(["gate", "--init", "--preset", "ci", "--by", "tester", "--out", file]);

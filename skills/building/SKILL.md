@@ -73,7 +73,7 @@ re-run with `--answer <decision>`; 5 = the set aborts: close the run as aborted 
 | 9 | no `results/evaluate-rR.json` (skipped under `noEval`) | **dispatch** `spec-evaluator` |
 | 10 | GATE L3 not crossed for R | `K gate --resolve L3 --slug <slug> --round R --verdict <pass\|fail\|not-evaluated>`. On fail and `R < maxRounds`, round R+1 repeats 7 to 10 for the scopes the verdict's bugs name; otherwise go to 13 |
 | 11 | GATE QA not crossed | `K gate --resolve QA --slug <slug> --round R --verdict pass --preset <set>` |
-| 12 | QA answered `run` and no `results/hunt.json` (skipped under `noQa`) | **dispatch** `qa-edge-hunter` |
+| 12 | QA answered `run` and no `results/hunt.json` (skipped under `noQa`) | **dispatch** `qa-edge-hunter`. Do not move on without it: GATE L4 refuses `ship` over a hunt the run owed and never ran, and the only recorded way out is `K gate --resolve QA … --answer skip` |
 | 13 | no census file | do the census (`resources/stop.md`) and write `<run>/reports/hammer-census.json`; then GATE H |
 | 14 | GATE H crossed, no `<spec>REPORT.md` | write the ship report (`resources/stop.md`); then GATE L4 |
 | 15 | GATE L4 crossed | `K order close --slug <slug> --status <shipped\|escalated\|aborted> --cause "<verdict, rounds>"`; then GATE COACH-1 |
