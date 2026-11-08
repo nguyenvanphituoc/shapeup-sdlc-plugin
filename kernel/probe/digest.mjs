@@ -9,7 +9,7 @@
 // diagnostic that names a file but no line number (a resource-compiler error, for example)
 // still yields its file — `line` stays null rather than being guessed at.
 //
-// A library, not a subcommand: `verify t0` and `verify build` import `digest` to compress what a red
+// A library, not a subcommand: `verify t0` imports `digest` to compress what a red
 // run printed. Zero dependencies, zero network — same discipline as oracles/*.
 
 const PATTERNS = [

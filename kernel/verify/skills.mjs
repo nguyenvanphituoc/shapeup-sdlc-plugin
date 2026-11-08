@@ -4,7 +4,7 @@
 // WHAT IT CATCHES. A dispatch against a plugin that is absent, disabled or a different version
 // returns `<tool_use_error>Unknown skill</tool_use_error>`, and the sub-agent then does the craft
 // itself from the prose already in its own prompt. `hooks/dispatch-receipt.mjs` makes that visible
-// at ingest; this makes it visible at `init run`, before a single sub-agent has been paid for.
+// in the receipts; this makes it visible at `init run`, before a single sub-agent has been paid for.
 //
 // WHAT IT HONESTLY CANNOT DO, stated here because a check that overclaims is worse than no check.
 // It proves *these files exist at this root at this version*. It cannot prove the SESSION will

@@ -1,7 +1,7 @@
 {
   "$id": "work-order.schema.json",
   "title": "WorkOrder",
-  "description": "The orchestrator \u2192 worker envelope (pure-skill architecture v1.0). Compiled by kernel/compile.mjs, validated by harness verify envelope before any worker dispatch. A worker depends only on this envelope \u2014 never on filesystem topology, run-state format, board schema, or another worker. Path: .shapeup/<slug>/orders/r<N>-a<M>.json (or <slug>/orders/<operation>.json for non-attempt work). Every record type and payload field is DEFINED CENTRALLY in domain.schema.json ($defs + x-payload-by-worker) \u2014 this file only shapes the envelope; it never re-defines a domain entity.",
+  "description": "The orchestrator \u2192 worker envelope (pure-skill architecture v1.0). Written by the loop, validated by harness verify envelope before any worker dispatch. A worker depends only on this envelope \u2014 never on filesystem topology, run-state format, board schema, or another worker. Path: .shapeup/<slug>/orders/r<N>-a<M>.json (or <slug>/orders/<operation>.json for non-attempt work). Every record type and payload field is DEFINED CENTRALLY in domain.schema.json ($defs + x-payload-by-worker) \u2014 this file only shapes the envelope; it never re-defines a domain entity.",
   "type": "object",
   "required": [
     "schema_version",
@@ -24,11 +24,11 @@
     },
     "kernel": {
       "type": "string",
-      "description": "OPTIONAL \u2014 the absolute path of the kernel entry point (harness.mjs) of the plugin copy that compiled this order. A worker runs every kernel command as node \"<kernel>\" \u2026: a command naming a variable instead (${CLAUDE_PLUGIN_ROOT}) is refused in a headless session before any permission rule is consulted."
+      "description": "OPTIONAL \u2014 the absolute path of the kernel entry point (harness.mjs) of the plugin copy that wrote this order. A worker runs every kernel command as node \"<kernel>\" \u2026: a command naming a variable instead (${CLAUDE_PLUGIN_ROOT}) is refused in a headless session before any permission rule is consulted."
     },
     "run_id": {
       "type": "string",
-      "description": "OPTIONAL (v1.8) \u2014 the run this dispatch belongs to, stamped by harness compile from the receipt (kernel/lib/paths.mjs). The join key the analysis plane groups on: order_id alone collides across runs of the same slug, so without this no record the pipeline writes can be attributed to a run. Absent when no readable receipt exists (a standalone dispatch in a workspace with no open run) \u2014 never invented, and never required, because an analytic field must not be able to block a build.",
+      "description": "OPTIONAL (v1.8) \u2014 the run this dispatch belongs to, stamped by the loop from the receipt (kernel/lib/paths.mjs). The join key the analysis plane groups on: order_id alone collides across runs of the same slug, so without this no record the pipeline writes can be attributed to a run. Absent when no readable receipt exists (a standalone dispatch in a workspace with no open run) \u2014 never invented, and never required, because an analytic field must not be able to block a build.",
       "pattern": "^[a-z0-9][a-z0-9-]*-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{8}$"
     },
     "compiled_at": {

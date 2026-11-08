@@ -1,70 +1,50 @@
 #!/usr/bin/env node
-// Sandbox guard — PreToolUse hook (the PA3 countermeasure: writes outside the order's substrate).
+// Sandbox guard — PreToolUse hook: writes outside the live order's substrate are refused.
 //
 // Blocks Edit/Write/MultiEdit calls that no LIVE ORDER's `substrate` block permits. Turns "a worker
 // only writes what the run authorised" from prose into a precondition the model cannot talk past.
 // It also refuses, at the write, a committed-tier file whose text names a run-trace path or a board id
 // (`committedTierLeaks` below) — the tier-direction rule, asked where the writer can still rephrase.
 //
-// IT ENFORCES THE ORDER, NOT THE SCOPE CONTRACT, and that is the whole design. ``harness compile``
-// already stamps a write contract onto every order from `substrateFor(operation)` — allowed,
-// shared, append_only, frozen. Resolving the scope contract instead covered exactly one operation,
-// the build, because only build orders carry a scope; every other dispatch (`analyze`, `wire`,
-// `evaluate`, `hunt`, `coach` …) ran unfenced, and the `frozen`/`append_only` surfaces the
-// compiler emits had no enforcer at all. Reading the order makes the contract the compiler writes
-// and the contract the hook enforces the same object, for every operation, with no per-operation
-// code here.
+// IT ENFORCES THE ORDER, NOT THE SCOPE CONTRACT. The loop stamps a write contract onto every order
+// it writes — allowed, shared, append_only, frozen, own — and reading the order makes that contract
+// and the one this hook enforces the same object, for every operation, with no per-operation code
+// here. Resolving the scope contract instead would cover only the build, because only build orders
+// carry a scope.
 //
-// IT READS EVERY LIVE ORDER, NOT A POINTER TO ONE. `.shapeup/active-order` names the run and
-// nothing more — `harness compile` publishes it as it writes each order, which is what fences the
-// calls that never go through the loop (a hand-driven round, a standalone `/build`).
-// A single pointer cannot survive concurrency: with scopes building side by side the last compile
-// wins the pointer, and a write from scope A would be judged against scope B's contract — a false
-// block or a false permit depending on which way the race fell. So the candidate set is every
-// order under `orders/` that is not yet ANSWERED, and a write is permitted when SOME live contract
-// covers it.
+// IT READS EVERY LIVE ORDER, NOT A POINTER TO ONE. `.shapeup/active-order` names the run and nothing
+// more; the loop sets it with `harness order open` and `harness order close` retires it. A single
+// pointer cannot survive concurrency: with scopes building side by side the last order opened wins
+// it, and a write from scope A would be judged against scope B's contract — a false block or a false
+// permit depending on which way the race fell. So the candidate set is every order under `orders/`
+// that is not yet ANSWERED, and a write is permitted when SOME live contract covers it.
 //
-// THE POINTER IS NOT A LIVENESS SIGNAL, and it used to be one: the order it names was counted live
-// unconditionally, "so the single-order lane behaves as it did before concurrency existed". The arm
-// bought nothing — an order that is genuinely in flight has no result yet and is already live by
-// the rule below — and it cost the checkout permanently. The pointer has one writer and no eraser,
-// so the LAST dispatch of a FINISHED run stayed live for good and fenced everything to that one
-// substrate: after a ship, an ordinary edit anywhere in the repo was denied, and the next feature
-// could not write even its own run trace, because the carve-out below is keyed to the slug the
-// stale pointer names. The documented fail-open state ("no pointer — not inside a dispatch") became
-// unreachable after the first run, and the only way out was to delete a file nothing documents.
-// The arm is gone; `reduce ship` and ``harness init run --force`` retire the pointer as well, so a
-// leftover one is untidy rather than load-bearing.
+// THE POINTER IS NOT A LIVENESS SIGNAL. It arms the fence — with no pointer every write is allowed —
+// but liveness is "written, no result yet", read off the order set, so a run that ended and retired
+// its pointer fences nothing and a leftover pointer is untidy rather than load-bearing.
 //
-// ANSWERED IS A COMPARISON, NOT A PRESENCE TEST, and the difference is a hole the removal above
-// would otherwise open. Order filenames for the run-level operations carry no round (`hammer.json`,
-// `wire.json`, `analyze.json`), so re-dispatching one inside the same run rewrites the order beside
-// the PREVIOUS dispatch's result — and a presence test reads that as finished and runs the new
-// dispatch unfenced. An order counts as answered only when its result file is at least as new as
-// the order's own `compiled_at`, the stamp the compiler writes INTO the order, which a copy or a
-// touch cannot perturb. An order carrying no stamp falls back to presence, which is all it ever had.
+// ANSWERED IS A COMPARISON, NOT A PRESENCE TEST. Order filenames for the run-level operations carry
+// no round, so re-dispatching one inside the same run rewrites the order beside the PREVIOUS
+// dispatch's result — and a presence test would read that as finished and run the new dispatch
+// unfenced. An order counts as answered only when its result file is at least as new as the order's
+// own `compiled_at`, the stamp the loop writes INTO the order, which a copy or a touch cannot
+// perturb. An order carrying no stamp falls back to presence.
 //
-// A RUN-LEVEL ORDER RETIRES AT ITS PHASE BOUNDARY, which is the other half of that same question.
-// Liveness is "compiled, no result yet", so a PHASE dispatch whose worker never returned — a killed
-// evaluation, a QA leg that escalated without a result, a failed scope mapping — would stay live for
-// the rest of the run, and everything its `frozen` list names (the board, the spec tree) would be
-// fenced from then on. The board is the one that bites: the next round's doer cannot tick its own
-// acceptance criteria, and the run wedges with no dispatch actually in flight. The orchestrator has
-// long since moved on by the time that matters, and the move itself is the signal: the next phase
-// compiles its own order. So an order for a RUN-LEVEL operation stops being live once an order for a
-// DIFFERENT operation has been compiled after it — the window the committed tier already has, a
-// phase boundary rather than the middle of somebody else's dispatch. Build legs are exempt: they run
-// concurrently, finish out of order, and an abandoned one is resolved by ``harness init run --force``
-// rather than by a sibling's compile stamp. Two concurrent legs of the SAME operation never retire
-// each other, for that same reason. An order carrying no operation or no `compiled_at` keeps
+// A RUN-LEVEL ORDER RETIRES AT ITS PHASE BOUNDARY. A phase dispatch whose worker never returned — a
+// killed evaluation, a QA leg that escalated without a result — would otherwise stay live for the rest
+// of the run and fence everything its `frozen` list names. The next phase writing its own order is
+// the signal: an order for a RUN-LEVEL operation stops being live once an order for a DIFFERENT
+// operation has been written after it. Build legs are exempt: they run concurrently, finish out of
+// order, and an abandoned one is resolved by `harness init run --force`. Two concurrent legs of the
+// SAME operation never retire each other. An order carrying no operation or no `compiled_at` keeps
 // fencing — an unreadable claim is not a retired one.
 //
-// That is the same question as "the writer's own contract" because scope substrates are disjoint by
-// construction — `harness verify spec`'s DISJOINT rule fails a spec where two scopes claim the same
-// path, and it runs at GATE L1b before any build starts. `frozen` is checked across all of them, so
-// a path one scope froze stays frozen while another scope is in flight.
+// "The writer's own contract" and "some live contract" are the same question because scope
+// substrates are disjoint by construction: the loop reads the contracts for overlap before it
+// releases scopes together. `frozen` is checked across all of them, so a path one scope froze stays
+// frozen while another scope is in flight.
 //
-// Design (deliberately conservative, mirrors the GATE L2 block):
+// Design (deliberately conservative):
 //   • Fail-OPEN whenever there is nothing to enforce: no active-order pointer (not running inside
 //     a harness dispatch), pointer names an order that doesn't exist or is unparsable, the order
 //     declares no boundaries at all, or the tool call carries no resolvable file path. A guard
@@ -74,14 +54,11 @@
 //     an `allowed` glob that would otherwise match; `append_only` permits Edit and denies Write,
 //     because Write overwrites what the append was supposed to preserve.
 //   • Run-trace carve-out — writes under the ACTIVE feature's LOCAL gitignored root
-//     (`.shapeup/<slug>/`) are always allowed: that root is harness bookkeeping the doer
-//     is REQUIRED to write (task-executor P3 status/AC ticks + tasks/_index.md, run-state,
-//     execution logs, the P3.7 discovery ledger). Substrate globs whitelist product code and
-//     never list the run-trace, so without the carve-out a scoped round leaves its own task files
-//     stale. Deliberately narrow: only the active slug's root. The pointers at the `.shapeup/`
-//     root — `active-order` (this guard's own) and `active-scope` (the run pointer) — sit OUTSIDE
-//     the carve-out by construction, so a worker cannot widen its own sandbox by rewriting the
-//     thing that defines it.
+//     (`.shapeup/<slug>/`) are allowed unless a live order freezes them: that root is bookkeeping
+//     the doer is REQUIRED to write. Deliberately narrow: only the active slug's root. The pointers
+//     at the `.shapeup/` root — `active-order` (this guard's own) and `active-scope` (the run
+//     pointer) — sit OUTSIDE the carve-out by construction, so a worker cannot widen its own
+//     sandbox by rewriting the thing that defines it.
 //   • Every denial is also appended to the metrics pathology log (telemetry, not just defense).
 //
 // Contract: PreToolUse stdin JSON { tool_name, tool_input:{file_path | edits[].file_path}, cwd }.
@@ -361,7 +338,7 @@ export function inCommittedTier(rel) {
 /**
  * The committed tier's write boundary: the tier-direction leaks this call would commit.
  *
- * It is the rule spec-lint's TIER-DIRECTION enforces at GATE L1b, asked at the write instead — the one
+ * It is the tier-direction rule, asked at the write — the one
  * moment the writer still knows what it meant to say, because a worker carries no lesson across a
  * dispatch and the lint reds the same file a phase later. The predicate is the lint's own scanner
  * (`tierLeaks`), imported and never restated, so this cannot become narrower or wider than the rule.
@@ -427,7 +404,7 @@ async function main() {
             "Tier guard (TIER-DIRECTION) — this write would put a reference into the committed tier that " +
             "cannot survive the trip to another machine:\n" +
             `${tier.blocked.join("\n")}\n` +
-            "Refused here rather than at GATE L1b, where spec-lint reds the same file after the phase is over. " +
+            "Refused here, while the writer still knows what it meant to say. " +
             "Rephrase the line now: cite the committed artifact, the use case or the scope_id, or describe " +
             "the tier without naming a path.",
         },
@@ -442,9 +419,9 @@ async function main() {
   if (!active?.slug || !active?.order_path) defer("active-order pointer is unreadable or incomplete", "bad-pointer");
 
   // EVERY LIVE ORDER, not just the pointer's. The pointer names one order, and with scopes building
-  // CONCURRENTLY the last compile wins it — so a write from scope A would be judged against scope
+  // CONCURRENTLY the last order opened wins it — so a write from scope A would be judged against scope
   // B's contract, which is either a false block or a false permit depending on which way the race
-  // fell. Scope substrates are disjoint by construction (spec-lint's DISJOINT rule fails a spec
+  // fell. Scope substrates are disjoint by construction (the loop's planning read-back fails a spec
   // where they are not), so "is this write inside SOME live contract" and "is it inside the
   // writer's own contract" are the same question — and only the first can be asked without a
   // shared mutable pointer.
@@ -463,7 +440,7 @@ async function main() {
     allowed: [...(o.substrate.allowed || []), ...(o.substrate.shared || [])],
     appendOnly: o.substrate.append_only || [],
     frozen: o.substrate.frozen || [],
-    // The one exception to "frozen outranks everything", and it is the compiler's to grant, never
+    // The one exception to "frozen outranks everything", and it is the loop's to grant, never
     // the worker's to request: the paths THIS order authors, named from its own identity. A build
     // leg's substrate freezes the whole run trace, so without this its own WorkResult — its
     // documented last step — would be denied along with every channel it must not touch.

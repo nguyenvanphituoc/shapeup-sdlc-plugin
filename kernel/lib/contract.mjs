@@ -683,39 +683,6 @@ export function readContract(path, spec = SCOPE_CONTRACT) {
   return null;
 }
 
-/**
- * Read every contract in a directory, markdown and legacy JSON alike.
- *
- * A `.md` and a `.json` for the same id is a half-finished migration, not two scopes — the
- * markdown wins and the JSON is ignored, so a stale leftover cannot resurrect an old substrate.
- *
- * @param {string} dir - Directory of contracts (typically `scopes/`).
- * @param {{tables:Object<string,string>}} [spec=SCOPE_CONTRACT] - Field → heading map.
- * @returns {Array<{contract:Object, path:string, format:string, id:string}>} One entry per
- *   contract, sorted by id; [] when the directory is absent. Unparseable files are skipped.
- */
-export function readAllContracts(dir, spec = SCOPE_CONTRACT) {
-  if (!existsSync(dir)) return [];
-  let names;
-  try { names = readdirSync(dir); } catch { return []; }
-  const ids = new Map();
-  for (const f of names) {
-    const m = f.match(/^(.+)\.(md|json)$/);
-    if (!m) continue;
-    // markdown wins over a legacy sibling of the same id
-    if (m[2] === "json" && ids.has(m[1])) continue;
-    if (m[2] === "md" || !ids.has(m[1])) ids.set(m[1], f);
-  }
-  const out = [];
-  for (const [id, file] of [...ids].sort(([a], [b]) => a.localeCompare(b))) {
-    try {
-      const found = readContract(join(dir, file), spec);
-      if (found) out.push({ ...found, id });
-    } catch { /* an unparseable contract is reported by spec-lint, not here */ }
-  }
-  return out;
-}
-
 // ---------------------------------------------------------------------------
 // The scope ↔ spec join
 // ---------------------------------------------------------------------------
@@ -732,35 +699,6 @@ export function readAllContracts(dir, spec = SCOPE_CONTRACT) {
  */
 export function ucId(ref) {
   return String(ref ?? "").trim().replace(/^\[\[|\]\]$/g, "").replace(/^usecases\//, "").replace(/\.md$/, "").trim();
-}
-
-/**
- * Normalise one requirement reference to the registry's key space (`REQ-<n>`).
- *
- * TWO KEY SPACES FOR ONE THING, and the measurement is what decided this. A pitch numbers its
- * requirements `R1…R21`; the registry, every AC's `covers:` clause and every `traces_to[]` key off
- * `REQ-<n>`. Measured across two runs of one pitch, the scope contracts cited `R<n>` — 20 of 21
- * requirements had a scope claiming them, and every one of those links resolved to nothing,
- * reported 23 times a run as a shape warning nobody could act on. So the edge WAS produced; it was
- * severed by spelling alone.
- *
- * Normalising here rather than teaching the planner to emit `REQ-<n>` is deliberate: `covers[]` is
- * an OPTIONAL contract field, so a fix that depends on a planner choosing to comply converts
- * whatever links the next run happens to write, while this converts the links on contracts already
- * committed, with no worker behaviour change. The craft still asks for `REQ-<n>` going forward.
- *
- * THIS IS A MAPPING PERFORMED BEFORE THE PATTERN, NOT A LOOSENING OF IT. `^REQ-[0-9]+$` is
- * unchanged everywhere it appears; a reference this function does not recognise is returned
- * verbatim, so it still fails that pattern and is still reported.
- *
- * @param {string} ref - A requirement reference (`REQ-12`, `R12`, `R-12`, `[[REQ-12]]`, any case).
- * @returns {string} The canonical `REQ-<n>` id, or the trimmed input unchanged when it is not a
- *   numbered requirement reference at all.
- */
-export function reqId(ref) {
-  const s = String(ref ?? "").trim().replace(/^\[\[|\]\]$/g, "").trim();
-  const m = s.match(/^(?:REQ|R)-?([0-9]+)$/i);
-  return m ? `REQ-${m[1]}` : s;
 }
 
 /**
@@ -807,28 +745,6 @@ function byUseCase(tasks, contract) {
   const mine = new Set((contract?.use_cases || []).map(ucId).filter(Boolean));
   if (!mine.size) return [];
   return (tasks || []).filter((t) => (t.use_case_refs || []).some((r) => mine.has(ucId(r))));
-}
-
-/**
- * Tasks that more than one scope would build — the ambiguity {@link tasksForScope} cannot resolve.
- *
- * Dispatch has to be a partition: a task built by two scopes is built twice, and the second builder
- * is denied by the sandbox for writing outside its own substrate, so the cost lands as burnt
- * attempts and escalations rather than as corruption. Measured on the corpus's four-scope,
- * one-use-case cut: every task claimed by every scope.
- *
- * @param {Array<{id:string, scope_id?:string, use_case_refs?:string[]}>} tasks - The parsed board.
- * @param {Array<{scope_id:string, use_cases?:string[]}>} contracts - Every scope in the run.
- * @returns {Array<{task_id:string, scopes:string[]}>} One entry per contested task; [] when the
- *   assignment is already a partition.
- */
-export function scopePartitionConflicts(tasks, contracts) {
-  const out = [];
-  for (const t of tasks || []) {
-    const owners = (contracts || []).filter((c) => tasksForScope([t], c).length).map((c) => c.scope_id);
-    if (owners.length > 1) out.push({ task_id: t.id, scopes: owners });
-  }
-  return out;
 }
 
 /**

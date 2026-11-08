@@ -2,8 +2,7 @@
 // harness — the kernel's single entry point.
 //
 // WHAT THIS IS. Everything in the pipeline that must be DETERMINISTIC — measured rather than
-// claimed, single-writer rather than negotiated, an answer file rather than a vibe — is a
-// subcommand of this one script:
+// claimed, an answer file rather than a vibe — is a subcommand of this one script:
 //
 //     node ${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs <verb> [<action>] [flags]
 //
@@ -13,66 +12,34 @@
 // matches nothing is indistinguishable from a rule that works until the first dispatch fails.
 // Subcommands are free; entry points are not.
 //
-// WHO CALLS IT. The loop that drives a run (the `building` skill, in the session, branching on
-// exit codes and on `probe next`'s JSON), worker skills from their own shells, and the hooks.
+// WHO CALLS IT. The loop that drives a run (the `building` skill, in the session), worker skills
+// from their own shells, and the hooks.
 //
 // THE VERBS, and the invariant each one exists to keep:
 //
-//   verify   t0 · budget · envelope ·        Measured, not claimed. A model verifying itself is
-//            trace · spec · skills ·          claiming; these read artifacts and re-hash them.
-//            dispatch · build                 `skills` reads the roster off disk; `dispatch` reads
-//                                             the hook layer's evidence that a skill really resolved
-//                                             in this session — the half a file check cannot answer.
-//                                             `build` runs the feature's build and launch probes once
-//                                             per round before EVAL — T0 is per scope and proves
-//                                             nothing about whether the whole compiles or starts.
-//   reduce   ingest · hill · ship ·            Single writer. Shared state has exactly one author.
-//            board
-//   gate                                      An answer file with a source, not a vibe.
-//   probe    resume · t0 ·                    Queries over run state (`resume` also closes a run).
-//            leg · eval · owner ·
-//            requirements · attempts ·
-//            hunt · next
-//                                              `leg` answers whether a scope's work reached the
-//                                              board — a green T0 says its fixtures passed, not that
-//                                              its result was ever applied, and a leg that skipped
-//                                              its own ingest step is indistinguishable from one that
-//                                              did not until something reads the writer's own record.
-//                                              `eval` answers what an EVAL round's WorkResult
-//                                              actually said, mechanically — the round-loop branch
-//                                              reads this instead of trusting a dispatching agent's
-//                                              own end-of-turn summary of its own verdict. `owner`
-//                                              answers which scope may write a path, elected from
-//                                              the contracts — so a census cites it instead of
-//                                              asserting ownership from memory. `requirements`
-//                                              answers which pitch clause a verdict reached, joined
-//                                              through the plan's own covers: edge — the L4 line and
-//                                              GATE H's census cite it for the same reason.
-//                                              `attempts` answers how many of a scope's attempts are
-//                                              ATTESTED (a dispatch receipt AND a leg row or a
-//                                              WorkResult), never the order set or the T0 verdict
-//                                              set alone — the round loop's inner breaker and
-//                                              the stop step's census both cite it, so they cannot
-//                                              disagree about the same exhaustion again.
-//                                              `next` answers what the run does next — one step, derived
-//                                              from artifacts and nothing else, so the loop that drives a
-//                                              run advances on a kernel answer and never on its own account.
-//   init     run · fit                         Opens a run, or refuses it (exit 3). `run` also writes
-//                                              GATE L0.9b's launch record and refuses a model below
-//                                              the floor.
-//   compile                                   The WorkOrder: schema-valid or nothing is dispatched.
+//   verify   t0 · envelope · skills    Measured, not claimed. A model verifying itself is claiming;
+//                                      these read artifacts and re-hash them. `t0` runs a scope's
+//                                      fixtures and keeps or reverts the tree; `envelope` checks an
+//                                      order or a result against its schema (and is the dispatch
+//                                      gate when called as a hook); `skills` reads the worker roster
+//                                      off disk.
+//   gate                               An answer file with a source, not a vibe.
+//   init     run                       Opens a run, or refuses it (exit 3). Writes the receipt and
+//                                      the launch record, and refuses a model below the floor.
+//   order    open · close              Arms and retires the write fence's pointer, and records how a
+//                                      run ended.
 //
 // EXIT CODES are the subcommand's own and are part of its contract: 0 success · 1 ran, answer is
 // no · 2 malformed input, nothing ran (`lib/argv.mjs`) · 3 `init run` refused to open · 4/5 gate
-// stop/abort · 6 budget tripped. This dispatcher adds exactly one of its own: 2 for an unknown
-// verb, which is the same "the input was malformed" case.
+// stop/abort. This dispatcher adds exactly one of its own: 2 for an unknown verb, which is the same
+// "the input was malformed" case.
 
 import { isMain } from "./lib/argv.mjs";
 
 /**
  * verb → action → module, the whole routing table.
  *
- * A verb whose value is a string takes no action word (`gate`, `compile`); a verb whose value is an
+ * A verb whose value is a string takes no action word (`gate`, `order`); a verb whose value is an
  * object requires one, and `_default` names the action taken when it is omitted.
  *
  * Exported so the structural suite enumerates the subcommands from THIS table rather than from a

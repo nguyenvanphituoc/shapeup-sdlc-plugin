@@ -4,7 +4,7 @@
 // The lesson already in the repo: structured artifacts + deterministic tooling beat prose
 // conventions (harness verify t0 is the most reliable component in the harness). This script makes
 // the WorkOrder/WorkResult ports mechanically checkable: a malformed order never reaches a
-// worker, a malformed result never reaches ingest.
+// worker, a malformed result is sent back before the loop applies it.
 //
 // Zero dependencies, zero network — same discipline as the oracles and the GATE L2 block. Implements
 // the JSON-Schema subset the shipped schemas use (type, required, properties, items, enum,
@@ -271,7 +271,7 @@ export async function cli(rawArgv) {
         },
       });
       if (!existsSync(orderPath)) {
-        deny(`WorkOrder gate — order file not found: ${orderPath}. Compile it first (harness compile) — a worker must never be dispatched against a dangling order.`, "order-missing");
+        deny(`WorkOrder gate — order file not found: ${orderPath}. Write the order first (resources/orders.md in the building skill) — a worker must never be dispatched against a dangling order.`, "order-missing");
       }
       try {
         const { valid, errors } = validateFile(orderPath, join(SCHEMAS_DIR, "work-order.schema.json"));

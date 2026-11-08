@@ -107,8 +107,6 @@ export const wiringMap = (cwd, slug) => join(sharedRoot(cwd, slug), "wiring-map.
 export const projectProfile = (cwd, slug) => join(sharedRoot(cwd, slug), "project-profile.md");
 /** The REQ clause registry that covers-closure checks against. */
 export const requirements = (cwd, slug) => join(sharedRoot(cwd, slug), "requirements.md");
-/** Hill shards — mechanical phase per scope. */
-export const hillDir = (cwd, slug) => join(sharedRoot(cwd, slug), "hill");
 /** The frozen ship report, written once at GATE L4. */
 export const report = (cwd, slug) => join(sharedRoot(cwd, slug), "REPORT.md");
 /** Team-shared coaching rules, read back by the coachable workers, the plan activity and the loop at GATE L0. */
@@ -154,8 +152,6 @@ export const runArgsPath = (cwd, slug) => join(localRoot(cwd, slug), RUN_ARGS_FI
 export const harnessRun = (cwd, slug) => join(localRoot(cwd, slug), "harness-run.md");
 /** The task board directory. */
 export const tasksDir = (cwd, slug) => join(localRoot(cwd, slug), "tasks");
-/** The board index. */
-export const boardIndex = (cwd, slug) => join(tasksDir(cwd, slug), "_index.md");
 /** Compiled WorkOrders. */
 export const ordersDir = (cwd, slug) => join(localRoot(cwd, slug), "orders");
 /** Returned WorkResults. */
@@ -178,27 +174,6 @@ export const resultsDir = (cwd, slug) => join(localRoot(cwd, slug), "results");
  * (`receipt`, above, is the RUN receipt — a different fact, hence the different name.)
  */
 export const dispatchReceipts = (cwd, slug) => join(localRoot(cwd, slug), "receipts", "dispatch.jsonl");
-/**
- * Leg-completion rows — the moment a dispatched leg was closed by the reducer.
- *
- * WHY IT IS A SEPARATE LEDGER FROM {@link dispatchReceipts}. A dispatch receipt is written by a
- * `PostToolUse` hook, which fires when the skill RESOLVES — measured across archived runs, 1.8 to
- * 47 seconds after the order was compiled, on legs that then ran for minutes. So the receipt is a
- * hook-attested START and there is no end anywhere in the record set: concurrency and span are
- * guesses without one. This ledger is the end, written by the one component that closes a leg.
- *
- * WHY IT SNAPSHOTS RATHER THAN POINTS. A row carries the order's `compiled_at` as a VALUE, not a
- * path to read it from later. Order paths are reused verbatim on relaunch, so the `compiled_at` in
- * `orders/<id>.json` is the LAST compile's; a row that deferred to the file would silently re-date
- * itself to a dispatch that is not the one it recorded.
- *
- * APPEND-ONLY JSONL, for the same two reasons `dispatch.jsonl` is: order ids repeat across
- * relaunches and rounds, and scopes close concurrently. One `O_APPEND` line needs no lock.
- *
- * A LEG THAT DIES LEAVES NO ROW, deliberately. The absence is the fact — a reader compares starts
- * to completions and reports the hole rather than averaging over it.
- */
-export const legLedger = (cwd, slug) => join(localRoot(cwd, slug), "legs.jsonl");
 /** T0 verification artifacts. */
 export const t0Dir = (cwd, slug) => join(localRoot(cwd, slug), "t0");
 /** Immutable per-attempt verdict artifacts the evaluator must cite. */
@@ -214,20 +189,8 @@ export const trials = (cwd, slug) => join(t0Dir(cwd, slug), "trials.jsonl");
  * {@link decisions}, one small file with one writer.
  */
 export const gates = (cwd, slug) => join(localRoot(cwd, slug), "gates.jsonl");
-/**
- * The round build gate's verdicts — one immutable artifact per gate run, `r<N>-t<T>.json`.
- *
- * A separate directory from `t0/`, on purpose. A T0 verdict is one scope's fixtures inside that
- * scope's substrate; this is the FEATURE's build, launched the way the ledger's `run_cmd` and the
- * profile's probes say a user would, and it belongs to no scope. Written by `harness verify build`,
- * read by `reduce hill` (a green T0 in a round whose build is red moves no dot) and by
- * `harness compile` (a red gate is the next round's bug list).
- */
-export const roundBuildDir = (cwd, slug) => join(localRoot(cwd, slug), "build");
 /** Evaluator output — report, evidence, verdict ledger. */
 export const evaluationDir = (cwd, slug) => join(localRoot(cwd, slug), "evaluation");
-/** The workflow launcher's run directory — `journal.jsonl` and the launch `result.json`. */
-export const workflowRunDir = (cwd, slug) => join(localRoot(cwd, slug), "workflow-run");
 /** QA hunt output. */
 export const qaDir = (cwd, slug) => join(localRoot(cwd, slug), "qa");
 /** Scout recon — code-surface map, spikes, discovered seed. */
@@ -236,15 +199,6 @@ export const orientDir = (cwd, slug) => join(localRoot(cwd, slug), "orient");
 export const spikesDir = (cwd, slug) => join(localRoot(cwd, slug), "spikes");
 /** The discovered-task ledger every discovery flow appends to. */
 export const discoveryLedger = (cwd, slug) => join(localRoot(cwd, slug), "discovery", "ledger.md");
-/**
- * Adjudicated decisions, read back by `compile-order` as binding precedent.
- *
- * LOCAL since ADR-0001. It was committed, and it is appended to DURING a build round — so a run
- * left the working tree dirty in the deliverable tier while it was still building. Its
- * conclusions reach the team in `REPORT.md` at GATE L4 instead, frozen once.
- */
-export const roundLedger = (cwd, slug) => join(localRoot(cwd, slug), "round-ledger.md");
-
 /**
  * Spec WORKING NOTES — analysis that informed the contract but is not the contract.
  *
@@ -308,13 +262,6 @@ export const lastRun = (cwd) => join(localDir(cwd), "last-run");
  */
 export const hammerCensus = (cwd, slug) => join(localRoot(cwd, slug), "reports", "hammer-census.json");
 
-/**
- * The census refusals: one JSON row per census the kernel read and would not accept, written only by
- * `reduce ingest --close-census`. It is what lets a stateless `probe next` say "sent back once" — the
- * count of refusals on disk, never a counter in the loop's memory.
- */
-export const censusRefusals = (cwd, slug) => join(localRoot(cwd, slug), "reports", "census-refusals.jsonl");
-
 /** Hook receipts — one row per evaluation, so `allow` carries evidence. */
 export const decisions = (cwd) => join(localDir(cwd), "decisions.jsonl");
 /** Human-authored safety escape hatch. LOCAL so no PR can widen another machine's envelope. */
@@ -331,9 +278,6 @@ export const metricsDir = (cwd) => join(localDir(cwd), "metrics");
 /** This machine's telemetry shard. */
 export const metricsShard = (cwd, id = process.env.HOSTNAME || "local") =>
   join(metricsDir(cwd), `${id}.jsonl`);
-
-/** Archived pitches. */
-export const pitchArchiveDir = (cwd) => join(localDir(cwd), "pitch-archive");
 
 /**
  * Gate answer sets, in resolution order (first hit wins).
