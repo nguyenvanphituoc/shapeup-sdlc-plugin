@@ -574,7 +574,7 @@ export const ARGV_SPEC = {
 export async function cli(rawArgv) {
   const args = runArgs(ARGV_SPEC, rawArgv);
   const contractPath = args._[0];
-  // Markdown first, legacy JSON second (ADR-0001, lib/contract.mjs).
+  // Markdown first, legacy JSON second (lib/contract.mjs).
   const found = readContract(contractPath, SCOPE_CONTRACT);
   if (!found) { console.error(`t0-verify: no scope contract at ${contractPath} (.md or .json)`); process.exit(2); }
   const contract = found.contract;
@@ -583,7 +583,7 @@ export async function cli(rawArgv) {
   // contract's own location.
   //
   // This used to be `dirname(dirname(contractPath))` — "the parent of scopes/" — which was correct
-  // while scope contracts and the run trace shared a root. ADR-0001 split the tiers and moved scope
+  // while scope contracts and the run trace shared a root. The tier split moved scope
   // contracts to COMMITTED `shapeup/<slug>/scopes/`, so the default silently followed them: every
   // T0 verdict and trial row was written to `shapeup/<slug>/t0/` while `probe t0` — the ONLY reader,
   // and the one the build round's confirm stage asks — resolves `verdictsDir()` to

@@ -5,7 +5,7 @@
 // syntaxes (a string literal and a `join(cwd, "…", …)` chain) is a rename that no single search
 // completes.
 //
-// TIER DISCIPLINE (ADR-0001), the reason there are two roots:
+// TIER DISCIPLINE, the reason there are two roots:
 //   SHARED (committed) — prose a teammate reads: shaping, spec, contracts, requirements, report.
 //   LOCAL (gitignored) — run state, envelopes, verification artifacts, machine policy.
 //
@@ -22,7 +22,7 @@ import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 
 // ---------------------------------------------------------------------------
-// The two roots. Renaming a root is these two lines plus migration 0006.
+// The two roots. Renaming a root is these two lines.
 // ---------------------------------------------------------------------------
 
 // Both roots are POSIX strings, deliberately. They are used two ways — fed to `join()` (which
@@ -35,7 +35,7 @@ import { createHash } from "node:crypto";
  *
  * Was `docs/shapeup-sdlc`. Moved out of `docs/` because many projects publish that directory
  * through a static-site generator, which either publishes the spec tree by accident or fails the
- * site build on it (ADR-0001).
+ * site build on it.
  */
 export const SHARED = "shapeup";
 
@@ -43,8 +43,8 @@ export const SHARED = "shapeup";
 export const LOCAL = ".shapeup";
 
 /**
- * The pre-ADR-0001 roots. Migration `0006` moves a project from these to the pair above;
- * `bin/init.mjs` writes ignore rules covering both so a half-migrated checkout cannot commit a
+ * The earlier roots. Nothing migrates a project off them any more;
+ * `bin/init.mjs` writes ignore rules covering both so a checkout still carrying one cannot commit a
  * run trace. Nothing else should read these.
  */
 export const LEGACY = { shared: "docs/shapeup-sdlc", local: ".shapeup-sdlc" };
@@ -105,7 +105,7 @@ export const specDir = (cwd, slug) => join(sharedRoot(cwd, slug), "spec");
 export const usecasesDir = (cwd, slug) => join(specDir(cwd, slug), "usecases");
 /** Shaping artifacts — pitch, framing, breadboard, baseline, glossary. `init run` looks here for a breadboard. */
 export const shapingDir = (cwd, slug) => join(sharedRoot(cwd, slug), "shaping");
-// The three contracts are markdown on disk and JSON on the wire (ADR-0001) — see
+// The three contracts are markdown on disk and JSON on the wire — see
 // `lib/contract.mjs`. `readContract()` accepts either extension, so a project mid-migration
 // keeps working; these builders name the form the harness WRITES.
 
@@ -126,7 +126,7 @@ export const knowledgeBaseDir = (cwd) => join(sharedDir(cwd), "knowledge-base");
 /** One reader's coaching file (a coachable worker, or the `plan` / `building` activity). */
 export const knowledgeBase = (cwd, skill) => join(knowledgeBaseDir(cwd), `${skill}.md`);
 // `.harness-version` and `.harness-migrations` were resolved here, committed by necessity as
-// ADR-0001's third exception. Their sole writer was the upgrade path's data-migration runner, which
+// The third exception to the tier rule. Their sole writer was the upgrade path's data-migration runner, which
 // has been removed; no code in the plugin has written either file since. The helpers went with
 // them rather than remaining as resolvable paths to files nothing produces — a path helper is a
 // claim that the file is part of the layout, and this one would have been false.
@@ -215,8 +215,8 @@ export const discoveryLedger = (cwd, slug) => join(localRoot(cwd, slug), "discov
  * Spec WORKING NOTES — analysis that informed the contract but is not the contract.
  *
  * `synthesis.md`, `assess-report.md`, `feedback.md`, `api-feasibility.md`, `integration.md`. The
- * committed `spec/` keeps only what the evaluator grades against and a reviewer needs (ADR-0001
- * "contract vs working artifact").
+ * committed `spec/` keeps only what the evaluator grades against and a reviewer needs (the
+ * "contract vs working artifact" rule).
  */
 export const workingDir = (cwd, slug) => join(localRoot(cwd, slug), "working");
 
@@ -281,7 +281,7 @@ export const safetyOverrides = (cwd) => join(localDir(cwd), "safety-overrides.js
 /**
  * Telemetry shards.
  *
- * LOCAL since ADR-0001. Committed, they put `process.env.HOSTNAME` — a person's laptop name —
+ * LOCAL. Committed, they put `process.env.HOSTNAME` — a person's laptop name —
  * into the repository, and append-only JSONL in git only grows. The cost, stated plainly: with
  * these local, the shards are a personal record, and "is the KB flywheel working across the
  * team?" is no longer answerable from the repo.
@@ -294,7 +294,7 @@ export const metricsShard = (cwd, id = process.env.HOSTNAME || "local") =>
 /**
  * Gate answer sets, in resolution order (first hit wins).
  *
- * ONE TIER ONLY, since ADR-0001. There used to be a third candidate — a COMMITTED
+ * ONE TIER ONLY. There used to be a third candidate — a COMMITTED
  * `gate-answers.json`, auto-discovered with no flag — so a file with `preset: ci` pre-approved
  * GATE L4 ship sign-off for everyone who pulled the repo, and the same filename meant "my
  * personal lane" at one path and "team policy" at another. Consent is now per-machine by

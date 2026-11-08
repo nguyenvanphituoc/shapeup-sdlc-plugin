@@ -1,6 +1,6 @@
 // contract — read and write the committed contracts as markdown.
 //
-// WHY (ADR-0001). Scope contracts, the wiring map and the project profile are *low-level design*:
+// WHY. Scope contracts, the wiring map and the project profile are *low-level design*:
 // which files a slice may touch, which seam each use case attaches to, where the app starts. A
 // teammate should be able to read them in a pull request. As `.json` they were machine artifacts
 // sitting in the tier meant for prose, and nobody read them.

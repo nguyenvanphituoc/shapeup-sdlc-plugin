@@ -33,7 +33,7 @@
 // frequently no `<slug>` to file under. Pure run-trace: one JSON object per line, read directly.
 //
 // THE PATH IS RESOLVED, NEVER SPELLED. It comes from `lib/paths.mjs` — the same resolver
-// every reader goes through. This file used to hardcode the pre-ADR-0001 root, so every
+// every reader goes through. This file used to hardcode the earlier root, so every
 // hook wrote its receipts to `.shapeup-sdlc/` while the only reader looked in `.shapeup/`:
 // the ledger showed zero hook activity on every project, which is indistinguishable from
 // the inert-enforcement-layer failure this file exists to make visible. A telemetry channel with
@@ -238,7 +238,7 @@ export async function runHook(name, fn) {
   // job is to SAY something on an allow — an injected context hint, for instance — so
   // a permitting hook can still write to stdout without pretending to be a denial.
   //
-  // WHY `warn` IS ITS OWN VERDICT (ADR-0001). An advisory gate permits the call, so the obvious
+  // WHY `warn` IS ITS OWN VERDICT. An advisory gate permits the call, so the obvious
   // encoding is `verdict: "allow"`. That would make "permitted because the rule was satisfied"
   // byte-identical to "permitted DESPITE the rule being broken" — the exact indistinguishability
   // this file exists to eliminate, reintroduced one level up. A gate that downgrades from deny to

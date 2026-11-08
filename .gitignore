@@ -15,7 +15,7 @@
 # checkout, and committed it would nest the repo inside itself.
 .claude/worktrees/
 
-# ShapeUp SDLC local workspace (ADR-0001 LOCAL tier): per-slug run trace — board, orders/,
+# ShapeUp SDLC local workspace (LOCAL tier): per-slug run trace — board, orders/,
 # results/, t0/, evaluation/, qa/, orient/, trace/, discovery/, working/, receipt.json — plus
 # the checkout-wide active-scope pointer, decisions.jsonl, safety-overrides.json and metrics/.
 # The deliverable (shapeup/ — shaping, spec, contracts, requirements, REPORT.md,
@@ -31,7 +31,7 @@
 # and the judge fixtures. The rules that used to un-ignore parts of `evals/` went with it rather
 # than being left pointing at nothing; `evals/` itself no longer exists.
 #
-# Kept as a trap, not as bookkeeping: hook receipts under the PRE-ADR-0001 root. A hardcoded path
+# Kept as a trap, not as bookkeeping: hook receipts under the EARLIER root. A hardcoded path
 # once sent every receipt to `.shapeup-sdlc/` while the only reader looked in `.shapeup/`, so the
 # telemetry was invisible rather than absent. Ignoring the old root stops a stray one being
 # committed and read back as if it were current.

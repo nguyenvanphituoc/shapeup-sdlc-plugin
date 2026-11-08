@@ -28,7 +28,7 @@ import { createInterface } from "node:readline";
 import { LOCAL, LEGACY, metricsDir } from "../kernel/lib/paths.mjs";
 import { mergePipelinePermissions as mergeGrant, isWorkspaceTrusted } from "./lib/grant.mjs";
 
-/** The root a project migrating off the pre-ADR-0001 layout may still be carrying. */
+/** The root a project migrating off the earlier layout may still be carrying. */
 const LEGACY_LOCAL = LEGACY.local;
 
 const PKG_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -122,7 +122,7 @@ warnIfUntrusted(target);
 ensureAgentImport(join(target, "CLAUDE.md"), "CLAUDE.md");
 
 // ---- 3. .gitignore ----------------------------------------------------------
-// Both roots are listed, deliberately. A project may still be carrying the pre-ADR-0001 local root
+// Both roots are listed, deliberately. A project may still be carrying the earlier local root
 // alongside the current one, and a run trace committed by accident from either is exactly the
 // mistake the tier split exists to prevent. Ignoring a directory that does not exist costs nothing.
 const GITIGNORE_RULE = `# Shape Up SDLC run workspace
