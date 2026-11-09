@@ -1,7 +1,7 @@
 {
   "name": "shapeup-sdlc-plugin",
   "displayName": "ShapeUp SDLC Plugin",
-  "version": "5.0.0",
+  "version": "4.1.0",
   "description": "Shape Up SDLC harness for Claude Code: shaping, intake, orient, scope-mapping, building (T0-verified, sandboxed, scope-contracted), evaluation and QA skills, driven by one loop in your own session.",
   "author": {
     "name": "Liberty Nguyen",

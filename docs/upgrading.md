@@ -13,9 +13,9 @@ working. The consequence is stated here rather than left to be discovered: **an 
 to predate the current layout is not converted for you.** Run `install-harness.sh` against it
 instead and treat it as a fresh install.
 
-## Upgrading to 5.0
+## Upgrading to 4.1
 
-5.0 removes names. Nothing a run does changes, and no file in your project needs editing unless it types one of them.
+4.1 removes names, although it is a minor release. Nothing a run does changes, and no file in your project needs editing unless it types one of them.
 
 ### Eight commands are gone; each was a second name for something else
 

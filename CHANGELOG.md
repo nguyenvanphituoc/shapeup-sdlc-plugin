@@ -3,9 +3,10 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
-## [5.0.0] — 2026-11-09 (prepared, not yet tagged) · Two commands and six skills by their own names, one operation fewer, and a fence that follows the run
+## [4.1.0] — 2026-11-09 (prepared, not yet tagged) · Two commands and six skills by their own names, one operation fewer, and a fence that follows the run
 
-**Breaking.** Eight slash commands are removed, and one operation leaves the order schema. Each removed command was a second
+**Breaking, in a minor release.** Eight slash commands are removed, and one operation leaves the order schema. The number is
+4.1.0 by the maintainer's decision; read the two Removed items below before upgrading from 4.0. Each removed command was a second
 name for something that keeps its own: a skill, or a sub-command of `/ship`. Nothing a run does changes. The regrouping of the
 `building` skill rewords no instruction: every sentence is where a phase row now points, in the words it had.
 
