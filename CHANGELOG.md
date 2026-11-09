@@ -3,7 +3,7 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
-## [4.1.0] — 2026-11-09 (prepared, not yet tagged) · Two commands and six skills by their own names, one operation fewer, and a fence that follows the run
+## [4.1.0] — 2026-11-09 · Two commands and six skills by their own names, one operation fewer, and a fence that follows the run
 
 **Breaking, in a minor release.** Eight slash commands are removed, and one operation leaves the order schema. The number is
 4.1.0 by the maintainer's decision; read the two Removed items below before upgrading from 4.0. Each removed command was a second
