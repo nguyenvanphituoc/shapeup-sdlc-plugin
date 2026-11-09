@@ -9,7 +9,7 @@
 | **Gate on every stage** | `npm test` green, the conservation check of section 6 clean, and `git diff --stat da972b7 -- kernel hooks agents bin` empty in every stage but K1, which exists to change them. `commands/` and `AGENTS.md` are untouched through S4 and change only in R1 and R2 |
 | **Rule** | One stage per commit. A stage that only moves text changes no sentence; a stage that adds text removes none. S5 is a measurement and may end in "keep". The R stages start after S4 and start with an executed proof, not a deletion |
 | **Quick view** | skill: [before](../../visualize/building-anatomy-before.svg) · [after](../../visualize/building-anatomy-after.svg) · commands: [before and after](../../visualize/building-commands-before-after.svg) |
-| **Status** | **S0 to S4 executed on 2026-11-09**, each on the PO's go-ahead, on branch `plan/building-anatomy`: S1 `20d356d`, S2 `47f1658`, S3 `6ef95ea`, S3a `f8fdc33`, S4 `d7f08e2` (documents) and `b382d85` (the run's trace). `npm test` is at 236 checks. Acceptance, each row in a fresh clone: S0 to S3a, 65 of 65; S4's real run, 9 of 9; S4's documents, 11 of 12. **The one open row is the audit's**: it found a comment in `kernel/lib/paths.mjs` naming a deleted script, and S4 may not touch `kernel/`, so it waits for K1. **The real run was made**: one nested session on the consumer project, the envlint pitch through Board Review, on an archive of `d7f08e2`; section 4.8 says what it showed. S5, K1 and R0 to R3 are not started. D2, D8 and D9 are decided |
+| **Status** | **S0 to S4 and K1 executed on 2026-11-09**, each on the PO's go-ahead, on branch `plan/building-anatomy`: S1 `20d356d`, S2 `47f1658`, S3 `6ef95ea`, S3a `f8fdc33`, S4 `d7f08e2` and its run's trace `b382d85`, K1 `40f090f` and its session's trace `f47f0d6`. `npm test` is at 238 checks. **Every acceptance row passes, each in a fresh clone: 110 of 110** (S0 to S3a 65, S4 12, S4's run 9, K1 19, K1's session 5). S4's audit row was open until K1 closed the finding it waited on. Two real sessions were run on the consumer project: the planning half of envlint on the regrouped skill (section 4.8), and a scripted write through the fence on the tree without `spike`. S5 and R0 to R3 are not started. D2, D8 and D9 are decided; D10 is open. **No version is bumped and nothing is pushed** |
 
 Every figure is derived from the tree at the baseline or labelled as a projection. Section 7 says what would change the answer.
 
@@ -494,7 +494,7 @@ Done on a `git archive` copy of the tree at another path, never in this checkout
 
 No real run is asked of the R stages beyond that session. They change what a person types to start a skill, and nothing a skill does once started.
 
-### K1 — retire the `spike` operation (D2: chosen by the PO, 2026-11-09)
+### K1 — retire the `spike` operation (D2: chosen by the PO, 2026-11-09; executed the same day as `40f090f`)
 
 The one stage that changes `kernel/` and `hooks/`. It runs after S3, which creates the module C5 is added to, and ships with the R stages in 5.0.0.
 
@@ -544,7 +544,7 @@ Rollback is `git revert` of the stage's commit, in reverse order. No stage write
 
 | # | Decision | Default if unanswered |
 |---|---|---|
-| D1 | Run S0 to S4 as proposed | **S0 to S4: approved by the PO and run, 2026-11-09.** K1 is not approved yet: choosing B decided what K1 does, not when it runs |
+| D1 | Run S0 to S4 as proposed | **S0 to S4 and K1: approved by the PO and run, 2026-11-09.** |
 | D2 | The three P4 defects. (a) `contract-patterns.md` line 34: point it at the three contract templates in `resources/plan/templates/contracts/`. (b) `task-spike.tmpl.md`: name it by path from the planner's SPIKE Task Rules. (c) The `spike` operation: A, B or C of section 4.7 | **Decided by the PO on 2026-11-09** ("B: gỡ trong 5.0.0"). (c) is B: the operation is retired in stage K1 and ships in 5.0.0, and C5 lands there. (a) and (b) had no objection and go in S3 as written |
 | D3 | S5 at all | **not now.** It moves 39 lines out of a 144-line file for the price of two real runs, and carries the plan's only behaviour risk. Revisit when `SKILL.md` next grows |
 | D4 | The version the S stages ship as | patch on 4.0.0: no command, gate, schema or hook changes |
@@ -552,5 +552,6 @@ Rollback is `git revert` of the stage's commit, in reverse order. No stage write
 | D6 | Which commands go | the eight of section 4.6: `shape`, `orient`, `build`, `eval`, `qa`, `scopes`, `wire`, `hammer`. R0 can take a name off this list; nothing adds one |
 | D7 | `/retro` | **keep.** It is an alias of `/ship retro` like the three that go, but it is the one started outside a run, and the installer, `AGENTS.md`, the glossary and the upgrade guide all send the user to it. Removing it touches `bin/init.mjs`, which every other stage leaves alone |
 | D9 | Found by S3's acceptance, 2026-11-09. `resources/plan/templates/feedback.tmpl.md` lines 75 and 76 told the planner to flag `references/[file].md` and `assets/templates/[file].tmpl.md`: both the layout of a skill that no longer exists | **Decided by the PO on 2026-11-09** ("Có, sửa") and done in `f8fdc33`: the two rows name `resources/plan/references/` and `resources/plan/templates/`. No acceptance row was loosened; the one red row moved to the stage that satisfies it |
+| D11 | Found by K1's session, 2026-11-09. The fence's refusal, which is what a person reads when a write is denied, ends "(e.g. via ba --remap)" and opens "Sandbox guard (PA3)". There is no `ba` skill any more, and `PA3` is an internal label. The S4 audit did not catch either: its marker pattern has no shape for them | open. Two strings in `hooks/sandbox-guard.mjs`; fix them in the same stage as D10, and add the shape to the audit's pattern |
 | D10 | Found by S4's run, section 4.8. When the session's shell sits inside a folder that looks like a project, the plugin's own tree included, the hooks file their decisions there and the fence looks for its pointer there | open. It is a change to `hooks/` and needs its own stage, with the fixture that reproduces it: a write, with an order live, from a shell inside a nested folder that has a `shapeup/` directory. Until then, a run whose loop `cd`s into the plugin is not fully fenced |
 | D8 | How the removal is released. (a) Delete in one release, numbered as the next major, with the map in the upgrade guide. (b) Two releases: the eight become one-line files that name their replacement in a minor, and are deleted at the next major | **Decided: (a), by the PO on 2026-11-09** ("Một bản major"). The eight are deleted in one release, 5.0.0. A typed name that no longer exists fails at once and says so. Whether the S stages go out first as 4.0.1 or ride in 5.0.0 is still D4 |
