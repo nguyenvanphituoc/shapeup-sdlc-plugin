@@ -1,0 +1,53 @@
+{
+  "what": "the 5.0.0 tree, entered by /ship plan: the planning half of an envlint run, to show that the entry point still opens a run and that the sub-command stops once Board Review is crossed, as the removed /scopes did",
+  "tree": "4be5de075851da145cffb61361c0df2a5b747332",
+  "pitch": "envlint (pitch.gate.md, the pitch of the archived envlint runs)",
+  "command": "claude -p --plugin-dir <git archive of the tree> --allowedTools 'Bash(node *)' --permission-mode acceptEdits --max-budget-usd 8 --output-format stream-json --verbose '/shapeup-sdlc-plugin:ship plan pitch.gate.md --unattended'",
+  "started": "2026-11-09T04:33:18Z",
+  "ended": "2026-11-09T04:40:22Z",
+  "session_model": "claude-opus-5-5",
+  "plugin_loaded_from": ".plugin-under-test/plugin-anatomy-r3",
+  "is_error": false,
+  "subtype": "success",
+  "total_cost_usd": 2.6475725999999997,
+  "num_turns": 69,
+  "duration_ms": 419554,
+  "permission_denials": 5,
+  "permission_denials_what": [
+    "Bash: ls .claude; cat .claude/settings.local.json 2>/dev/null; env | grep SHAPEUP; ls shapeup/knowledge-base 2>&1",
+    "Bash: mkdir -p .shapeup/envlint/orders && cat > .shapeup/envlint/orders/orient.json <<'EOF'\n{\n  \"schema_version\": 1,\n  \"order_id\": \"envlint/orient\",\n  \"kernel\": \"/Use",
+    "Bash: <plugin>; find . -name 'work-result.schema.json' | head -1 | xargs cat | head -80",
+    "Bash: cd /Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer; mkdir -p .shapeup/envlint/orient .shapeup/envlint/results\ncd .shapeup/envlint/orient\ncat > code-s",
+    "Bash: cd /Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer && grep -rnE '\\.shapeup/|TASK-[0-9]' shapeup/ ; for i in $(seq 1 28); do grep -q \"covers: [^)]*REQ"
+  ],
+  "tool_calls": {
+    "Skill": 1,
+    "Read": 15,
+    "Bash": 26,
+    "Write": 35,
+    "Edit": 1,
+    "Agent": 1
+  },
+  "subagents": {
+    "shapeup-sdlc-plugin:orient": 1
+  },
+  "plugin_files_read_by_the_loop": [
+    "skills/building/resources/gates.md",
+    "skills/building/resources/guidance.md",
+    "skills/building/resources/intake/language.md",
+    "skills/building/resources/intake/open-run.md",
+    "skills/building/resources/orders.md",
+    "skills/building/resources/plan/references/test-surface.md",
+    "skills/building/resources/plan/requirements.md",
+    "skills/building/resources/plan/scopes.md",
+    "skills/building/resources/plan/spec.md",
+    "skills/building/resources/plan/substep.md",
+    "skills/building/resources/plan/templates/task.tmpl.md",
+    "skills/building/resources/plan/templates/usecase.tmpl.md",
+    "skills/building/resources/plan/wire.md"
+  ],
+  "plugin_files_read_by_a_worker": [
+    "kernel/schemas/work-result.schema.json"
+  ],
+  "final_message": "⚠️ **This was an unattended run: no human reviewed the plan.** All five gates were crossed automatically with the `ci` answer set.\n\n`/ship plan` is done: the envlint plan is on disk and Board Review is crossed (`.shapeup/envlint/gates.jsonl`). Nothing has been built yet.\n\n**How it went**\n- **Intake:** `pitch.gate.md` is in English, so no translation was needed. Run `envlint-20261109T043401Z-3bc69af2` is open, with sonnet for every role, 3 rounds and 5 attempts per scope. The pitch's appetite (\"a single build round\") would size the run at 2 rounds, but `--unattended` sets 3.\n- **Orient:** the Scout ran as the plugin's own agent on claude-sonnet-5-5, and its dispatch receipt confirms it. There is no existing code, so no spike was needed. Its open questions were all specification choices.\n- **Requirements:** `shapeup/envlint/requirements.md` lists 28 single-clause requirements, REQ-1 to REQ-28.\n- **Spec:** three use cases — `UC-ParseEnvText`, `UC-CheckRules` and `UC-LintEnvFile` — with 24 test rows between them. The board has 4 tasks (11 h; the longest chain is 8 h), which fits the appetite.\n- **Wiring:** `shapeup/envlint/wiring-map.md` connects both pure modules to the entry point, `bin/envlint.mjs`.\n- **Scopes:**\n\n| Scope | Files it may write | Depends on |\n|---|---|---|\n| `parsing` | `src/parse.mjs`, `test/parse.test.mjs` | — |\n| `rules` | `src/rules.mjs`, `test/rules.test.mjs` | — |\n| `cli` | `bin/envlint.mjs`, `test/cli.test.mjs` | parsing, rules |\n\nNo file belongs to two scopes, so `parsing` and `rules` can build at the same time, then `cli`.\n\n**Requirements → criteria:** every one of the 28 requirements is graded by at least one acceptance criterion on the board, and the three scope contracts claim all 28 between them. None is red and none is cut.\n\n**Choices I made where the pitch was silent.** They're listed in `shapeup/envlint/spec/_index.md`, and nobody reviewed them before Board Review crossed:\n- **Schema shape:** `{KEY: {required, type, enum}}`.\n- **Exit codes:** 0 when clean, 1 when there are findings, 2 for usage or file-reading errors.\n- **Output:** one finding per line on stdout, plain text.\n- **Values:** `int` and `bool` accept only strict literals; `url` must pass Node's `URL.canParse`.\n- **Duplicate keys:** the last one wins.\n- **Keys not in the schema:** ignored.\n\n**Things to check**\n- I printed the Board Review summary after the gate had already been crossed, not before; the summary above stands in for it.\n- The Intake & Config gate has t"
+}

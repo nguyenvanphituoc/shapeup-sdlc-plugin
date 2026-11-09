@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/plan-wire",
+  "kernel": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.plugin-under-test/plugin-anatomy-r3/kernel/harness.mjs",
+  "run_id": "envlint-20261109T043401Z-3bc69af2",
+  "compiled_at": "2026-11-09T04:39:09.137Z",
+  "worker": "building",
+  "mode": "standalone",
+  "operation": "plan",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "shapeup/envlint/wiring-map.md"
+    ],
+    "frozen": [
+      ".shapeup/envlint/intake.md",
+      "shapeup/envlint/spec/**",
+      "shapeup/envlint/scopes/**",
+      ".shapeup/envlint/orders/**",
+      ".shapeup/envlint/results/**",
+      ".shapeup/envlint/receipts/**",
+      ".shapeup/envlint/t0/verdicts/**"
+    ],
+    "own": [
+      ".shapeup/envlint/results/plan-wire.json"
+    ]
+  },
+  "payload": {
+    "step": "wire",
+    "feature": "envlint",
+    "spec_folder": "shapeup/envlint/spec/",
+    "kb_rules_paths": [
+      "shapeup/knowledge-base/plan.md",
+      "shapeup/knowledge-base/ba-pitch-analyzer.md",
+      "shapeup/knowledge-base/scope-architect.md",
+      "shapeup/knowledge-base/solution-architect.md"
+    ]
+  }
+}

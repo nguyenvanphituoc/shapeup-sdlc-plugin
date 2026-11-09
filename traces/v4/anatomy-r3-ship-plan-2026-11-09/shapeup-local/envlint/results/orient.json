@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/orient",
+  "worker": "orient",
+  "status": "done",
+  "artifacts": [
+    ".shapeup/envlint/orient/code-surface.md",
+    ".shapeup/envlint/orient/spike-not-needed.md",
+    ".shapeup/envlint/orient/discovered-seed.md",
+    ".shapeup/envlint/orient/hill-signal.md"
+  ],
+  "assumptions": ["Greenfield: module paths src/parse.mjs, src/rules.mjs, bin/envlint.mjs are suggestions"],
+  "deviations": [
+    "Pitch is raw-idea form without status: shaped/bet frontmatter; proceeded since appetite and boundaries are present",
+    "Schema shape, exit codes and output format are unspecified by the pitch"
+  ]
+}

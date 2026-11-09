@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/plan-spec",
+  "kernel": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.plugin-under-test/plugin-anatomy-r3/kernel/harness.mjs",
+  "run_id": "envlint-20261109T043401Z-3bc69af2",
+  "compiled_at": "2026-11-09T04:36:47.448Z",
+  "worker": "building",
+  "mode": "standalone",
+  "operation": "plan",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "shapeup/envlint/spec/**",
+      ".shapeup/envlint/tasks/**",
+      ".shapeup/envlint/working/**"
+    ],
+    "frozen": [
+      ".shapeup/envlint/intake.md",
+      "shapeup/envlint/project-profile.md",
+      ".shapeup/envlint/orders/**",
+      ".shapeup/envlint/results/**",
+      ".shapeup/envlint/receipts/**",
+      ".shapeup/envlint/t0/verdicts/**"
+    ],
+    "own": [
+      ".shapeup/envlint/results/plan-spec.json"
+    ]
+  },
+  "payload": {
+    "step": "spec",
+    "feature": "envlint",
+    "spec_folder": "shapeup/envlint/spec/",
+    "lens": "lite",
+    "kb_rules_paths": [
+      "shapeup/knowledge-base/plan.md",
+      "shapeup/knowledge-base/ba-pitch-analyzer.md",
+      "shapeup/knowledge-base/scope-architect.md",
+      "shapeup/knowledge-base/solution-architect.md"
+    ]
+  }
+}
