@@ -264,6 +264,9 @@ The loop uses this to render the GATE L1a Hill and confirm the spike before hand
 /orient --pitch ... --spec ... --auto
 ```
 
+If the user has not named a pitch or spec folder, ask which feature to orient on rather than guessing from the
+working tree.
+
 ### Flags
 | Flag | Effect |
 |------|--------|

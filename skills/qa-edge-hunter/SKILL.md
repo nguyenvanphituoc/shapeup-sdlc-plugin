@@ -96,6 +96,8 @@ Questions: max 2. The standing one: "Any areas OUT OF BOUNDS for exploratory tes
 from charters and listed in the report, never silently skipped.
 ```
 
+If there is no PASS verdict yet, say so and stop — QA before PASS is the evaluator's job done out of order.
+
 **Output:**
 ```
 ⏸ GATE Q0 — Preflight

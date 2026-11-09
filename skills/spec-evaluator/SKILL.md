@@ -241,6 +241,11 @@ Standalone keeps `--task` (per-task check, not round-gated) and `--single-pass` 
 WorkResult, show the user its
 summary — standalone has no orchestrator to apply it for you.
 
+Standalone, the feature-level form crosses the Round Close gate first: while any task on the board is unfinished the
+gate block carries the unfinished scopes — advisory, so the call proceeds, but a verdict taken now grades a partial
+board and the crossing is recorded as a `warn`. The correct response is to go back to the build (`/task-executor`) and
+finish them — do not shrug the warning off, and do not use `--task` as a loophole to simulate a round verdict piecemeal.
+
 ---
 
 ## Hard Rules (never override without explicit user instruction)

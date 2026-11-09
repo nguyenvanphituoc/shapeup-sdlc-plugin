@@ -202,3 +202,14 @@ Standalone shim: derive `<slug>` from the `--spec` path (`shapeup/<slug>/spec`),
 by hand with `"mode": "standalone"`, then proceed against it exactly as if dispatched. After writing the
 WorkResult, show the user its summary — standalone has no orchestrator to apply it for you. One code path inside; two entry
 points outside.
+
+With `--next`, or with no task named, read the board (`.shapeup/<slug>/tasks/_index.md`) and take the next `ready` task,
+stating which one you picked. Respect the substrate: if scope contracts exist, writes outside the active scope's
+whitelist will be denied by the sandbox hook — that is the harness working, not an error to route around.
+
+**Building a whole scoped feature is not the standalone form.** It builds **one task**. A full BUILD round — every
+scope, the per-scope attempt loop, T0 verification, the inner circuit breaker, then the single EVAL — belongs to the
+loop: `/ship <pitch>`. `/ship` opens the run properly — `harness init run` first, so the receipt and the launch record
+exist — and then follows the loop's phase table over the run's files. Do not hand-roll the round by calling the
+standalone form once per task: the attempt loop, the T0 ratchet and the breakers are the loop's discipline, not steps a
+caller can be trusted to reproduce, and a session that rebuilds them by hand is the prose lane the loop replaced.

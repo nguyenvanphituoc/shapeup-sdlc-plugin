@@ -129,6 +129,10 @@ census compares what is green against the baseline and ships what works. A run k
 `retro` (`/retro`, `/retro --scan`, `/retro --research <stack>`) — `resources/retro/retro.md`, `resources/retro/scan.md`, `resources/retro/research.md`;
 `intake <path>…` (`--check` writes nothing) — the language gate alone, `resources/intake/language.md`.
 
+`plan` runs the planning substeps the phase table hands out and stops once the scope contracts are on disk and the
+Board Review gate is crossed. Its wiring substep needs the spec folder and `project-profile.md`; if either is missing,
+say which rather than inventing it.
+
 ## Resume
 
 `/ship` again over an open run is the resume (over a closed one, phase 0 reports the ending and stops): `init run` refuses and prints what is on disk, and you continue from the phase table, reading files and nothing else.

@@ -11,6 +11,9 @@ loop; do not skip gates by default.
 `harness init run`, which writes the run receipt and the launch record. Do not summarise what the harness will do:
 a run that left no receipt did not happen.
 
+With a sub-command as its first word, `building` does one activity of the loop and not the whole run:
+`plan` (the planning substeps, through Board Review), `stop` (the census at the Cut-List Review gate), `retro` (file feedback, or seed the knowledge base with `--scan` or `--research <stack>`), `intake <path>` (the language gate alone; `--check` writes nothing).
+
 ## How the run executes
 
 `building` drives the run in this session. It opens the run, then reads the run's files and takes the first

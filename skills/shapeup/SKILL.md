@@ -95,6 +95,9 @@ final phase of breadboarding — not shaping. Shaping ends at the fit check.
 /shapeup breadboard-reflection < breadboard.md
 ```
 
+The pitch this produces, `shaping.md` and `breadboard.md`, is what the Betting Table decides on. Do not start building
+from here — a pitch that has not been bet on goes to the PO, not to a build.
+
 ---
 
 ## WORKFLOW 0 — `/shapeup full` (DEFAULT)
