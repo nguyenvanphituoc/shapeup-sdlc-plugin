@@ -381,7 +381,8 @@ flowchart LR
   R2 --> R3["R3 · close-out<br/>audit · upgrade notes"]
   R3 --> SHIP2(["shippable as 5.0.0"])
   S3 --> K1["K1 · retire the spike operation<br/>kernel · hook · worker skill"]
-  K1 --> SHIP2
+  K1 --> H1["H1 · the hooks stay on the project<br/>that holds the run"]
+  H1 --> SHIP2
 ```
 
 **The conservation check, used by S1, S2 and S5.** Take every non-blank line of every `.md` under `skills/building/` at the stage's parent commit and at the stage's commit, as two multisets. Each line present in one and absent from the other must contain a path the move map of section 4.2 rewrites, or be a title line a split had to add. Anything else is a lost or reworded sentence, and the stage is not done. The executor writes the script (about 20 lines of Node, builtins only) into its run workspace.
@@ -511,6 +512,44 @@ The one stage that changes `kernel/` and `hooks/`. It runs after S3, which creat
 Not in K1: the planner's `SPIKE` task rules. They stay, with the template named by path in S3. What happens to an open
 spike is already written down at Board Review.
 
+### H1 — the hooks stay on the project that holds the run (D10, D11)
+
+Added 2026-11-09, after S4's run exposed D10 and K1's session D11, on the PO's instruction to fix the hooks. It touches
+`hooks/` and nothing under `kernel/`.
+
+**The defect, reproduced before anything was changed.** A project with a run open and an order live; a shell sitting in a
+folder inside it that has a `shapeup/` directory of its own; a write outside the order's substrate. The fence allows it,
+with the rule `no-round`, and files the decision in a ledger it creates under that folder. From a plain sub-folder the
+same write is denied. The hooks find the project by climbing from the shell to the nearest folder that has a run pointer,
+a committed tier or a git boundary, and a committed tier alone, nearer than the run, wins.
+
+**The rule after the fix.** When the nearest marker above the shell is a committed tier and nothing else, the climb goes on,
+looking for a run pointer, and stops at the first git boundary. A pointer found that way is the project, provided its
+folder is one by the same markers: it has a committed tier, or a git boundary at or above it. Everything else is as it was.
+
+| From a shell in | Before | After | Why |
+|---|---|---|---|
+| a plain sub-folder | the project | the project | unchanged |
+| a nested folder with its own committed tier, run open above | the nested folder: **fence off, ledger split** | the project | the defect |
+| a nested git repository | the nested repository | the nested repository | a separate repository is a separate project. Looking past it would fence somebody else's work with this run's order, and a hook fails open when it cannot prove the bad state |
+| a nested folder with a run of its own | the nested folder | the nested folder | the nearest live run wins, as before |
+| a nested committed tier, no run open anywhere | the nested folder | the nested folder | nothing to fence; only where a row with no run is filed |
+| a nested committed tier, under a run pointer in a folder that is no project | the nested folder | the nested folder | a stray pointer in a home directory must not capture every project below it |
+
+| Do | Done when |
+|---|---|
+| `projectRoot` in `hooks/lib/decision.mjs` follows the rule above. No other hook changes how it finds the root: all four go through that one function | the reproduction, run against the stage's parent and then against the stage, prints the Before column and then the After column, line for line |
+| `tests/structural/03-fence.mjs` gains the six rows of the table as checks, each firing the real hook with the ledger not redirected, plus the plain sub-folder case, which the suite did not cover although `AGENTS.md` promises it | the suite is green; with `hooks/lib/decision.mjs` put back to the parent's, it is red on the nested committed tier |
+| The fence's refusal says "Write fence" and gives the remedy the order templates give: widening is the PO's decision, made by amending the scope contract, after which the order is written again. No `ba --remap`, no `(PA3)`. The metrics row keeps its `pathology` code, which is data | no shipped file and no asset carries either string; `npm run demo` regenerates `docs/assets/demo-gate.svg` and `.txt` from the real hook, and the tree is clean after it |
+| `AGENTS.md`, the last bullet of Setup & Execution, says what the hooks now do about a folder inside the project that only looks like one | the sentence is there |
+| The audit skill's marker pattern gains the two shapes it missed: a command of a retired skill, and a pathology code inside a message | `references/forbidden-content.md` |
+| `npm test`, `npm run verify:cross-dir`, plugin validation | pass |
+| One nested session on the consumer project that repeats what S4's loop did: a run open, an order live, the shell moved into the plugin copy, then one write inside the substrate and one outside | the outside write is denied and both decisions are in the run's ledger with its id; no ledger appears under the plugin copy |
+
+Not in H1: the kernel's verbs (`init run`, `gate`, `order`) take the shell's folder as the project unless `--cwd` is given.
+S4's loop passed `--cwd` or ran `cd` back first, every time. That is the same class of trust in the shell, on the kernel's
+side, and a stage of its own.
+
 ## 7. What would change this plan
 
 - **A resource pointer convention the host enforces.** If Claude Code starts resolving or validating a skill's resource links itself, C1 and C2 are redundant and S1's rewrite should follow the host's form.
@@ -552,6 +591,6 @@ Rollback is `git revert` of the stage's commit, in reverse order. No stage write
 | D6 | Which commands go | the eight of section 4.6: `shape`, `orient`, `build`, `eval`, `qa`, `scopes`, `wire`, `hammer`. R0 can take a name off this list; nothing adds one |
 | D7 | `/retro` | **keep.** It is an alias of `/ship retro` like the three that go, but it is the one started outside a run, and the installer, `AGENTS.md`, the glossary and the upgrade guide all send the user to it. Removing it touches `bin/init.mjs`, which every other stage leaves alone |
 | D9 | Found by S3's acceptance, 2026-11-09. `resources/plan/templates/feedback.tmpl.md` lines 75 and 76 told the planner to flag `references/[file].md` and `assets/templates/[file].tmpl.md`: both the layout of a skill that no longer exists | **Decided by the PO on 2026-11-09** ("Có, sửa") and done in `f8fdc33`: the two rows name `resources/plan/references/` and `resources/plan/templates/`. No acceptance row was loosened; the one red row moved to the stage that satisfies it |
-| D11 | Found by K1's session, 2026-11-09. The fence's refusal, which is what a person reads when a write is denied, ends "(e.g. via ba --remap)" and opens "Sandbox guard (PA3)". There is no `ba` skill any more, and `PA3` is an internal label. The S4 audit did not catch either: its marker pattern has no shape for them | open. Two strings in `hooks/sandbox-guard.mjs`; fix them in the same stage as D10, and add the shape to the audit's pattern |
-| D10 | Found by S4's run, section 4.8. When the session's shell sits inside a folder that looks like a project, the plugin's own tree included, the hooks file their decisions there and the fence looks for its pointer there | open. It is a change to `hooks/` and needs its own stage, with the fixture that reproduces it: a write, with an order live, from a shell inside a nested folder that has a `shapeup/` directory. Until then, a run whose loop `cd`s into the plugin is not fully fenced |
+| D11 | Found by K1's session, 2026-11-09. The fence's refusal, which is what a person reads when a write is denied, ends "(e.g. via ba --remap)" and opens "Sandbox guard (PA3)". There is no `ba` skill any more, and `PA3` is a metrics code no shipped file explains (`PA1` and `PA2` are explained, in the scope contracts' resource). The S4 audit did not catch either: its marker pattern has no shape for them | **In H1**, with D10 |
+| D10 | Found by S4's run, section 4.8. When the session's shell sits inside a folder that looks like a project, the plugin's own tree included, the hooks file their decisions there and the fence looks for its pointer there | **The PO said to fix the hooks, 2026-11-09.** Stage H1. Reproduced first: with an order live, a write outside its substrate from a nested folder that has its own `shapeup/` is allowed |
 | D8 | How the removal is released. (a) Delete in one release, numbered as the next major, with the map in the upgrade guide. (b) Two releases: the eight become one-line files that name their replacement in a minor, and are deleted at the next major | **Decided: (a), by the PO on 2026-11-09** ("Một bản major"). The eight are deleted in one release, 5.0.0. A typed name that no longer exists fails at once and says so. Whether the S stages go out first as 4.0.1 or ride in 5.0.0 is still D4 |
