@@ -9,7 +9,7 @@
 | **Gate on every stage** | `npm test` green, the conservation check of section 6 clean, and `git diff --stat da972b7 -- kernel hooks agents bin` empty in every stage. `commands/` and `AGENTS.md` are untouched through S4 and change only in R1 and R2 |
 | **Rule** | One stage per commit. A stage that only moves text changes no sentence; a stage that adds text removes none. S5 is a measurement and may end in "keep". The R stages start after S4 and start with an executed proof, not a deletion |
 | **Quick view** | skill: [before](../../visualize/building-anatomy-before.svg) · [after](../../visualize/building-anatomy-after.svg) · commands: [before and after](../../visualize/building-commands-before-after.svg) |
-| **Status** | **proposed, not executed.** Writing this plan changed nothing under `skills/`, `kernel/`, `hooks/`, `commands/` or `tests/`. One decision is taken: D8, by the PO on 2026-11-09. D1 to D7 are open, and nothing starts before D1 |
+| **Status** | **S0 to S2 executed on 2026-11-09**, on the PO's go-ahead for those three stages, on branch `plan/building-anatomy`: S1 is `20d356d`, S2 is `47f1658`. Each stage's acceptance passed in a fresh clone, 37 rows in all, and `npm test` is at 230 checks. S3 waits on D2; S4, S5 and R0 to R3 are not started. D8 is decided. **No real run has been made on the regrouped skill**: that is S4's gate, and until it runs, the loop following the new pointers is unverified |
 
 Every figure is derived from the tree at the baseline or labelled as a projection. Section 7 says what would change the answer.
 
@@ -437,7 +437,7 @@ Rollback is `git revert` of the stage's commit, in reverse order. No stage write
 
 | # | Decision | Default if unanswered |
 |---|---|---|
-| D1 | Run S0 to S4 as proposed | wait; nothing starts |
+| D1 | Run S0 to S4 as proposed | **S0 to S2: approved by the PO and run, 2026-11-09.** S3 and S4 are not approved yet |
 | D2 | The three P4 defects. (a) `contract-patterns.md` line 34: point it at the three contract templates. (b) `task-spike.tmpl.md` and the `spike` operation: give `orders.md` a `spike` row and name the template, or say the operation is not used by the loop | S3 does not start; C2 and C5 stay out of the suite |
 | D3 | S5 at all | **not now.** It moves 39 lines out of a 144-line file for the price of two real runs, and carries the plan's only behaviour risk. Revisit when `SKILL.md` next grows |
 | D4 | The version the S stages ship as | patch on 4.0.0: no command, gate, schema or hook changes |
