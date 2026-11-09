@@ -6,7 +6,9 @@
 // the ledger's own `rule` as well as the host's allow/deny, because "nothing is live" and "nothing is
 // watching" are both an allow and only the rule tells them apart.
 import { join } from "node:path";
-import { scratch, put, fire, denied, kernel, json, existsSync } from "../lib/fixture.mjs";
+import { mkdirSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { scratch, put, fire, denied, kernel, json, slurp, existsSync } from "../lib/fixture.mjs";
 
 const SLUG = "demo";
 const GUARD = "hooks/sandbox-guard.mjs";
@@ -128,4 +130,48 @@ export async function run(ctx) {
     r = fire(ROOT, GUARD, { tool_name: "Bash", tool_input: { command: "ls" }, cwd: root });
     check(r.status === 0 && !denied(r), "a tool that is not a write is out of scope");
   } finally { s.done(); }
+
+  // The hook's `cwd` follows the shell, so the project has to be found from wherever the shell sits.
+  // Each case is its own project with a run open and an order live, and one write outside the order,
+  // fired from `rel`. The ledger is NOT redirected here: where the row lands is what is being read.
+  section("fence — the project is found from wherever the shell sits");
+  const RUN = "demo-20260101T000000Z-deadbeef";
+  const from = (rel, { git = true, open = true, prepare = () => {} } = {}) => {
+    const p = scratch("fence-root", { git });
+    try {
+      const root = p.dir, shell = join(root, rel);
+      mkdirSync(shell, { recursive: true });
+      if (open) {
+        put(root, `.shapeup/${SLUG}/receipt.json`, { run_id: RUN, slug: SLUG });
+        put(root, ".shapeup/active-scope", { slug: SLUG, run_id: RUN });
+        const path = put(root, `.shapeup/${SLUG}/orders/build.json`, {
+          schema_version: 1, order_id: `${SLUG}/build`, worker: "task-executor", mode: "orchestrated", operation: "execute", payload: {},
+          substrate: { allowed: ["src/**"], frozen: [`.shapeup/${SLUG}/**`], own: [`.shapeup/${SLUG}/results/build.json`] },
+        });
+        kernel(ROOT, ["order", "open", "--slug", SLUG, "--order", path], { cwd: root });
+      }
+      prepare(shell);
+      const r = fire(ROOT, GUARD, { tool_name: "Write", tool_input: { file_path: join(root, "lib/outside.js"), content: "x" }, cwd: shell },
+        { env: { SHAPEUP_DECISIONS_PATH: "" } });
+      const last = (file) => (existsSync(file) ? JSON.parse(slurp(file).trim().split("\n").at(-1)) : null);
+      const inner = join(shell, ".shapeup/decisions.jsonl"), outer = join(root, ".shapeup/decisions.jsonl");
+      return { denied: denied(r), text: r.out?.hookSpecificOutput?.permissionDecisionReason ?? "", inner: last(inner), outer: last(outer) };
+    } finally { p.done(); }
+  };
+  const ownTier = (shell) => mkdirSync(join(shell, "shapeup/knowledge-base"), { recursive: true });
+
+  let w = from("packages/app");
+  check(w.denied && w.outer?.rule === "outside-substrate" && !w.inner, "a shell in a plain sub-folder is fenced like one at the top, and its row is filed with the run");
+  w = from("vendor/plugin-copy", { prepare: ownTier });
+  check(w.denied && w.outer?.rule === "outside-substrate", `a nested folder with its own committed tier does not switch the fence off: the write is denied, rule "${w.outer?.rule ?? w.inner?.rule}"`);
+  check(w.outer?.run_id === RUN && !w.inner, "…and its row is in the project's ledger with the run's id, with no ledger started under the nested folder");
+  check(/^Write fence/.test(w.text) && /PO's decision/.test(w.text) && !/remap|\(PA\d\)/.test(w.text), "the refusal names the write fence and the remedy, and no command of a retired skill");
+  w = from("vendor/other-repo", { prepare: (shell) => { ownTier(shell); spawnSync("git", ["init", "-q"], { cwd: shell }); } });
+  check(!w.denied && w.inner?.rule === "no-round", "a nested git repository stays its own project: the fence fails open rather than reach across a repository boundary");
+  w = from("vendor/nested-run", { prepare: (shell) => { ownTier(shell); put(shell, ".shapeup/active-scope", { slug: "inner" }); } });
+  check(!w.denied && w.inner?.rule === "no-round", "a nested folder with a run of its own still files under itself: the nearest live run wins");
+  w = from("vendor/plugin-copy", { prepare: ownTier, open: false });
+  check(!w.denied && w.inner?.rule === "no-round" && !w.outer, "with no run open, a nested folder with its own committed tier files under itself, as before");
+  w = from("vendor/plugin-copy", { prepare: ownTier, git: false });
+  check(!w.denied && w.inner?.rule === "no-round", "a run pointer in a folder that is no project (no committed tier, no repository) captures nothing beneath it");
 }

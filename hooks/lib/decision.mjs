@@ -61,32 +61,58 @@ import { resolveRun } from "../../kernel/lib/paths.mjs";
  * write from that shell, since the active-order pointer it fences from was not beside it either.
  *
  * So the root is FOUND, not assumed: walk up from `cwd` to the nearest ancestor that carries a
- * run pointer, the committed tier, or a git boundary. The order is the order of specificity — a
- * live run outranks a repo boundary, so a project nested inside a larger repository still files
- * under its own root — and a bare `.shapeup/` directory is deliberately NOT a marker, because the
- * stray ledgers this fixes are exactly what would create one.
+ * run pointer, the committed tier, or a git boundary. A project nested inside a larger repository
+ * still files under its own root, because its own tier or pointer is nearer than the repository's
+ * boundary — and a bare `.shapeup/` directory is deliberately NOT a marker, because the stray
+ * ledgers this fixes are exactly what would create one.
+ *
+ * A COMMITTED TIER ALONE DOES NOT END THE SEARCH. A folder inside the project can carry a committed
+ * tier of its own and be no project at all: a copy of a plugin, a vendored package. Taken as the root
+ * because it is nearest, it does to the run what the sub-folder did — a second ledger, and a fence
+ * with no pointer beside it, open on every write from that shell while an order is live one level
+ * up. So when the nearest marker is a committed tier and nothing else, the climb goes on looking for
+ * a run pointer, and a pointer found that way is the root.
+ *
+ * Two things stop that second climb, and both fail open on purpose. A git boundary stops it: a
+ * repository nested in the project is somebody's separate project, and reaching past it would let
+ * this run's order refuse that project's writes. And a pointer counts only in a folder that is a
+ * project by the same markers — a committed tier there, or a git boundary at or above it — so a
+ * pointer left behind in a home directory captures nothing beneath it.
  *
  * Fail-open: no marker anywhere up the tree returns `cwd` unchanged, which is the pre-fix
  * behaviour. Never throws.
  *
  * @param {string} cwd - Where the hook fired (`payload.cwd`, else the process cwd).
- * @returns {string} The nearest project root at or above `cwd`, or `cwd` itself.
+ * @returns {string} The project root at or above `cwd`, or `cwd` itself.
  */
 export function projectRoot(cwd) {
-  let dir;
-  try { dir = resolve(cwd || process.cwd()); } catch { return cwd; }
-  const isDir = (p) => { try { return statSync(p).isDirectory(); } catch { return false; } };
-  for (let i = 0; i < 64; i++) {
-    try {
-      if (existsSync(activeScope(dir))) return dir;
-      if (isDir(sharedDir(dir))) return dir;
-      if (existsSync(resolve(dir, ".git"))) return dir;
-    } catch { /* unreadable ancestor — keep climbing */ }
+  let start;
+  try { start = resolve(cwd || process.cwd()); } catch { return cwd; }
+  const probe = (test) => (dir) => { try { return test(dir); } catch { return false; } };   // an unreadable ancestor has no marker
+  const pointer = probe((dir) => existsSync(activeScope(dir)));
+  const tier = probe((dir) => statSync(sharedDir(dir)).isDirectory());
+  const git = probe((dir) => existsSync(resolve(dir, ".git")));
+
+  const chain = [];
+  for (let dir = start, i = 0; i < 64; i++) {
+    chain.push(dir);
     const parent = dirname(dir);
     if (parent === dir) break;
     dir = parent;
   }
-  return cwd;
+
+  const at = chain.findIndex((dir) => pointer(dir) || tier(dir) || git(dir));
+  if (at < 0) return cwd;
+  const nearest = chain[at];
+  if (pointer(nearest) || git(nearest)) return nearest;
+
+  // The nearest marker is a committed tier and nothing else: look above it for the run.
+  for (let i = at + 1; i < chain.length; i++) {
+    const dir = chain[i];
+    if (pointer(dir)) return tier(dir) || chain.slice(i).some(git) ? dir : nearest;
+    if (git(dir)) break;
+  }
+  return nearest;
 }
 
 /**

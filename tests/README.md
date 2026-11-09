@@ -12,7 +12,7 @@ against a fixture, or validates a shipped file against the thing it names; none 
 |---|---|
 | `01-manifests` | the three versions agree; the package ships what exists; every hook command and kernel route resolves; `claude plugin validate --strict` when the host is present |
 | `02-agents-and-skills` | frontmatter parses; each agent preloads a skill that exists; every kernel command a shipped instruction names exists in the routing table |
-| `03-fence` | `sandbox-guard` against fixture orders, and the `order` verb that arms and retires it: outside-substrate deny, frozen, own, no-pointer allow, tier-rule deny, fail-open |
+| `03-fence` | `sandbox-guard` against fixture orders, and the `order` verb that arms and retires it: outside-substrate deny, frozen, own, no-pointer allow, tier-rule deny, fail-open; and where the project is found from: a sub-folder, a nested folder with a committed tier of its own, a nested repository, a stray run pointer |
 | `04-ledger` | every hook records a decision; `safety-spine` denies and allows; the dispatch receipt names the agent that ran |
 | `05-t0` | green, red, truncated tails, the environment fingerprint, the ratchet's keep and revert, the cited hash |
 | `06-gate` | presets, live answers, the Round Close and Ship Sign-off refusals, answer files, the source of every decision |

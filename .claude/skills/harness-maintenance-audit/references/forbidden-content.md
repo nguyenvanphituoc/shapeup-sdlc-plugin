@@ -102,7 +102,7 @@ reader somewhere that is not there.
 ## The sweep
 
 ```bash
-grep -rniE "benchmark|HD-0[0-9]+|F-16|stage [a-z][0-9]?\b|stage-[a-z][0-9]|of the audit|docs/(migration|internal|design|workflow|upgrading)|tests/structural|tools/|evals/|\bn=[0-9]|DNF|island-escape|absorb-audit|[0-9]+% acceptance" \
+grep -rniE "benchmark|HD-0[0-9]+|F-16|stage [a-z][0-9]?\b|stage-[a-z][0-9]|of the audit|docs/(migration|internal|design|workflow|upgrading)|tests/structural|tools/|evals/|\bn=[0-9]|DNF|island-escape|absorb-audit|[0-9]+% acceptance|\bba --[a-z]|\(PA[0-9]+\)" \
   --include="*.md" --include="*.mjs" --include="*.js" --include="*.json" \
   skills commands hooks oracles bin AGENTS.md SECURITY.md 2>/dev/null
 ```
@@ -125,6 +125,15 @@ to remember missed `(Stage G of the audit)` in **all six** `oracles/*.mjs` heade
 (`audit Stage E1`) — a whole vocabulary, invisible because the class stopped at C. When a marker is
 a *naming convention*, match the convention's shape, not the instances you can recall. `of the
 audit` is in the pattern for the same reason: it catches the phrasing regardless of the letter.
+
+*A message is shipped prose too, and the pattern has to know its shapes.* The write fence's refusal, the one text a
+person reads when a write is denied, ended `(e.g. via ba --remap)` and opened `Sandbox guard (PA3)`: a command of a skill
+that had been retired, and a metrics code no shipped file explains. An audit run with the pattern above reported the
+hook surface clean, because neither string looked like any marker it knew. `\bba --[a-z]` and `\(PA[0-9]+\)` are in the
+pattern now. Expect two survivors of the second that are not defects: `(PA1)` in the gates resource and in the
+schema's description of a scope contract. `PA1` and `PA2` are product vocabulary, explained where the scope
+contracts are read back; a code with no such explanation is the leak. The general lesson is the first one again: when a skill is retired, its command names are a naming
+convention, so add the retired name's shape here in the same commit that retires it.
 
 Two deliberate omissions, both learned by running this against real content:
 

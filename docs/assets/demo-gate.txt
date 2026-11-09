@@ -23,10 +23,11 @@ $ claude
   Edit(src/billing/charge.ts)
 
   ⛔ PreToolUse hook — sandbox-guard   DENIED
-     Sandbox guard (PA3) — no live order's substrate covers these
-     writes: src/billing/charge.ts is outside every live order's
-     allowed scopes If this write legitimately crosses scopes, the
-     order's substrate needs to be expanded (e.g. via ba --remap).
+     Write fence — no live order's substrate covers these writes:
+     src/billing/charge.ts is outside every live order's allowed
+     scopes If this write belongs to this order, widening it is the
+     PO's decision: amend the scope contract's substrate, then write
+     the order again.
 
   ↑ verbatim stdout from hooks/sandbox-guard.mjs.
     Not a prompt. A script that read the order's own
@@ -40,6 +41,6 @@ $ claude
 ------------------------------------------------------------------------
 
 Raw hook stdout (write to src/billing/charge.ts):
-{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Sandbox guard (PA3) — no live order's substrate covers these writes:\nsrc/billing/charge.ts is outside every live order's allowed scopes\nIf this write legitimately crosses scopes, the order's substrate needs to be expanded (e.g. via ba --remap)."}}
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Write fence — no live order's substrate covers these writes:\nsrc/billing/charge.ts is outside every live order's allowed scopes\nIf this write belongs to this order, widening it is the PO's decision: amend the scope contract's substrate, then write the order again."}}
 
 Raw hook stdout (write to src/theme/tokens.ts): permitted — no deny payload.

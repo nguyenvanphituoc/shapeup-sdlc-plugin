@@ -22,9 +22,16 @@ phase row now points, in the words it had. One removal is breaking, and is liste
   was accepted before. The Scout's spike, part of `orient`, is unchanged, and so are the planner's `SPIKE` task rules: an open
   spike is a Board Review question. The `.shapeup/<slug>/spikes/` folder is no longer granted to build orders; nothing ever
   wrote to it.
+- **Fixed: the write fence could be switched off by where the shell sat.** The hooks find the project by climbing from the
+  shell's folder, and a folder inside the project with a `shapeup/` folder of its own, such as a copy of the plugin, was taken
+  as the project because it was nearest. From a shell in such a folder, with an order live, a write outside the order's
+  substrate was allowed, and its decision went to a second ledger under that folder. The hooks now look past a committed tier
+  that stands alone, up to the first repository boundary, for the run. A nested git repository is still its own project.
+- **Fixed.** The fence's refusal named a command of a skill that no longer exists and a code no document explains. It now
+  says what to do: widening an order is the PO's decision, made by amending the scope contract.
 - **Tests.** A new structural module resolves every `resources/` pointer the skills write, holds the phase table, the index and the
   headers to each other and to the schema's operations and the kernel's gates, holds the schema's operations and the order
-  templates to each other, and checks that every resource of the loop is reachable from its `SKILL.md`. The suite is at 238 checks.
+  templates to each other, and checks that every resource of the loop is reachable from its `SKILL.md`. The fence's module fires the real hook from six places a shell can sit. The suite is at 246 checks.
 
 ## [4.0.0] — 2026-11-09 · One loop in the session, native agents, and no scripted engine
 

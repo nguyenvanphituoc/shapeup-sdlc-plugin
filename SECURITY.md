@@ -48,7 +48,11 @@ test against machines you don't own.
    sandbox. The `close.json` a terminal close writes beside the run's records names the ending and arms nothing: liveness is derived from the order set and the pointer, never from that file, and the close retires the pointer. Every hook resolves that pointer, the decision ledger and the substrate globs against
    the project root it finds above the tool call's working directory (a run pointer, the committed
    tier, or a git boundary) — a worker that `cd`s into a sub-folder is fenced exactly as one at the
-   top, and its receipts land in the same ledger.
+   top, and its receipts land in the same ledger. A folder inside the project that has a committed tier of its
+   own and no repository of its own (a copy of a plugin, a vendored package) is looked past while a run is
+   open above it. Two cases fail open, on purpose: a shell inside a nested git repository is judged as that
+   repository's, not the run's, and a run pointer in a folder that is neither a repository nor a project with
+   a committed tier is not followed. Reaching across either would let one project's order refuse another's writes.
 5. **No hook can block a session from ending.** A session that narrates a run instead of opening one
    is not stopped by the runtime; `building` opens its run as its first act and the receipt it writes is
    what every later guard reads.

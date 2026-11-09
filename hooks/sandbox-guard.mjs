@@ -537,7 +537,7 @@ async function main() {
     : committed.length === violations.length
     ? `${SHARED}/ is committed tier: these belong to the orchestrator, not to a worker substrate. `
       + "Write them at a phase boundary, with no dispatch in flight — do not widen an order to reach one."
-    : "If this write legitimately crosses scopes, the order's substrate needs to be expanded (e.g. via ba --remap).";
+    : "If this write belongs to this order, widening it is the PO's decision: amend the scope contract's substrate, then write the order again.";
 
   logPathology(metricsPath, {
     schema_version: 1,
@@ -562,7 +562,7 @@ async function main() {
         hookEventName: "PreToolUse",
         permissionDecision: "deny",
         permissionDecisionReason:
-          `Sandbox guard (PA3) — ${notOwn ? "these paths belong to another live dispatch" : "no live order's substrate covers these writes"}:\n` +
+          `Write fence — ${notOwn ? "these paths belong to another live dispatch" : "no live order's substrate covers these writes"}:\n` +
           `${blockReasons.join("\n")}\n` +
           hint,
       },
