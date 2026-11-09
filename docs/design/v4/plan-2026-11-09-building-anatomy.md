@@ -9,7 +9,7 @@
 | **Gate on every stage** | `npm test` green, the conservation check of section 6 clean, and `git diff --stat da972b7 -- kernel hooks agents bin` empty in every stage but K1, which exists to change them. `commands/` and `AGENTS.md` are untouched through S4 and change only in R1 and R2 |
 | **Rule** | One stage per commit. A stage that only moves text changes no sentence; a stage that adds text removes none. S5 is a measurement and may end in "keep". The R stages start after S4 and start with an executed proof, not a deletion |
 | **Quick view** | skill: [before](../../visualize/building-anatomy-before.svg) · [after](../../visualize/building-anatomy-after.svg) · commands: [before and after](../../visualize/building-commands-before-after.svg) |
-| **Status** | **S0 to S4, K1 and H1 executed on 2026-11-09**, each on the PO's go-ahead, on branch `plan/building-anatomy`: S1 `20d356d`, S2 `47f1658`, S3 `6ef95ea`, S3a `f8fdc33`, S4 `d7f08e2` and its run's trace `b382d85`, K1 `40f090f` and its session's trace `f47f0d6`, H1 `18c520b` and its session's trace `2b5682c`. `npm test` is at 246 checks. **Every acceptance row passes, each in a fresh clone: 135 of 135** (S0 to S3a 65, S4 12, S4's run 9, K1 19, K1's session 5, H1 18, H1's session 7). Three real sessions were run on the consumer project: the planning half of envlint on the regrouped skill (section 4.8), a scripted write through the fence on the tree without `spike`, and the same from a shell inside the plugin copy, on the fixed hooks. S5 and R0 to R3 are not started. D2 and D8 to D11 are decided. **No version is bumped and nothing is pushed** |
+| **Status** | **Executed on 2026-11-09, except S5**, each stage on the PO's go-ahead, on branch `plan/building-anatomy`: S1 `20d356d`, S2 `47f1658`, S3 `6ef95ea`, S3a `f8fdc33`, S4 `d7f08e2`, K1 `40f090f`, H1 `18c520b`, R1 `5775b78`, R2 `3a6d284`, R3 `4be5de0`. `npm test` is at 241 checks. **Every acceptance row passes, each in a fresh clone: 176 of 176.** Two rows were corrected after they ran, for one escaping mistake in how they were written, and both corrections are on record (section 4.9). Four real sessions and two rounds of name probes were run on the consumer project. Both manifests say 5.0.0 and the changelog entry is headed with it; **nothing is tagged, published or pushed.** S5 is not started and is recommended against. D12 is open |
 
 Every figure is derived from the tree at the baseline or labelled as a projection. Section 7 says what would change the answer.
 
@@ -349,6 +349,35 @@ running". No order was live at those three moments, so nothing that should have 
 order it would have. Two earlier copies in the consumer project carry the same stray ledgers, 17 and 5 rows, so earlier
 runs did it too and it went unseen. A missing row is the signal, and this is what it looks like.
 
+### 4.9 What the removal showed
+
+**A skill is typed by its own name, and that was run, not read.** Before any command changed, five sessions each typed
+one skill's name with the plugin's prefix, on a copy in which every skill and `commands/orient.md` had been told to answer
+with one fixed word. `shapeup`, `task-executor`, `spec-evaluator` and `qa-edge-hunter` were answered by their skills.
+
+**`/orient` was answered by the command file, not the skill.** The host's documentation gives the precedence for a
+project's own folders, the other way round, and says nothing for plugins. In a plugin, on this host version, the command
+won. After R2 the same probe on the tree without the eight answers all five names from the skills.
+
+**`/ship plan` does what `/scopes` did.** R3's session typed it on the 5.0.0 tree: the entry point opened a run, the loop
+crossed the same four gates as the archived run of the pitch, and it stopped once Board Review was crossed, with nothing
+built. That was the one claim of section 4.6 nothing had run. The host reported $2.65.
+
+**Every removed file but one held an instruction its skill lacked.** Read sentence by sentence in R1: `build.md`,
+`eval.md`, `orient.md`, `qa.md`, `shape.md`, and between them `scopes.md` and `wire.md`, each had at least one. Only the
+Cut-List Review's command said nothing its resource did not. A removal done in one step would have deleted them.
+
+**Two acceptance rows were written wrong, in the same way, and one of them had passed.** This run's acceptance table
+escapes a pipe with a backslash. Two rows used `\|` for alternation inside a basic regular expression; the command that
+ran had a bare pipe, a literal character there. One row (R3's, counting result files) failed on a session that had done
+the right thing. Searching every row for that shape found a second (H1's, searching for the two removed strings), which
+had searched for one string that exists nowhere and passed without checking. Both are corrected to extended patterns
+and re-run at their own commits; what each was meant to show holds. The corrections, with the failed run, are in the
+contract and the ledger. A green row is evidence about the row as well as the tree.
+
+**Two stale texts older than this work**, found by the audit after the removal and fixed: both manifests still described
+the plugin as "orchestrated by a tech-lead", a skill retired in 4.0.0, and the README's release steps pinned an old tag.
+
 ## 5. What not to do
 
 1. **Do not create a second skill**, or rename `building`. Section 2 says why.
@@ -452,7 +481,7 @@ The run through Board Review reads every moved intake and plan file. Taking it t
 
 S5 moves the loop's most repeated procedure out of the file it loads first. The defects the v4 report records for the prose loop were skipped moves of exactly this procedure (an order opened before the schema check, a `cp` around the fence, a QA hunt the loop decided to skip). That is why it is measured and why it is last.
 
-### R0 — run the names before removing anything (no shipped file changes)
+### R0 — run the names before removing anything (no shipped file changes; run 2026-11-09)
 
 Done on a `git archive` copy of the tree at another path, never in this checkout.
 
@@ -462,7 +491,7 @@ Done on a `git archive` copy of the tree at another path, never in this checkout
 | For each of `shapeup`, `orient`, `task-executor`, `spec-evaluator`, `qa-edge-hunter`: one `claude -p --plugin-dir <copy>` session that types `/shapeup-sdlc-plugin:<name>` | each prints its skill's word. The `orient` session's word also records which of the two files answers that name today |
 | Record the table: name typed, file that answered | the table is in the run ledger. **Any skill name that does not answer ends the R stages for that command**; it is not worked around |
 
-### R1 — carry the sentences that live only in a command (additive)
+### R1 — carry the sentences that live only in a command (additive; `5775b78`)
 
 | Do | Done when |
 |---|---|
@@ -471,7 +500,7 @@ Done on a `git archive` copy of the tree at another path, never in this checkout
 | `commands/ship.md` gains the sub-command line | it names `plan`, `stop`, `retro`, `intake`, the same four `skills/building/SKILL.md` lists |
 | `npm test` | green; the ten command files are all still there |
 
-### R2 — delete, and re-point every document
+### R2 — delete, and re-point every document (`3a6d284`)
 
 | Do | Done when |
 |---|---|
@@ -484,7 +513,7 @@ Done on a `git archive` copy of the tree at another path, never in this checkout
 | Re-run R0's five sessions against a copy of this tree | the same five words |
 | `claude plugin validate . --strict`, plugin and marketplace | pass |
 
-### R3 — close-out
+### R3 — close-out (`4be5de0`)
 
 | Do | Done when |
 |---|---|
@@ -583,13 +612,13 @@ Rollback is `git revert` of the stage's commit, in reverse order. No stage write
 
 | # | Decision | Default if unanswered |
 |---|---|---|
-| D1 | Run S0 to S4 as proposed | **S0 to S4, K1 and H1: approved by the PO and run, 2026-11-09.** |
+| D1 | Run S0 to S4 as proposed | **Everything but S5: approved by the PO stage by stage and run, 2026-11-09.** |
 | D2 | The three P4 defects. (a) `contract-patterns.md` line 34: point it at the three contract templates in `resources/plan/templates/contracts/`. (b) `task-spike.tmpl.md`: name it by path from the planner's SPIKE Task Rules. (c) The `spike` operation: A, B or C of section 4.7 | **Decided by the PO on 2026-11-09** ("B: gỡ trong 5.0.0"). (c) is B: the operation is retired in stage K1 and ships in 5.0.0, and C5 lands there. (a) and (b) had no objection and go in S3 as written |
 | D3 | S5 at all | **not now.** It moves 39 lines out of a 144-line file for the price of two real runs, and carries the plan's only behaviour risk. Revisit when `SKILL.md` next grows |
 | D4 | The version the S stages ship as | patch on 4.0.0: no command, gate, schema or hook changes |
 | D5 | How far S4's real run goes | through Board Review |
-| D6 | Which commands go | the eight of section 4.6: `shape`, `orient`, `build`, `eval`, `qa`, `scopes`, `wire`, `hammer`. R0 can take a name off this list; nothing adds one |
-| D7 | `/retro` | **keep.** It is an alias of `/ship retro` like the three that go, but it is the one started outside a run, and the installer, `AGENTS.md`, the glossary and the upgrade guide all send the user to it. Removing it touches `bin/init.mjs`, which every other stage leaves alone |
+| D6 | Which commands go | **Done in R2, 2026-11-09.** The eight of section 4.6: `shape`, `orient`, `build`, `eval`, `qa`, `scopes`, `wire`, `hammer`. R0 can take a name off this list; nothing adds one |
+| D7 | `/retro` | **Kept.** It is an alias of `/ship retro` like the three that go, but it is the one started outside a run, and the installer, `AGENTS.md`, the glossary and the upgrade guide all send the user to it. Removing it touches `bin/init.mjs`, which every other stage leaves alone |
 | D9 | Found by S3's acceptance, 2026-11-09. `resources/plan/templates/feedback.tmpl.md` lines 75 and 76 told the planner to flag `references/[file].md` and `assets/templates/[file].tmpl.md`: both the layout of a skill that no longer exists | **Decided by the PO on 2026-11-09** ("Có, sửa") and done in `f8fdc33`: the two rows name `resources/plan/references/` and `resources/plan/templates/`. No acceptance row was loosened; the one red row moved to the stage that satisfies it |
 | D11 | Found by K1's session, 2026-11-09. The fence's refusal ended "(e.g. via ba --remap)" and opened "Sandbox guard (PA3)": a command of a retired skill, and a metrics code no shipped file explains | **Fixed in H1.** The refusal says "Write fence" and gives the remedy; the demo asset is regenerated; the audit's pattern has both shapes |
 | D12 | Noted while fixing D10. `init run`, `gate` and `order` resolve the project from the shell's folder unless `--cwd` is passed. S4's loop passed it or ran `cd` back every time, by its own care. A loop that does not would open or look for a run under whatever folder its shell sits in | open. The same class as D10, on the kernel's side; a stage of its own, with `npm run test:grant` |
