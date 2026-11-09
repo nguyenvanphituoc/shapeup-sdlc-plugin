@@ -17,6 +17,7 @@ decided. It is not shipped. When the change ships, this folder is retired.
 | [`plan-2026-11-07-native-first.md`](plan-2026-11-07-native-first.md) | the second plan: minimal scripts and tests, the host's harness for the rest — stages S1 to S4, each gated on a real run |
 | [`execution-native-first-2026-11-08.md`](execution-native-first-2026-11-08.md) | how far that plan got: S1 and S2 gated on real runs, S3 measured against the engine, and the engine removed afterwards on the PO's instruction |
 | [`report-v4-2026-11-08.md`](report-v4-2026-11-08.md) | the whole of v4 in one place: the cuts, the numbers, the measured runs, what the PO still has to decide |
+| [`plan-2026-11-09-building-anatomy.md`](plan-2026-11-09-building-anatomy.md) | the third plan, proposed and not executed: the `building` skill regrouped as one router and one file per activity, with the structure checked by the suite (stages S0 to S5), and the eight command files that are second names removed (stages R0 to R3) |
 
 ## Method and rules
 

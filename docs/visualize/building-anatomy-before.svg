@@ -1,0 +1,118 @@
+<svg width="100%" viewBox="0 0 680 628" role="img" xmlns="http://www.w3.org/2000/svg">
+  <title>The building skill before: one router file that also holds three procedures, over a flat folder of fourteen resources</title>
+  <desc>SKILL.md holds the rules, the facts table, the sixteen-row phase table and the sub-commands, and also three procedures: a dispatch, build a scope, and the breakers. Below it, resources is one flat folder of fourteen files, three of which do two jobs each: intake, plan and stop. Two libraries, plan-references and plan-templates, sit beside them. The kernel and hooks underneath hold the five mechanisms and are not part of the skill.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+  <style>
+    :root {
+      --hair: #888780; --lbl: #444441; --lbl2: #5F5E5A;
+      --n-fill: #F1EFE8; --n-ink: #444441; --n-ink2: #5F5E5A;
+      --c-fill: #FAECE7; --c-edge: #993C1D; --c-ink: #712B13; --c-ink2: #993C1D;
+      --t-fill: #E1F5EE; --t-edge: #0F6E56; --t-ink: #085041; --t-ink2: #0F6E56;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --hair: #888780; --lbl: #D3D1C7; --lbl2: #B4B2A9;
+        --n-fill: #2C2C2A; --n-ink: #D3D1C7; --n-ink2: #B4B2A9;
+        --c-fill: #712B13; --c-edge: #F0997B; --c-ink: #F5C4B3; --c-ink2: #F0997B;
+        --t-fill: #085041; --t-edge: #5DCAA5; --t-ink: #9FE1CB; --t-ink2: #5DCAA5;
+      }
+    }
+    .bound { fill: none; stroke: var(--hair); stroke-width: .5; stroke-dasharray: 4 4; }
+    .cont  { fill: none; stroke: var(--hair); stroke-width: .5; }
+    .box-n { fill: var(--n-fill); stroke: var(--hair); stroke-width: .5; }
+    .box-c { fill: var(--c-fill); stroke: var(--c-edge); stroke-width: 1; stroke-dasharray: 4 3; }
+    .box-t { fill: var(--t-fill); stroke: var(--t-edge); stroke-width: .5; }
+    .edge  { fill: none; stroke: var(--hair); stroke-width: .5; }
+    .lbl   { fill: var(--lbl);  font: 500 14px system-ui, sans-serif; }
+    .lbl2  { fill: var(--lbl2); font: 400 12px system-ui, sans-serif; }
+    .tn    { fill: var(--n-ink);  font: 500 14px system-ui, sans-serif; }
+    .tn2   { fill: var(--n-ink2); font: 400 12px system-ui, sans-serif; }
+    .tc2   { fill: var(--c-ink);  font: 400 12px system-ui, sans-serif; }
+    .tt    { fill: var(--t-ink);  font: 500 14px system-ui, sans-serif; }
+    .tt2   { fill: var(--t-ink2); font: 400 12px system-ui, sans-serif; }
+    /* Staged reveal, containers before contents, in the order a run reaches them. It plays
+       once; the markup itself is the finished picture. */
+    @keyframes reveal { from { opacity: 0; } to { opacity: 1; } }
+    @media (prefers-reduced-motion: no-preference) {
+      .r  { animation: reveal .45s ease-out both; }
+      .d1 { animation-delay: .2s; }  .d2 { animation-delay: .4s; }
+      .d3 { animation-delay: .6s; }  .d4 { animation-delay: .8s; }
+      .d5 { animation-delay: 1s; }   .d6 { animation-delay: 1.2s; }
+      .d7 { animation-delay: 1.4s; }
+    }
+  </style>
+  <g class="r">
+    <rect class="bound" x="40" y="20" width="600" height="492" rx="16"/>
+    <text class="lbl2" x="60" y="40" text-anchor="start" dominant-baseline="central">skills/building · 43 files · 5,103 lines</text>
+  </g>
+  <g class="r d1">
+    <rect class="cont" x="60" y="60" width="560" height="120" rx="8"/>
+    <text class="lbl" x="80" y="80" text-anchor="start" dominant-baseline="central">SKILL.md · 144 lines</text>
+  </g>
+  <g class="r d2">
+    <rect class="box-n" x="80" y="96" width="160" height="28" rx="4"/>
+    <text class="tn2" x="160" y="110" text-anchor="middle" dominant-baseline="central">rules and facts</text>
+    <rect class="box-n" x="260" y="96" width="160" height="28" rx="4"/>
+    <text class="tn2" x="340" y="110" text-anchor="middle" dominant-baseline="central">16 phase rows</text>
+    <rect class="box-n" x="440" y="96" width="160" height="28" rx="4"/>
+    <text class="tn2" x="520" y="110" text-anchor="middle" dominant-baseline="central">sub-commands</text>
+    <rect class="box-c" x="80" y="136" width="160" height="28" rx="4"/>
+    <text class="tc2" x="160" y="150" text-anchor="middle" dominant-baseline="central">a dispatch</text>
+    <rect class="box-c" x="260" y="136" width="160" height="28" rx="4"/>
+    <text class="tc2" x="340" y="150" text-anchor="middle" dominant-baseline="central">build a scope</text>
+    <rect class="box-c" x="440" y="136" width="160" height="28" rx="4"/>
+    <text class="tc2" x="520" y="150" text-anchor="middle" dominant-baseline="central">the breakers</text>
+  </g>
+  <g class="r d3">
+    <rect class="cont" x="60" y="200" width="560" height="224" rx="8"/>
+    <text class="lbl" x="80" y="220" text-anchor="start" dominant-baseline="central">resources/ · 14 files in one flat folder · 1,343 lines</text>
+  </g>
+  <g class="r d4">
+    <rect class="box-n" x="80" y="236" width="160" height="28" rx="4"/>
+    <text class="tn2" x="160" y="250" text-anchor="middle" dominant-baseline="central">gates</text>
+    <rect class="box-n" x="260" y="236" width="160" height="28" rx="4"/>
+    <text class="tn2" x="340" y="250" text-anchor="middle" dominant-baseline="central">guidance</text>
+    <rect class="box-c" x="440" y="236" width="160" height="28" rx="4"/>
+    <text class="tc2" x="520" y="250" text-anchor="middle" dominant-baseline="central">intake (2 jobs)</text>
+    <rect class="box-n" x="80" y="272" width="160" height="28" rx="4"/>
+    <text class="tn2" x="160" y="286" text-anchor="middle" dominant-baseline="central">intake-preservation</text>
+    <rect class="box-n" x="260" y="272" width="160" height="28" rx="4"/>
+    <text class="tn2" x="340" y="286" text-anchor="middle" dominant-baseline="central">orders</text>
+    <rect class="box-c" x="440" y="272" width="160" height="28" rx="4"/>
+    <text class="tc2" x="520" y="286" text-anchor="middle" dominant-baseline="central">plan (2 jobs)</text>
+    <rect class="box-n" x="80" y="308" width="160" height="28" rx="4"/>
+    <text class="tn2" x="160" y="322" text-anchor="middle" dominant-baseline="central">plan-scopes</text>
+    <rect class="box-n" x="260" y="308" width="160" height="28" rx="4"/>
+    <text class="tn2" x="340" y="322" text-anchor="middle" dominant-baseline="central">plan-spec</text>
+    <rect class="box-n" x="440" y="308" width="160" height="28" rx="4"/>
+    <text class="tn2" x="520" y="322" text-anchor="middle" dominant-baseline="central">plan-wire</text>
+    <rect class="box-n" x="80" y="344" width="160" height="28" rx="4"/>
+    <text class="tn2" x="160" y="358" text-anchor="middle" dominant-baseline="central">retro</text>
+    <rect class="box-n" x="260" y="344" width="160" height="28" rx="4"/>
+    <text class="tn2" x="340" y="358" text-anchor="middle" dominant-baseline="central">retro-research</text>
+    <rect class="box-n" x="440" y="344" width="160" height="28" rx="4"/>
+    <text class="tn2" x="520" y="358" text-anchor="middle" dominant-baseline="central">retro-scan</text>
+    <rect class="box-n" x="80" y="380" width="160" height="28" rx="4"/>
+    <text class="tn2" x="160" y="394" text-anchor="middle" dominant-baseline="central">rounds</text>
+    <rect class="box-c" x="260" y="380" width="160" height="28" rx="4"/>
+    <text class="tc2" x="340" y="394" text-anchor="middle" dominant-baseline="central">stop (2 jobs)</text>
+  </g>
+  <g class="r d5">
+    <rect class="box-n" x="60" y="436" width="270" height="56" rx="8"/>
+    <text class="tn" x="195" y="454" text-anchor="middle" dominant-baseline="central">plan-references/</text>
+    <text class="tn2" x="195" y="474" text-anchor="middle" dominant-baseline="central">7 files · 1,773 lines</text>
+    <rect class="box-n" x="350" y="436" width="270" height="56" rx="8"/>
+    <text class="tn" x="485" y="454" text-anchor="middle" dominant-baseline="central">plan-templates/</text>
+    <text class="tn2" x="485" y="474" text-anchor="middle" dominant-baseline="central">21 files · 1,843 lines</text>
+  </g>
+  <line class="edge r d6" x1="340" y1="512" x2="340" y2="542" marker-end="url(#arrow)"/>
+  <g class="r d6">
+    <rect class="box-n" x="60" y="552" width="560" height="56" rx="8"/>
+    <text class="tn" x="340" y="570" text-anchor="middle" dominant-baseline="central">kernel and hooks</text>
+    <text class="tn2" x="340" y="590" text-anchor="middle" dominant-baseline="central">receipt · gate resolver · T0 witness · write fence · dispatch receipts</text>
+  </g>
+</svg>
