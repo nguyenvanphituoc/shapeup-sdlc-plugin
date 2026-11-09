@@ -341,7 +341,7 @@ docs/visualize/       # the before-and-after view of the v4 loop
 1. Bump `version` in **both** `.claude-plugin/plugin.json` and `package.json` — the release
    workflow fails if either disagrees with the tag.
 2. Update `CHANGELOG.md`.
-3. Tag and push: `git tag v1.7.0 && git push origin main --follow-tags`.
+3. Tag and push: `git tag vX.Y.Z && git push origin main --follow-tags`.
 
 The workflow validates the plugin, checks the tag against both manifests, publishes a GitHub
 release, and publishes to npm through **trusted publishing (OIDC)** — no `NPM_TOKEN`, no OTP, with

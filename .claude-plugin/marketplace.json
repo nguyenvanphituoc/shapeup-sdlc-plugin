@@ -9,7 +9,7 @@
     {
       "name": "shapeup-sdlc-plugin",
       "source": ".",
-      "description": "Shape Up SDLC harness: shaping → intake → orient → scope-mapping → build → evaluate → QA, orchestrated by a tech-lead.",
+      "description": "Shape Up SDLC harness: shaping → intake → orient → scope-mapping → build → evaluate → QA, driven by one loop in your own session.",
       "license": "MIT"
     }
   ]

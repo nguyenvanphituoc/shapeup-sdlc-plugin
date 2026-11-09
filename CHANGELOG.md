@@ -3,10 +3,17 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased] · The loop's resources are grouped by phase, and the suite reads the skill's structure
+## [5.0.0] — 2026-11-09 (prepared, not yet tagged) · Two commands and six skills by their own names, one operation fewer, and a fence that follows the run
 
-The regrouping changes nothing a run does: no instruction of the `building` skill is reworded, and every sentence is where a
-phase row now points, in the words it had. One removal is breaking, and is listed as such.
+**Breaking.** Eight slash commands are removed, and one operation leaves the order schema. Each removed command was a second
+name for something that keeps its own: a skill, or a sub-command of `/ship`. Nothing a run does changes. The regrouping of the
+`building` skill rewords no instruction: every sentence is where a phase row now points, in the words it had.
+
+- **Removed, and breaking: eight commands.** `/shape`, `/orient` (the command), `/build`, `/eval`, `/qa`, `/scopes`, `/wire` and
+  `/hammer`. Type `/shapeup`, `/orient` (the skill of that name now answers), `/task-executor`, `/spec-evaluator`,
+  `/qa-edge-hunter`, `/ship plan`, `/ship plan` and `/ship stop`. `/ship` and `/retro` stay. A removed name answers
+  `Unknown command`. What each removed file alone said was moved into its skill first. One thing is given up: `/wire` asked
+  planning to stop after the wiring map with nobody at the gate, and there is no flag for that. The upgrade guide has the map.
 
 - **Moved.** The skill's resources sit under `resources/intake/`, `resources/plan/`, `resources/build/`, `resources/ship/` and
   `resources/retro/`, one file per activity. `resources/orders.md`, `resources/gates.md` and `resources/guidance.md` keep their paths.
@@ -16,7 +23,7 @@ phase row now points, in the words it had. One removal is breaking, and is liste
   says what each holds. `SKILL.md` ends with an index: one line per file, with the phase rows it answers.
 - **Fixed.** Three pointers named folders the skill does not have, left from the layout the planning templates came from. Four
   templates that no file named are now named by path.
-- **Removed, and breaking.** The `spike` operation is gone from the order schema, from the write fence's list of build operations and
+- **Removed, and breaking: one operation.** The `spike` operation is gone from the order schema, from the write fence's list of build operations and
   from the `task-executor` skill. No version of the plugin ever wrote a `spike` order: none of the runs on record holds one, and
   the order templates had lost its row. An order carrying `"operation": "spike"` is now refused at the envelope gate, where it
   was accepted before. The Scout's spike, part of `orient`, is unchanged, and so are the planner's `SPIKE` task rules: an open
@@ -31,7 +38,8 @@ phase row now points, in the words it had. One removal is breaking, and is liste
   says what to do: widening an order is the PO's decision, made by amending the scope contract.
 - **Tests.** A new structural module resolves every `resources/` pointer the skills write, holds the phase table, the index and the
   headers to each other and to the schema's operations and the kernel's gates, holds the schema's operations and the order
-  templates to each other, and checks that every resource of the loop is reachable from its `SKILL.md`. The fence's module fires the real hook from six places a shell can sit. The suite is at 246 checks.
+  templates to each other, and checks that every resource of the loop is reachable from its `SKILL.md`. The fence's module fires the real hook from six places a shell can sit. Every slash name the plugin's documents write has to be
+  a command, a skill or a sub-command of `/ship`. The suite is at 241 checks: eight went with the eight command files.
 
 ## [4.0.0] — 2026-11-09 · One loop in the session, native agents, and no scripted engine
 
