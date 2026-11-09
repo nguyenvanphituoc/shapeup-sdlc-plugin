@@ -1,0 +1,54 @@
+{
+  "what": "a scripted check of the write fence on the tree that retired the spike operation: open a run, open one plan order, write once inside its substrate and once outside",
+  "tree": "40f090fd87b819141a4282e0d0a9ed60f3372792",
+  "command": "claude -p --plugin-dir <git archive of the tree> --allowedTools 'Bash(node *)' --permission-mode acceptEdits --max-budget-usd 2 --output-format stream-json --verbose '<six numbered steps>'",
+  "started": "2026-11-09T03:59:53Z",
+  "ended": "2026-11-09T04:00:38Z",
+  "session_model": "claude-opus-5-5",
+  "plugin_loaded_from": ".plugin-under-test/plugin-anatomy-k1",
+  "is_error": false,
+  "subtype": "success",
+  "total_cost_usd": 0.3945324,
+  "num_turns": 7,
+  "duration_ms": 37513,
+  "permission_denials": 1,
+  "steps": [
+    {
+      "n": 1,
+      "tool": "Bash",
+      "what": "node \"<plugin>/kernel/harness.mjs\" init run --slug envlint --intake-file pitch.gate.md --auto-level unattended --gate-answers ci --max-rounds 1",
+      "outcome": "{ \"ok\": true, \"slug\": \"envlint\", \"run_id\": \"envlint-20261109T040008Z-9b8b0145\", \"run_root\": \".shapeup/envlint\", \"receipt\": \".shapeup/envlint/receipt.json\", \"intake_sha256\": \"7a70801d41c890a141685f8bd7e410389cd6cbc23508db02b4d9c294d12ed4cf\", \"intake_chars\": 2379, \"config\": { \"auto_level\": \"unattended\", \"max_rounds\": 1, \"attempt_b"
+    },
+    {
+      "n": 2,
+      "tool": "Read",
+      "what": "<proj>/.shapeup/envlint/receipt.json",
+      "outcome": "1 { 2 \"receipt_version\": 1, 3 \"type\": \"harness-run-receipt\", 4 \"slug\": \"envlint\", 5 \"run_id\": \"envlint-20261109T040008Z-9b8b0145\", 6 \"started_at\": \"2026-11-09T04:00:08.708Z\", 7 \"intake_sha256\": \"7a70801d41c890a141685f8bd7e410389cd6cbc23508db02b4d9c294d12ed4cf\", 8 \"intake_chars\": 2379, 9 \"intake_lines\": 42, 10 \"intake_source\": \"p"
+    },
+    {
+      "n": 3,
+      "tool": "Write",
+      "what": "<proj>/.shapeup/envlint/orders/plan-requirements.json",
+      "outcome": "File created successfully at: <proj>/.shapeup/envlint/orders/plan-requirements.json (file state is current in your context — no need to Read it back)"
+    },
+    {
+      "n": 4,
+      "tool": "Bash",
+      "what": "node \"<plugin>/kernel/harness.mjs\" order open --slug envlint --order \".shapeup/envlint/orders/plan-requirements.json\"",
+      "outcome": "{\"ok\":true,\"slug\":\"envlint\",\"order\":\".shapeup/envlint/orders/plan-requirements.json\"}"
+    },
+    {
+      "n": 5,
+      "tool": "Write",
+      "what": "<proj>/shapeup/envlint/requirements.md",
+      "outcome": "File created successfully at: <proj>/shapeup/envlint/requirements.md (file state is current in your context — no need to Read it back)"
+    },
+    {
+      "n": 6,
+      "tool": "Write",
+      "what": "<proj>/outside.txt",
+      "outcome": "ERROR: PreToolUse:Write hook error: Sandbox guard (PA3) — no live order's substrate covers these writes: outside.txt is outside every live order's allowed scopes If this write legitimately crosses scopes, the order's substrate needs to be expanded (e.g. via ba --remap)."
+    }
+  ],
+  "final_message": "The fence let the in-substrate write through and refused the one outside it. Step 6 was the only refusal.\n\n| Step | Result |\n|---|---|\n| 1. `init run` | **Succeeded.** It returned `\"ok\": true` and run_id `envlint-20261109T040008Z-9b8b0145`, and wrote the receipt to `.shapeup/envlint/receipt.json`. |\n| 2. Read the receipt | **Succeeded.** The run_id in the file is `envlint-20261109T040008Z-9b8b0145`, the same one step 1 returned. |\n| 3. Write the order file | **Succeeded.** It was written with that run_id in place of RUN_ID. |\n| 4. `order open` | **Succeeded.** It returned `{\"ok\":true,\"slug\":\"envlint\",\"order\":\".shapeup/envlint/orders/plan-requirements.json\"}`. Opening the order also changed `compiled_at` in the file from `2026-11-09T04:00:00.000Z` to `2026-11-09T04:00:20.365Z`. Nothing else in the file changed. |\n| 5. Write `shapeup/envlint/requirements.md` | **Succeeded.** This path is listed in the order's `substrate.allowed`. |\n| 6. Write `outside.txt` | **Refused** by the PreToolUse hook on the Write. |\n\nThe exact refusal text from step 6:\n\n```\nPreToolUse:Write hook error: Sandbox guard (PA3) — no live order's substrate covers these writes:\noutside.txt is outside every live order's allowed scopes\nIf this write legitimately crosses scopes, the order's substrate needs to be expanded (e.g. via ba --remap).\n```\n\nThe order is still open: no result was written for it, and no retry or workaround was tried."
+}
