@@ -9,7 +9,7 @@
 | **Gate on every stage** | `npm test` green, the conservation check of section 6 clean, and `git diff --stat da972b7 -- kernel hooks agents bin` empty in every stage but K1, which exists to change them. `commands/` and `AGENTS.md` are untouched through S4 and change only in R1 and R2 |
 | **Rule** | One stage per commit. A stage that only moves text changes no sentence; a stage that adds text removes none. S5 is a measurement and may end in "keep". The R stages start after S4 and start with an executed proof, not a deletion |
 | **Quick view** | skill: [before](../../visualize/building-anatomy-before.svg) · [after](../../visualize/building-anatomy-after.svg) · commands: [before and after](../../visualize/building-commands-before-after.svg) |
-| **Status** | **S0 to S3 executed on 2026-11-09**, each on the PO's go-ahead, on branch `plan/building-anatomy`: S1 is `20d356d`, S2 is `47f1658`, S3 is `6ef95ea`, and a follow-up fix, S3a, is `f8fdc33`. Every acceptance row passed in a fresh clone: 37 for S0 to S2, 21 for S3, 7 for S3a. `npm test` is at 236 checks. S3a exists because S3's acceptance found a second place naming a folder the skill does not have (D9); the run stopped on it and the PO said to fix it. S4, S5, K1 and R0 to R3 are not started. D2, D8 and D9 are decided. **No real run has been made on the regrouped skill**: that is S4's gate |
+| **Status** | **S0 to S4 executed on 2026-11-09**, each on the PO's go-ahead, on branch `plan/building-anatomy`: S1 `20d356d`, S2 `47f1658`, S3 `6ef95ea`, S3a `f8fdc33`, S4 `d7f08e2` (documents) and `b382d85` (the run's trace). `npm test` is at 236 checks. Acceptance, each row in a fresh clone: S0 to S3a, 65 of 65; S4's real run, 9 of 9; S4's documents, 11 of 12. **The one open row is the audit's**: it found a comment in `kernel/lib/paths.mjs` naming a deleted script, and S4 may not touch `kernel/`, so it waits for K1. **The real run was made**: one nested session on the consumer project, the envlint pitch through Board Review, on an archive of `d7f08e2`; section 4.8 says what it showed. S5, K1 and R0 to R3 are not started. D2, D8 and D9 are decided |
 
 Every figure is derived from the tree at the baseline or labelled as a projection. Section 7 says what would change the answer.
 
@@ -311,6 +311,44 @@ Three ways to answer D2 for `spike`:
 | **B. Retire the operation** (chosen by the PO, 2026-11-09) | stage K1: the enum, the hook's set, the two worker lines, `spikesDir` and the `spikes/**` entries go. A `SPIKE` task stays a planner's task type and a Board Review blocker, which is what it is in practice | touches `kernel/` and `hooks/`, so it needs the cross-directory check and one nested session; removing an enum member is a breaking schema change and rides in 5.0.0 with the commands | one meaning of "spike" in the plugin: the Scout's |
 | **C. Make it real** | a phase-table row that dispatches a `SPIKE` task as a `spike` order before the tasks it blocks | new loop behaviour, and no pitch on record that would exercise it | a feature nobody has asked for, unmeasured |
 
+### 4.8 What S4's real run showed
+
+One nested session, 2026-11-09: `claude -p` with a `git archive` of `d7f08e2` as the plugin, the envlint pitch, unattended
+with the `ci` answer set, stopped once Board Review was crossed. Archived at `traces/v4/anatomy-s4-envlint-2026-11-09/`.
+The host reported $3.53, 53 turns and 6 minutes of work; the session's model was `claude-opus-5-5` and the one worker,
+`orient`, ran on `claude-sonnet-5-5`, which is what the launch record asked for. This is one run of one pitch.
+
+**The loop followed the regrouped skill.** Gate rows L0, L1a, L1a.5 and L1b, each `ok` and `proceed`, the same as the last
+archived run of this pitch. All four plan substeps opened an order and left a `done` result. The receipt names the archived
+copy as the plugin that answered. These are the plan's exit line for S4, and they hold.
+
+**Which plugin files the loop opened**, read off the session's tool calls. This is a measurement, not a row:
+
+| Opened | Not opened |
+|---|---|
+| `resources/intake/open-run.md`, `resources/intake/language.md` | `resources/contract.md` |
+| `resources/plan/substep.md`, `resources/orders.md`, `resources/gates.md` | `resources/guidance.md` |
+| `resources/plan/requirements.md`, `resources/plan/spec.md`, `resources/plan/wire.md`, `resources/plan/scopes.md` | `resources/intake/preservation.md` (the pitch is English) |
+| four of the 21 templates, and the first 80 lines of one of the 7 references | the other 17 templates and 6 references |
+
+Every moved intake and plan activity file was opened, each before the work it governs. The loop never opened
+`resources/contract.md`: the headers were read as part of each file and needed no explanation. It opened one reference of
+the seven that `resources/plan/spec.md` names for its pipeline. That is not a result of the regrouping (there is no earlier
+measurement to compare with), and it is worth knowing: the planning library is mostly not read on a small pitch.
+
+**The loop also read the kernel to learn two formats.** It grepped `kernel/lib/contract.mjs` and the domain schema for the
+project profile's fields and the scope contract's, and looked for an example in a test file, which exists only because the
+copy was a whole tree. The resources did not give it what it wanted there. Not caused by this plan.
+
+**A defect the run exposed, in the hooks, and not new.** While reading resources the loop ran `cd` into the plugin copy three
+times, and the shell stayed there. The hooks take as the project root the nearest folder above the shell that has a run
+pointer, a `shapeup/` folder or `.git`, and the plugin's own tree has a `shapeup/` folder. So for as long as the shell sat
+in the copy, the hooks filed under the copy: 13 of the session's decision rows are in the copy's own ledger, not the run's,
+and three writes were judged by the fence against a root that had no order pointer and allowed as "no tracked task
+running". No order was live at those three moments, so nothing that should have been refused got through. With a live
+order it would have. Two earlier copies in the consumer project carry the same stray ledgers, 17 and 5 rows, so earlier
+runs did it too and it went unseen. A missing row is the signal, and this is what it looks like.
+
 ## 5. What not to do
 
 1. **Do not create a second skill**, or rename `building`. Section 2 says why.
@@ -506,7 +544,7 @@ Rollback is `git revert` of the stage's commit, in reverse order. No stage write
 
 | # | Decision | Default if unanswered |
 |---|---|---|
-| D1 | Run S0 to S4 as proposed | **S0 to S3: approved by the PO and run, 2026-11-09.** S4 and K1 are not approved yet: choosing B decided what K1 does, not when it runs |
+| D1 | Run S0 to S4 as proposed | **S0 to S4: approved by the PO and run, 2026-11-09.** K1 is not approved yet: choosing B decided what K1 does, not when it runs |
 | D2 | The three P4 defects. (a) `contract-patterns.md` line 34: point it at the three contract templates in `resources/plan/templates/contracts/`. (b) `task-spike.tmpl.md`: name it by path from the planner's SPIKE Task Rules. (c) The `spike` operation: A, B or C of section 4.7 | **Decided by the PO on 2026-11-09** ("B: gỡ trong 5.0.0"). (c) is B: the operation is retired in stage K1 and ships in 5.0.0, and C5 lands there. (a) and (b) had no objection and go in S3 as written |
 | D3 | S5 at all | **not now.** It moves 39 lines out of a 144-line file for the price of two real runs, and carries the plan's only behaviour risk. Revisit when `SKILL.md` next grows |
 | D4 | The version the S stages ship as | patch on 4.0.0: no command, gate, schema or hook changes |
@@ -514,4 +552,5 @@ Rollback is `git revert` of the stage's commit, in reverse order. No stage write
 | D6 | Which commands go | the eight of section 4.6: `shape`, `orient`, `build`, `eval`, `qa`, `scopes`, `wire`, `hammer`. R0 can take a name off this list; nothing adds one |
 | D7 | `/retro` | **keep.** It is an alias of `/ship retro` like the three that go, but it is the one started outside a run, and the installer, `AGENTS.md`, the glossary and the upgrade guide all send the user to it. Removing it touches `bin/init.mjs`, which every other stage leaves alone |
 | D9 | Found by S3's acceptance, 2026-11-09. `resources/plan/templates/feedback.tmpl.md` lines 75 and 76 told the planner to flag `references/[file].md` and `assets/templates/[file].tmpl.md`: both the layout of a skill that no longer exists | **Decided by the PO on 2026-11-09** ("Có, sửa") and done in `f8fdc33`: the two rows name `resources/plan/references/` and `resources/plan/templates/`. No acceptance row was loosened; the one red row moved to the stage that satisfies it |
+| D10 | Found by S4's run, section 4.8. When the session's shell sits inside a folder that looks like a project, the plugin's own tree included, the hooks file their decisions there and the fence looks for its pointer there | open. It is a change to `hooks/` and needs its own stage, with the fixture that reproduces it: a write, with an order live, from a shell inside a nested folder that has a `shapeup/` directory. Until then, a run whose loop `cd`s into the plugin is not fully fenced |
 | D8 | How the removal is released. (a) Delete in one release, numbered as the next major, with the map in the upgrade guide. (b) Two releases: the eight become one-line files that name their replacement in a minor, and are deleted at the next major | **Decided: (a), by the PO on 2026-11-09** ("Một bản major"). The eight are deleted in one release, 5.0.0. A typed name that no longer exists fails at once and says so. Whether the S stages go out first as 4.0.1 or ride in 5.0.0 is still D4 |
