@@ -1,5 +1,12 @@
 # Ship — the ship report
 
+| Contract | |
+|---|---|
+| Phase | `14` |
+| Order | `none` |
+| Gate | `L4` |
+| Done when | `<spec>REPORT.md` exists |
+
 ## The ship report
 
 After GATE H and before GATE L4, write `shapeup/<slug>/REPORT.md` — frozen at L4, committed, so it carries no run-trace path and no board id

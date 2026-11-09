@@ -31,7 +31,9 @@ Is the data store an external vendor?
 └── YES → third-party-api
 ```
 
-Use the corresponding template from `assets/templates/contracts/`.
+Use the corresponding template: `resources/plan/templates/contracts/offline-storage.contract.tmpl.md`,
+`resources/plan/templates/contracts/be-service.contract.tmpl.md` or
+`resources/plan/templates/contracts/third-party-api.contract.tmpl.md`.
 
 ---
 

@@ -1,5 +1,12 @@
 # Plan — the spec tree and the board
 
+| Contract | |
+|---|---|
+| Phase | `4` |
+| Order | `plan` · `spec` |
+| Gate | `none` |
+| Done when | the spec tree `<spec>spec/` and the board `<run>/tasks/` exist, and `<run>/results/plan-spec.json` names what was written |
+
 Converts the pitch into a fully linked tree: `_index` → `domain-model` → `ux-behavior` → `usecases/` →
 `integration` → `tasks/`, with Obsidian wikilinks and a shared frontmatter taxonomy, navigable from pitch to
 atomic task. Formats live in `resources/plan/references/` (the rules each phase follows) and `resources/plan/templates/` (one

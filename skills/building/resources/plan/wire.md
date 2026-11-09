@@ -1,5 +1,12 @@
 # Plan — the wiring map
 
+| Contract | |
+|---|---|
+| Phase | `5` |
+| Order | `plan` · `wire` |
+| Gate | `L1a.5` |
+| Done when | `<spec>wiring-map.md` exists and `<run>/results/plan-wire.json` names it |
+
 **Design the seam, or the engine ships orphaned.** A sizeable engine module can be built, fully tested, and
 still have zero call sites in the application's composition root: green, and unreachable from the running
 app. This substep closes that hole at the front. Before the scopes are sliced it writes a committed wiring

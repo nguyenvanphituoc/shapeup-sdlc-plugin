@@ -1,5 +1,12 @@
 # Stop — decide when to stop (GATE H)
 
+| Contract | |
+|---|---|
+| Phase | `13` |
+| Order | `none` |
+| Gate | `H` |
+| Done when | `<run>/reports/hammer-census.json` exists and reads back |
+
 The census is yours: you do it in this context — no sub-agent — and GATE L4 reads one file to know it was done. The bar is Shape Up's own: as the budget runs
 out, cut perfectionist ambition by comparing the product to the **baseline** — what customers live with
 today — **never to a hypothetical ideal**. "Better than the baseline" is good enough to ship; "not as good as

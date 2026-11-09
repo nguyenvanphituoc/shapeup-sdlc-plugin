@@ -1,5 +1,12 @@
 # After a ship — the retro
 
+| Contract | |
+|---|---|
+| Phase | `15` |
+| Order | `none` |
+| Gate | `COACH-1` |
+| Done when | every rule the PO assigned is merged into its `shapeup/knowledge-base/<reader>.md`, and the report of step 4 is printed |
+
 `terminal` with `status: shipped` has closed the run and frozen the report. Do not resolve the ship gate
 again: a second row after the close is a second sign-off.
 

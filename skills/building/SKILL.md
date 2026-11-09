@@ -134,11 +134,29 @@ census compares what is green against the baseline and ships what works. A run k
 `/ship` again over an open run is the resume (over a closed one, phase 0 reports the ending and stops): `init run` refuses and prints what is on disk, and you continue from the phase table, reading files and nothing else.
 A run closed without shipping is reopened by `init run --force`, which resolves every order nobody answered as abandoned before it writes.
 
-> **Intake, language check and translation, profile, the launch record** → `resources/intake/open-run.md`, `resources/intake/language.md`
-> **The order for each operation: substrate, payload, where each field comes from** → `resources/orders.md`
-> **Planning: how a substep runs, requirements; the spec, wiring and scope formats** → `resources/plan/substep.md` and its `resources/plan/*.md` siblings
-> **Which knowledge-base file is read where, and under what name a rule is filed** → `resources/guidance.md`
-> **How to put a gate to the PO, and what to have read first** → `resources/gates.md`
-> **What a round is; the attempt loop; why the loop stops where it does** → `resources/build/round.md`
-> **The census, the baseline comparison, the cut list, the ship report (GATE H)** → `resources/ship/census.md`, `resources/ship/report.md`
-> **After a ship: feedback, the retro gate, `--scan`, `--research`** → `resources/retro/retro.md`, `resources/retro/scan.md`, `resources/retro/research.md`
+## Index — which file answers which row
+
+Every phase row, step 0 and every sub-command is on one line. A file with rows opens with the four-row
+contract; a line with `—` is a file the others read.
+
+| Rows | What | File |
+|---|---|---|
+| `step 0` | open the run: the pitch, the collect-list, `init run`, the profile, the launch record | `resources/intake/open-run.md` |
+| `sub-command` | `intake`: the language check and translation, alone or inside step 0 | `resources/intake/language.md` |
+| `0`, `1`, `7`, `9`, `12` | the run has ended; a dispatch; build a scope | this file |
+| `2`, `8`, `10`, `11` | how to put a gate to the PO, and what to have read first | `resources/gates.md` |
+| `3` | planning: the requirements registry | `resources/plan/requirements.md` |
+| `4` | planning: the spec tree and the board | `resources/plan/spec.md` |
+| `5` | planning: the wiring map | `resources/plan/wire.md` |
+| `6` | planning: the scope contracts | `resources/plan/scopes.md` |
+| `13` | the census, the baseline comparison, the cut list (GATE H) | `resources/ship/census.md` |
+| `14` | the ship report | `resources/ship/report.md` |
+| `15` | after a ship: feedback and the retro gate | `resources/retro/retro.md` |
+| `sub-command` | `retro --scan` | `resources/retro/scan.md` |
+| `sub-command` | `retro --research <stack>` | `resources/retro/research.md` |
+| — | planning: how a substep runs | `resources/plan/substep.md` |
+| — | the order for each operation: substrate, payload, where each field comes from | `resources/orders.md` |
+| — | which knowledge-base file is read where, and under what name a rule is filed | `resources/guidance.md` |
+| — | what a round is; the attempt loop; why the loop stops where it does | `resources/build/round.md` |
+| — | what the intake translation keeps and what it changes | `resources/intake/preservation.md` |
+| — | the contract an activity file opens with | `resources/contract.md` |

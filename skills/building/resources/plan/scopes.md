@@ -1,5 +1,12 @@
 # Plan — the scope contracts
 
+| Contract | |
+|---|---|
+| Phase | `6` |
+| Order | `plan` · `scopes` |
+| Gate | `L1b` |
+| Done when | `<spec>scopes/*.md` exist and `<run>/results/plan-scopes.json` names them |
+
 **Slice by flow, never by directory — and write it as a contract a hook can enforce.** Groups a feature's
 tasks into independent, vertically-sliced **scopes** and writes each as a committed contract,
 `shapeup/<slug>/scopes/<scope-id>.md`, that the rest of the harness enforces mechanically: the sandbox

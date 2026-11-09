@@ -1,5 +1,12 @@
 # Plan — the requirements registry
 
+| Contract | |
+|---|---|
+| Phase | `3` |
+| Order | `plan` · `requirements` |
+| Gate | `none` |
+| Done when | `<spec>requirements.md` exists and `<run>/results/plan-requirements.json` names it |
+
 ## Requirements — `shapeup/<slug>/requirements.md`
 
 Extract **atomic** customer requirement clauses from the pitch (or the source the step's `inputs` names;

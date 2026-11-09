@@ -1,5 +1,12 @@
 # Intake — opening a run
 
+| Contract | |
+|---|---|
+| Phase | `step 0` |
+| Order | `none` |
+| Gate | `L0` |
+| Done when | `<run>/receipt.json` and `<run>/run-args.json` exist, and GATE L0 is crossed |
+
 Everything the run needs is pinned once, here, so the loop never has to guess. The intake is a
 **kicked-off pitch**: shaping, betting and kick-off are the PO's own and happen upstream. A raw idea is
 not an intake.

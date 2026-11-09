@@ -1,5 +1,12 @@
 # Intake — the language gate
 
+| Contract | |
+|---|---|
+| Phase | `sub-command` |
+| Order | `none` |
+| Gate | `none` |
+| Done when | every queued file has its `<name>.en.md` and the residual scan is clean; under `--check`, the detection is printed and nothing is written |
+
 ## 2. Language check — the harness is English end to end
 
 The planner, the doers and the judge all assume English and fail hard on anything else, so this is the one

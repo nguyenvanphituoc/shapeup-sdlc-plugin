@@ -1,5 +1,12 @@
 # Retro — scan: seed the knowledge base from the project
 
+| Contract | |
+|---|---|
+| Phase | `sub-command` |
+| Order | `none` |
+| Gate | `COACH-1` |
+| Done when | the drafted rules have gone through steps 2 to 4 of `resources/retro/retro.md` |
+
 `/retro --scan` runs before the first feature, or again after the project's toolchain changes. It replaces the
 feedback source with the repository itself; every other step is `resources/retro/retro.md`'s, **including GATE
 COACH-1**. The point is to reach the first run with the platform's habits already in the readers' files instead

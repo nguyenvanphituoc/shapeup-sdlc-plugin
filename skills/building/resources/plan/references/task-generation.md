@@ -34,6 +34,7 @@ If a task touches 3 packages, it needs to be split.
 ## SPIKE Task Rules
 
 A SPIKE task MUST be generated whenever Phase 1b detected unverified third-party capabilities.
+Its template is `resources/plan/templates/task-spike.tmpl.md`.
 
 ```yaml
 ---

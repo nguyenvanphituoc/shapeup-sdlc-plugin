@@ -1,5 +1,12 @@
 # Retro — research: seed the knowledge base from the platform's official documentation
 
+| Contract | |
+|---|---|
+| Phase | `sub-command` |
+| Order | `none` |
+| Gate | `COACH-1` |
+| Done when | the drafted rules have gone through steps 2 to 4 of `resources/retro/retro.md` |
+
 `/retro --research <stack>` exists for the project the scan cannot read: one just initialised, with no build file,
 no CI and no test runner on disk. It replaces the source with the platform's **official documentation** — and
 only that — and every other step is `resources/retro/retro.md`'s, **including GATE COACH-1**. On a project that does
