@@ -1,0 +1,17 @@
+{
+  "slug": "envlint",
+  "runId": "envlint-20261109T033912Z-c549b0b1",
+  "autoLevel": "unattended",
+  "answers": "ci",
+  "models": {
+    "exec": "sonnet",
+    "eval": "sonnet",
+    "qa": "sonnet"
+  },
+  "budgets": {
+    "maxRounds": 1,
+    "attemptBudget": 5
+  },
+  "pluginRoot": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.plugin-under-test/plugin-anatomy-s4",
+  "startedAt": "2026-11-09T03:39:12.826Z"
+}

@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/orient",
+  "worker": "orient",
+  "status": "done",
+  "artifacts": [
+    ".shapeup/envlint/orient/code-surface.md",
+    ".shapeup/envlint/orient/spike-parsing-rules-contract.md",
+    ".shapeup/envlint/orient/discovered-seed.md",
+    ".shapeup/envlint/orient/hill-signal.md"
+  ],
+  "deviations": [
+    "Pitch is a raw idea (.shapeup/envlint/intake.md) with appetite and boundaries but no status: shaped frontmatter and no separate breadboard; proceeded because the order is orchestrated with pause_gates false.",
+    "No payload.stack or kb_rules_path given; no knowledge-base file exists.",
+    "Parsing-to-Rules pair shape is unspecified in the pitch; spike recommends {key,value,line}.",
+    "Exit codes, output format, int/bool/url grammars and empty-value semantics are unspecified; recommendations are in the spike.",
+    "Spike claims about node --test discovery and URL behaviour come from documentation, not a runtime probe."
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/plan-wire",
+  "kernel": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.plugin-under-test/plugin-anatomy-s4/kernel/harness.mjs",
+  "run_id": "envlint-20261109T033912Z-c549b0b1",
+  "compiled_at": "2026-11-09T03:46:05.039Z",
+  "worker": "building",
+  "mode": "standalone",
+  "operation": "plan",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "shapeup/envlint/wiring-map.md"
+    ],
+    "frozen": [
+      ".shapeup/envlint/intake.md",
+      "shapeup/envlint/project-profile.md",
+      "shapeup/envlint/spec/**",
+      "shapeup/envlint/scopes/**",
+      ".shapeup/envlint/orders/**",
+      ".shapeup/envlint/receipts/**",
+      ".shapeup/envlint/t0/**"
+    ],
+    "own": [
+      ".shapeup/envlint/results/plan-wire.json"
+    ]
+  },
+  "payload": {
+    "step": "wire",
+    "feature": "envlint",
+    "spec_folder": "shapeup/envlint/spec/",
+    "kb_rules_paths": []
+  }
+}

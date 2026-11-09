@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "order_id": "envlint/plan-spec",
+  "kernel": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.plugin-under-test/plugin-anatomy-s4/kernel/harness.mjs",
+  "run_id": "envlint-20261109T033912Z-c549b0b1",
+  "compiled_at": "2026-11-09T03:43:04.928Z",
+  "worker": "building",
+  "mode": "standalone",
+  "operation": "plan",
+  "interaction": {
+    "pause_gates": false
+  },
+  "substrate": {
+    "allowed": [
+      "shapeup/envlint/spec/**",
+      ".shapeup/envlint/tasks/**",
+      ".shapeup/envlint/working/**"
+    ],
+    "frozen": [
+      ".shapeup/envlint/intake.md",
+      "shapeup/envlint/project-profile.md",
+      ".shapeup/envlint/orders/**",
+      ".shapeup/envlint/receipts/**",
+      ".shapeup/envlint/t0/**"
+    ],
+    "own": [
+      ".shapeup/envlint/results/plan-spec.json"
+    ]
+  },
+  "payload": {
+    "step": "spec",
+    "mode": "full",
+    "lens": "lite",
+    "feature": "envlint",
+    "spec_folder": "shapeup/envlint/spec/",
+    "kb_rules_paths": []
+  }
+}

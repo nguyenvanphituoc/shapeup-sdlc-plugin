@@ -1,0 +1,1 @@
+{"at":"2026-11-09T03:41:24.980Z","order_id":"envlint/orient","run_id":"envlint-20261109T033912Z-c549b0b1","worker_declared":"orient","skill_invoked":"orient","dispatch_ok":true,"tool":"Agent","agent_id":"a40e1cafe7ec706c7","agent_type":"shapeup-sdlc-plugin:orient","usage":{"tokens_total":38542,"duration_ms":81587,"model":"claude-sonnet-5-5"},"model_requested":"sonnet"}
