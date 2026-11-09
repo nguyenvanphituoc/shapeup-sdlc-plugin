@@ -59,9 +59,9 @@ to.
 
 | Substep | Craft | Writes |
 |---|---|---|
-| spec tree and board | `plan-spec.md` | `shapeup/<slug>/spec/**` (committed) and the board `.shapeup/<slug>/tasks/` (per-machine); a mode scopes it |
-| wiring map | `plan-wire.md` | `shapeup/<slug>/wiring-map.md` |
-| scope contracts | `plan-scopes.md` | `shapeup/<slug>/scopes/*.md` and `scope-board.md` |
+| spec tree and board | `resources/plan/spec.md` | `shapeup/<slug>/spec/**` (committed) and the board `.shapeup/<slug>/tasks/` (per-machine); a mode scopes it |
+| wiring map | `resources/plan/wire.md` | `shapeup/<slug>/wiring-map.md` |
+| scope contracts | `resources/plan/scopes.md` | `shapeup/<slug>/scopes/*.md` and `scope-board.md` |
 
 Between them the kernel crosses GATE L1a.5 (after the wiring map, before the scopes) and, after the
 scopes, spec-lint and GATE L1b, where the plan is still cheap to change.

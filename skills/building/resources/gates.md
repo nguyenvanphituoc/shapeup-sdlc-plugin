@@ -64,7 +64,7 @@ bug? Past the round budget the answer is the census, with the residual bug list.
 
 **QA.** A hunt discovers; the run's verdict stays the judge's PASS. Triage happens at H and L4.
 
-**H — Cut List.** See `resources/stop.md`: the census against the baseline, never the ideal.
+**H — Cut List.** See `resources/ship/census.md`: the census against the baseline, never the ideal.
 
 **L4 — Ship Sign-Off.** Print the feature as `SHIPPED (deployed)` or `BUILT & VERIFIED — deploy pending (PO)`;
 rounds; the verdict with the dimensions evaluated **and** not evaluated, so "shipped" never reads as "verified
@@ -72,5 +72,5 @@ for all"; QA findings (all held as `~`) or skipped; and the `Requirements:` line
 the report's Requirements table, which you read off the verdict and `requirements.md`, never composed from memory (it decides nothing: a clause with no PASS
 evidence is a fact the census weighs, not a veto). Deploy is outward-facing and the PO's: the loop stops at built and verified, records
 `deploy pending (PO)` unless the PO says to run the project's own deploy, and never deploys itself. Ask at most
-one: anything to record before closing? Substantive feedback goes to the retro (`resources/retro.md`), which
+one: anything to record before closing? Substantive feedback goes to the retro (`resources/retro/retro.md`), which
 asks the PO which rule belongs where; the loop never categorises feedback itself.

@@ -25,8 +25,8 @@ again: a second row after the close is a second sign-off.
 A run that ended `escalated` or `aborted` skips the retro: report where and why, and stop.
 
 `/retro` runs this same retro outside a run. `/retro --scan` and `/retro --research <stack>` change only the
-*source* of the candidate rules — the project on disk (`resources/retro-scan.md`) or the platform's official
-documentation (`resources/retro-research.md`) — and then run steps 1–4 below unchanged, gate included.
+*source* of the candidate rules — the project on disk (`resources/retro/scan.md`) or the platform's official
+documentation (`resources/retro/research.md`) — and then run steps 1–4 below unchanged, gate included.
 
 ## What the retro is for
 
@@ -54,7 +54,7 @@ the gate may offer.
 | `plan` | `shapeup/knowledge-base/plan.md` | every plan step (`guidance`, and `payload.kb_rules_paths` on its order) | scoping, task decomposition, DDD/spec habits, missed test-surface patterns, test APIs the platform lacks; slicing habits, config files that must have exactly one owner, fixtures that have proved vacuous; the seams this codebase wires through, entry points that are not where the template says |
 | `qa-edge-hunter` | `shapeup/knowledge-base/qa-edge-hunter.md` | the hunter's Charter Map (`payload.kb_rules_path`) | recurring edge classes, lenses that keep finding bugs, areas worth probing |
 | `orient` | `shapeup/knowledge-base/orient.md` | the Scout's first phase (`payload.kb_rules_path`) | where the code surface hides in this repo, areas that always deserve the spike, platform constraints to check before any spec exists |
-| `building` | `shapeup/knowledge-base/building.md` | GATE L0, before the launch (`resources/intake.md`) | **workflow guidance**: what to pin at L0 for this project (stack hint, probes, dimensions), which spike to insist on at L1a, which question to add at a gate — never how to answer one |
+| `building` | `shapeup/knowledge-base/building.md` | GATE L0, before the launch (`resources/intake/open-run.md`) | **workflow guidance**: what to pin at L0 for this project (stack hint, probes, dimensions), which spike to insist on at L1a, which question to add at a gate — never how to answer one |
 
 Which file is read where, and the old names still honoured (planning's three former names, the loop's old one),
 is `resources/guidance.md`. **New rules are filed under the activity name** — `plan`, `building`.

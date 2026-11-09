@@ -25,14 +25,14 @@ around it or hand-build the feature.
 
 ## Rules
 
-1. **ASK, DON'T ASSUME.** Collect the intake explicitly (`resources/intake.md`); put every gate to the PO with a recommendation first.
+1. **ASK, DON'T ASSUME.** Collect the intake explicitly (`resources/intake/open-run.md`); put every gate to the PO with a recommendation first.
 2. **SIMPLEST FIRST.** The smallest change that satisfies the pitch.
 3. **NON-REGRESSION.** Never touch what already works.
 4. **A CLAIM NAMES ITS FILE.** Every "done", "green" or "shipped" you write cites the file or kernel output it came from.
 
 ## Step 0 — open the run
 
-Resolve the intake and open it as `resources/intake.md` says: language check (a non-English pitch is made
+Resolve the intake and open it as `resources/intake/open-run.md` says: language check (a non-English pitch is made
 English by you, right there: `<name>.en.md` and the glossary, and the run opens on the copy), the L0 collect-list,
 `init run` — with every switch the operator typed, because it writes the launch record in the same act
 as the receipt and refuses a model below the floor (exit 3 = a run is already open, or the worker roster is
@@ -65,7 +65,7 @@ re-run with `--answer <decision>`; 5 = the set aborts: close the run as aborted 
 | 1 | no `results/orient.json` | **dispatch** `orient` (below) |
 | 2 | GATE L1a not crossed | `K gate --resolve L1a --slug <slug> --preset <set>` |
 | 3 | no `<spec>requirements.md` | plan substep `requirements` |
-| 4 | no spec tree or no board | plan substep `spec`; then read the board back against `resources/plan-spec.md`'s checklist |
+| 4 | no spec tree or no board | plan substep `spec`; then read the board back against `resources/plan/spec.md`'s checklist |
 | 5 | no `<spec>wiring-map.md` | plan substep `wire`; then GATE L1a.5 |
 | 6 | no `<spec>scopes/*.md` | plan substep `scopes`; then GATE L1b |
 | 7 | a scope has no green latest trial for round R (R starts at 1) | **build** it (below) |
@@ -74,12 +74,12 @@ re-run with `--answer <decision>`; 5 = the set aborts: close the run as aborted 
 | 10 | GATE L3 not crossed for R | `K gate --resolve L3 --slug <slug> --round R --verdict <pass\|fail\|not-evaluated>`. On fail and `R < maxRounds`, round R+1 repeats 7 to 10 for the scopes the verdict's bugs name; otherwise go to 13 |
 | 11 | GATE QA not crossed | `K gate --resolve QA --slug <slug> --round R --verdict pass --preset <set>` |
 | 12 | QA answered `run` and no `results/hunt.json` (skipped under `noQa`) | **dispatch** `qa-edge-hunter`. Do not move on without it: GATE L4 refuses `ship` over a hunt the run owed and never ran, and the only recorded way out is `K gate --resolve QA … --answer skip` |
-| 13 | no census file | do the census (`resources/stop.md`) and write `<run>/reports/hammer-census.json`; then GATE H |
-| 14 | GATE H crossed, no `<spec>REPORT.md` | write the ship report (`resources/stop.md`); then GATE L4 |
+| 13 | no census file | do the census (`resources/ship/census.md`) and write `<run>/reports/hammer-census.json`; then GATE H |
+| 14 | GATE H crossed, no `<spec>REPORT.md` | write the ship report (`resources/ship/census.md`); then GATE L4 |
 | 15 | GATE L4 crossed | `K order close --slug <slug> --status <shipped\|escalated\|aborted> --cause "<verdict, rounds>"`; `shipped` is refused (exit 1) unless this run's L4 row says `ship`, so a refusal here means the gate was not crossed — go back to phase 14; then GATE COACH-1 |
 
 **A plan substep** is done here, in this session, with no sub-agent: write the substep's order (`resources/orders.md`, operation `plan`,
-`worker: "building"`), open it with `K order open`, write only what the substep produces (`resources/plan.md` and its `plan-*.md`
+`worker: "building"`), open it with `K order open`, write only what the substep produces (`resources/plan/substep.md` and its `resources/plan/*.md`
 siblings say what and how), then write `results/plan-<step>.json` yourself (the order's `own` path, so it is writable though results are frozen) and read the artifact back, before you write the next order. The order's substrate is the
 fence: while it is open, the staged pitch, the receipt and the other orders are frozen.
 
@@ -126,19 +126,19 @@ census compares what is green against the baseline and ships what works. A run k
 
 `/ship` with none runs the whole loop. A sub-command does one activity of it:
 `plan` (`/scopes`, `/wire`) — the planning substeps; `stop` (`/hammer`) — the census over the run in hand;
-`retro` (`/retro`, `/retro --scan`, `/retro --research <stack>`) — `resources/retro.md`, `retro-scan.md`, `retro-research.md`;
-`intake <path>…` (`--check` writes nothing) — the language gate alone, `resources/intake.md` §2.
+`retro` (`/retro`, `/retro --scan`, `/retro --research <stack>`) — `resources/retro/retro.md`, `resources/retro/scan.md`, `resources/retro/research.md`;
+`intake <path>…` (`--check` writes nothing) — the language gate alone, `resources/intake/open-run.md` §2.
 
 ## Resume
 
 `/ship` again over an open run is the resume (over a closed one, phase 0 reports the ending and stops): `init run` refuses and prints what is on disk, and you continue from the phase table, reading files and nothing else.
 A run closed without shipping is reopened by `init run --force`, which resolves every order nobody answered as abandoned before it writes.
 
-> **Intake, language check and translation, profile, the launch record** → `resources/intake.md`
+> **Intake, language check and translation, profile, the launch record** → `resources/intake/open-run.md`
 > **The order for each operation: substrate, payload, where each field comes from** → `resources/orders.md`
-> **Planning: how a substep runs, requirements; the spec, wiring and scope formats** → `resources/plan.md` and its `plan-*.md` siblings
+> **Planning: how a substep runs, requirements; the spec, wiring and scope formats** → `resources/plan/substep.md` and its `resources/plan/*.md` siblings
 > **Which knowledge-base file is read where, and under what name a rule is filed** → `resources/guidance.md`
 > **How to put a gate to the PO, and what to have read first** → `resources/gates.md`
-> **What a round is; the attempt loop; why the loop stops where it does** → `resources/rounds.md`
-> **The census, the baseline comparison, the cut list, the ship report (GATE H)** → `resources/stop.md`
-> **After a ship: feedback, the retro gate, `--scan`, `--research`** → `resources/retro.md`, `retro-scan.md`, `retro-research.md`
+> **What a round is; the attempt loop; why the loop stops where it does** → `resources/build/round.md`
+> **The census, the baseline comparison, the cut list, the ship report (GATE H)** → `resources/ship/census.md`
+> **After a ship: feedback, the retro gate, `--scan`, `--research`** → `resources/retro/retro.md`, `resources/retro/scan.md`, `resources/retro/research.md`

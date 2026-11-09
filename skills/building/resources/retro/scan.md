@@ -1,7 +1,7 @@
 # Retro — scan: seed the knowledge base from the project
 
 `/retro --scan` runs before the first feature, or again after the project's toolchain changes. It replaces the
-feedback source with the repository itself; every other step is `resources/retro.md`'s, **including GATE
+feedback source with the repository itself; every other step is `resources/retro/retro.md`'s, **including GATE
 COACH-1**. The point is to reach the first run with the platform's habits already in the readers' files instead
 of learning them across three rounds.
 
@@ -32,14 +32,14 @@ S3  GATE    ⏸ GATE COACH-1 exactly as for feedback. Every scanned rule is a cl
             reading files, so the PO confirms each one; nothing is filed on a scan's authority
             alone. In an `auto` or `unattended` run the scan writes NOTHING: it lists the draft for
             the PO at GATE L0.
-S4  WRITE   Steps 3 and 3b of `retro.md`, with provenance `from project-scan @ <short sha>`. A rescan
+S4  WRITE   Steps 3 and 3b of `resources/retro/retro.md`, with provenance `from project-scan @ <short sha>`. A rescan
             replaces only the rules that carry scan provenance and leaves every feedback and
             research rule in place — the lineages never overwrite each other. The one exception is
             deliberate and one-directional: a scan rule that says the same thing as a research rule,
             with disk evidence, supersedes it — the research rule is retired and the merge noted,
             because evidence from the project's own files outranks evidence from a document about
             the platform.
-S5  REPORT  Step 4 of `retro.md`, plus: which Suggested run config lines are new, so they can be pinned
+S5  REPORT  Step 4 of `resources/retro/retro.md`, plus: which Suggested run config lines are new, so they can be pinned
             at the next GATE L0 (you confirm and write the profile; the scan does not).
 ```
 

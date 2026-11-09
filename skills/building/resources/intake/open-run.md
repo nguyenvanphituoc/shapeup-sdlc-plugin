@@ -41,7 +41,7 @@ stop when something is.
 there; the **original is never overwritten**. This is the committed tier, and the loop is its writer. Prose
 becomes English with the glossary applied to every domain term; everything a machine parses stays byte
 identical, and structure stays 1:1 — same headings, table rows, list items, order. What is kept and what is
-translated, the glossary protocol and the verification scan are in `resources/intake-preservation.md`; read it
+translated, the glossary protocol and the verification scan are in `resources/intake/preservation.md`; read it
 before translating any file.
 
 **Verify, then sign off.** A residual-language scan of every `.en.md` outside code and do-not-translate tokens
@@ -73,7 +73,7 @@ Never inferred; ask for what the pitch does not say.
 | Lens | `lite` \| `standard` \| `cross-context` (default `standard`) — carried as `lens` in every `plan` order's payload |
 | Stack hint | aims the Scout's sweeps and the run commands (e.g. "pnpm, Next 16 web :3000") |
 | Eval dimensions | default `auto`: the order resolves the set from the spec. Name a set only on request; it must reach every `evaluate` order's `dimensions`, or it grades nothing. What is left out is reported at the ship gate as not evaluated. |
-| Rounds, attempts | default 3 rounds, 5 attempts per scope per round. `resources/rounds.md` says why there are two breakers |
+| Rounds, attempts | default 3 rounds, 5 attempts per scope per round. `resources/build/round.md` says why there are two breakers |
 | Auto level | `interactive` (default): pause at every gate · `auto`: low-risk gates pre-answered, still pause at the judgment gates and ship · `unattended`: headless, needs an answer set |
 | Models | resolve once: flags, then `.claude/settings.local.json`, then `.claude/settings.json`, then defaults, and pass the result as `--exec-model` / `--eval-model` / `--qa-model`. Exec and eval must be sonnet or above — `init run` refuses a cheaper tier. A model the member's plan does not offer degrades one tier down, and the degrade is said at the L0 gate, never silent. |
 | Run commands | the build command (`run_cmd`), and the profile's `build_probe` and `launch_probe`. A `mobile` profile with no launch probe has nobody owning the install and launch risk: say so. |

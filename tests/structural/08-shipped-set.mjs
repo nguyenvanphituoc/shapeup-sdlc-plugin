@@ -33,7 +33,7 @@ export async function run(ctx) {
   const idHits = [];
   for (const rel of [...shipped, "README.md"]) {
     for (const m of text(rel).matchAll(/\bHD-\d{3}\b/g)) {
-      if (rel === "skills/building/resources/retro.md" && m[0] === "HD-001") continue; // a placeholder for the consumer's own id
+      if (rel === "skills/building/resources/retro/retro.md" && m[0] === "HD-001") continue; // a placeholder for the consumer's own id
       idHits.push(`${rel}: ${m[0]}`);
     }
   }

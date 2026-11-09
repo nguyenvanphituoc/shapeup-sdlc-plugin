@@ -2,7 +2,7 @@
 
 Converts the pitch into a fully linked tree: `_index` → `domain-model` → `ux-behavior` → `usecases/` →
 `integration` → `tasks/`, with Obsidian wikilinks and a shared frontmatter taxonomy, navigable from pitch to
-atomic task. Formats live in `plan-references/` (the rules each phase follows) and `plan-templates/` (one
+atomic task. Formats live in `resources/plan/references/` (the rules each phase follows) and `resources/plan/templates/` (one
 template per document).
 
 **Modes.** `full` (the default) writes the whole tree and the board. `board-only` — the tree is already
@@ -30,21 +30,21 @@ interactive, at most two questions each.
 1b FEASIBILITY (third-party / API / SDK / webhook mentioned) verification questions + a fallback scope per
                API-NN → api-feasibility.md
 2  DDD         bounded contexts, aggregates (new vs extended), value objects, domain events, repository
-               interfaces → domain-model.md                              [plan-references/ddd-patterns.md]
+               interfaces → domain-model.md                              [resources/plan/references/ddd-patterns.md]
 2b CONTRACTS   (standard lens) typed Request/Response/Error per repository; two-pass rule: unresolvable at
                spec time → `⏳ TBD — verify in the [UC-x] spike`, resolved post-spike with a citation →
-               contracts/                                          [plan-references/contract-patterns.md]
+               contracts/                                          [resources/plan/references/contract-patterns.md]
 3  UX          per screen — with a breadboard, one screen per Place that owns UI affordances: state table
                (idle → loading → error → success), error cases with message + action, ASCII flows →
-               ux-behavior.md                                    [plan-references/ux-behavior-patterns.md]
+               ux-behavior.md                                    [resources/plan/references/ux-behavior-patterns.md]
 4  USE CASES   one file per actor + action: typed Input/Output, numbered Steps, all error cases with
                codes, ## System Flow (UI → API → UC → Repo → DB), ## Test Surface (DERIVED ONLY from
                D1 Invariants · D2 Error Cases · D3 Contract shape · D4 No-gos — a sourceless test idea is
-               a spec gap to raise, never a row to invent) → usecases/      [plan-references/test-surface.md]
+               a spec gap to raise, never a row to invent) → usecases/      [resources/plan/references/test-surface.md]
 5  INTEGRATION (standard lens) cross-system data flows, events, silent-failure risks → integration.md
-                                                                      [plan-references/integration-analysis.md]
+                                                                      [resources/plan/references/integration-analysis.md]
 6  TASKS       atomic, ordered, executable → tasks/ (the LOCAL root, the one uncommitted branch of the
-               tree: regenerable, machine-local)                      [plan-references/task-generation.md]
+               tree: regenerable, machine-local)                      [resources/plan/references/task-generation.md]
 7  DERIVE+READ BACK  not yours to grade, and no script does it for you:
                  recompute `unlocks` as the depends_on inverse over the whole board; sum the hours; find the
                  critical path; do the appetite arithmetic — an overflow is a fact you REPORT for the stop
@@ -68,7 +68,7 @@ the evaluator grades against and a reviewer needs.
 - Contract-first: an implementation task touching a repository requires its contract file (else generate
   the contract-stub task first); third-party + `⏳ TBD` → the SPIKE task precedes and blocks it
   (`time_box_hours` hard cap, `api_ref`, `blocks[]`).
-- AC trigger matrix (full rules in `plan-references/task-generation.md`): conditional rendering → 🔁
+- AC trigger matrix (full rules in `resources/plan/references/task-generation.md`): conditional rendering → 🔁
   Inverse Conditions; data fetching → 📭 Empty & Null States; numeric limits → 🔢 Boundary Values; FEAT +
   a user actor or cross-layer → 🧪 BDD Scenarios; ≥ 1 service boundary → 🔗 Integration Flow; not
   triggered → remove the section entirely.

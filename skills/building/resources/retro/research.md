@@ -2,7 +2,7 @@
 
 `/retro --research <stack>` exists for the project the scan cannot read: one just initialised, with no build file,
 no CI and no test runner on disk. It replaces the source with the platform's **official documentation** — and
-only that — and every other step is `resources/retro.md`'s, **including GATE COACH-1**. On a project that does
+only that — and every other step is `resources/retro/retro.md`'s, **including GATE COACH-1**. On a project that does
 have files on disk it runs after a scan, as a second opinion: each scan rule is checked against the
 documentation and comes back confirmed, contradicted, or unknown.
 
@@ -45,16 +45,16 @@ R2  DRAFT   candidate rules exactly as in the scan's S2, against the same catego
             Cap the draft at 15 per category before the gate; fewer, sharper rules survive.
 R3  GATE    ⏸ GATE COACH-1 exactly as for feedback. In an `auto` or `unattended` run the research
             writes NOTHING: it lists the draft for the PO at GATE L0.
-R4  WRITE   Steps 3 and 3b of `retro.md`, with provenance `from web-research (<url>, <version>, <date>)`.
+R4  WRITE   Steps 3 and 3b of `resources/retro/retro.md`, with provenance `from web-research (<url>, <version>, <date>)`.
             A re-run replaces only research-provenance rules. Suggested run config lines from research
             are marked as unexecuted proposals: a command taken from a document has never run in this
             project.
-R5  REPORT  Step 4 of `retro.md`, plus the annotation table from R2 and the reminder that the first
+R5  REPORT  Step 4 of `resources/retro/retro.md`, plus the annotation table from R2 and the reminder that the first
             feature is where these rules meet reality: after it ships, `--scan` reads the toolchain the
             feature created, and its disk-evidence rules retire the research rules they confirm.
             Research is the scaffold; the scan is the building.
 ```
 
 What research is not: it is not the platform's setup guide executed, and it is not a second grader. It installs
-nothing, runs nothing, writes no file outside the knowledge base, and the exclusions of `retro.md` — the judge
+nothing, runs nothing, writes no file outside the knowledge base, and the exclusions of `resources/retro/retro.md` — the judge
 and the census — hold exactly as they do for feedback.
