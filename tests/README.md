@@ -20,7 +20,7 @@ against a fixture, or validates a shipped file against the thing it names; none 
 | `08-shipped-set` | no bookkeeping in shipped files; every hook documented and registered; cited paths and relative links resolve; counted claims match the tree |
 | `09-init` | `init run`'s record and refusals, `--force`, and the installer's grant and harness block |
 | `10-oracles` | each oracle passes a deliverable that meets its contract and fails one that does not |
-| `11-skill-anatomy` | every file a skill points at is on disk; the loop's phase table, index and contract headers agree with each other, with the schema's operations and with the kernel's gates; every resource of the loop is reachable from its `SKILL.md` |
+| `11-skill-anatomy` | every file a skill points at is on disk; the loop's phase table, index and contract headers agree with each other, with the schema's operations and with the kernel's gates; the schema's operations and the order templates name the same operations; every resource of the loop is reachable from its `SKILL.md` |
 
 The runner holds a floor on the check count. A new check lands in the module that owns what it executes.
 

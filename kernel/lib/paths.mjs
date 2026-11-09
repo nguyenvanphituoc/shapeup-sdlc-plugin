@@ -207,8 +207,6 @@ export const evaluationDir = (cwd, slug) => join(localRoot(cwd, slug), "evaluati
 export const qaDir = (cwd, slug) => join(localRoot(cwd, slug), "qa");
 /** Scout recon — code-surface map, spikes, discovered seed. */
 export const orientDir = (cwd, slug) => join(localRoot(cwd, slug), "orient");
-/** Time-boxed spike workspace. */
-export const spikesDir = (cwd, slug) => join(localRoot(cwd, slug), "spikes");
 /** The discovered-task ledger every discovery flow appends to. */
 export const discoveryLedger = (cwd, slug) => join(localRoot(cwd, slug), "discovery", "ledger.md");
 /**
@@ -353,7 +351,7 @@ export const globShared = (slug, ...parts) => [SHARED, slug, ...parts].join("/")
 
 /**
  * The coaching file a coachable worker reads, as a repo-relative path for the WorkOrder payload.
- * @param {string} skill - A coachable worker name (`COACHABLE` in compile.mjs), or an activity name (`plan`, `building`).
+ * @param {string} skill - A worker that reads a coaching file (`task-executor`, `orient`, `qa-edge-hunter`), or an activity name (`plan`, `building`).
  * @returns {string} e.g. `shapeup/knowledge-base/task-executor.md`.
  */
 export const relKnowledgeBase = (skill) => [SHARED, "knowledge-base", `${skill}.md`].join("/");

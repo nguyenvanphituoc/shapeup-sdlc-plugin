@@ -67,7 +67,7 @@ erDiagram
         string order_id PK "slug/rN-aM | slug/operation[-rN]"
         enum worker "WorkerName (4 workers) | building (fence-only plan order)"
         enum mode "orchestrated | standalone"
-        enum operation "Operation (7 operations)"
+        enum operation "Operation (6 operations)"
         json interaction "pause_gates, max_questions"
         json substrate "allowed[], shared[], append_only[], frozen[]"
         json payload "WorkOrderPayload — see 7.4"
@@ -247,7 +247,7 @@ sole SHARED-state writer.
 | Enum | Values |
 |---|---|
 | `WorkerName` (4) | task-executor · spec-evaluator · orient · qa-edge-hunter — the loop (`building`) is not a member: it is the `worker` of a fence-only `plan` order, which the order schema accepts beside the roster |
-| `Operation` (7) | execute, fix, spike · evaluate · orient · hunt · plan (fence-only: one order per planning substep — `requirements`, `spec`, `wire`, `scopes` — answered by the loop writing `results/plan-<step>.json`, no sub-agent) |
+| `Operation` (6) | execute, fix · evaluate · orient · hunt · plan (fence-only: one order per planning substep — `requirements`, `spec`, `wire`, `scopes` — answered by the loop writing `results/plan-<step>.json`, no sub-agent) |
 
 ## 7.6 — Payload fields by worker (`x-payload-by-worker`)
 

@@ -196,7 +196,7 @@ function answered(resultPath, order) {
  * because the single-task lane compiles an `execute` order with no scope contract on it and that leg
  * is still a build.
  */
-const BUILD_OPERATIONS = new Set(["execute", "fix", "spike"]);
+const BUILD_OPERATIONS = new Set(["execute", "fix"]);
 
 /**
  * Has the run moved past this order's phase — i.e. did a LATER order for a different operation get

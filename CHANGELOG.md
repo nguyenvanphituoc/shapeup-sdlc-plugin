@@ -5,8 +5,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased] · The loop's resources are grouped by phase, and the suite reads the skill's structure
 
-Nothing a run does changes. No command, gate, schema, hook or kernel verb is touched, and no instruction is reworded: every sentence
-of the `building` skill is where a phase row now points, in the words it had.
+The regrouping changes nothing a run does: no instruction of the `building` skill is reworded, and every sentence is where a
+phase row now points, in the words it had. One removal is breaking, and is listed as such.
 
 - **Moved.** The skill's resources sit under `resources/intake/`, `resources/plan/`, `resources/build/`, `resources/ship/` and
   `resources/retro/`, one file per activity. `resources/orders.md`, `resources/gates.md` and `resources/guidance.md` keep their paths.
@@ -16,9 +16,15 @@ of the `building` skill is where a phase row now points, in the words it had.
   says what each holds. `SKILL.md` ends with an index: one line per file, with the phase rows it answers.
 - **Fixed.** Three pointers named folders the skill does not have, left from the layout the planning templates came from. Four
   templates that no file named are now named by path.
+- **Removed, and breaking.** The `spike` operation is gone from the order schema, from the write fence's list of build operations and
+  from the `task-executor` skill. No version of the plugin ever wrote a `spike` order: none of the runs on record holds one, and
+  the order templates had lost its row. An order carrying `"operation": "spike"` is now refused at the envelope gate, where it
+  was accepted before. The Scout's spike, part of `orient`, is unchanged, and so are the planner's `SPIKE` task rules: an open
+  spike is a Board Review question. The `.shapeup/<slug>/spikes/` folder is no longer granted to build orders; nothing ever
+  wrote to it.
 - **Tests.** A new structural module resolves every `resources/` pointer the skills write, holds the phase table, the index and the
-  headers to each other and to the schema's operations and the kernel's gates, and checks that every resource of the loop is
-  reachable from its `SKILL.md`. The suite is at 236 checks.
+  headers to each other and to the schema's operations and the kernel's gates, holds the schema's operations and the order
+  templates to each other, and checks that every resource of the loop is reachable from its `SKILL.md`. The suite is at 238 checks.
 
 ## [4.0.0] — 2026-11-09 · One loop in the session, native agents, and no scripted engine
 

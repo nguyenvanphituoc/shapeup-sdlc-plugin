@@ -17,6 +17,7 @@
 // is an activity file and opens with a four-row contract (resources/contract.md says what each row
 // holds). The checks below hold the three to each other — the phase table, the index, the headers —
 // and hold the headers to the schema's operations, the order templates and the kernel's gate list.
+// The schema's operations and the order templates are also held to each other, both ways.
 //
 // Reachability has one deliberate looseness. A file in a library folder — a folder some reachable
 // file points at, holding no file the index lists — counts as named when its file name appears, or
@@ -124,6 +125,18 @@ export async function run(ctx) {
     if (r !== "resources/contract.md" && !indexed.has(r) && header(r)) malformed.push(`skills/building/${r}: carries a contract header and the index gives it no rows`);
   }
   check(malformed.length === 0, `every activity file carries the four contract rows, and nothing else carries them${list(malformed)}`);
+
+  // C5 — the schema's operations and the order templates name the same operations. An operation the
+  // schema allows and the templates lack is one the loop has no order to write; one the templates
+  // carry and the schema lacks is an order the envelope gate would refuse.
+  const firstCells = (table) => new Set([...table.matchAll(/^\| ([^|]+) \|/gm)].flatMap((m) => ticks(m[1].split("(")[0])));
+  const inSubstrate = firstCells(substrate), inPayload = firstCells(payload);
+  const opDrift = [
+    ...ops.filter((o) => !inSubstrate.has(o)).map((o) => `${o} is an operation in the schema and has no row in the substrate table of resources/orders.md`),
+    ...ops.filter((o) => !inPayload.has(o)).map((o) => `${o} is an operation in the schema and has no row in the payload table of resources/orders.md`),
+    ...[...new Set([...inSubstrate, ...inPayload])].filter((o) => !ops.includes(o)).map((o) => `resources/orders.md has a row for ${o}, which is not an operation in the schema`),
+  ];
+  check(opDrift.length === 0, `the schema's ${ops.length} operations and the order templates name the same operations, both ways${list(opDrift)}`);
 
   // C6 — the gates the loop names and the gates the kernel resolves are the same set.
   const { GATE_IDS } = await import(join(ROOT, "kernel/gate.mjs"));

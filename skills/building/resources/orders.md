@@ -39,7 +39,7 @@ re-opened with `--force` or the result lands.
 | Operation | `allowed` | `frozen` | `own` |
 |---|---|---|---|
 | `orient` | `.shapeup/<slug>/orient/**` | `shapeup/<slug>/spec/**` | `.shapeup/<slug>/results/orient.json` |
-| `execute` / `fix` | the scope contract's `allowed_file_substrate` plus `.shapeup/<slug>/spikes/**`; `shared` = its `shared_substrate` | `.shapeup/<slug>/**` | `results/<stem>.json`, `.shapeup/<slug>/tasks/TASK-*.md`, `.shapeup/<slug>/discovery/**`, `.shapeup/<slug>/spikes/**` |
+| `execute` / `fix` | the scope contract's `allowed_file_substrate`; `shared` = its `shared_substrate` | `.shapeup/<slug>/**` | `results/<stem>.json`, `.shapeup/<slug>/tasks/TASK-*.md`, `.shapeup/<slug>/discovery/**` |
 | `evaluate` | none | `shapeup/<slug>/spec/**`, `.shapeup/<slug>/**` | `.shapeup/<slug>/evaluation/**`, `results/evaluate-r<R>.json` |
 | `hunt` | none | `shapeup/<slug>/spec/**`, `.shapeup/<slug>/**` | `.shapeup/<slug>/qa/**`, `results/hunt.json` |
 | `plan` (`requirements`) | `shapeup/<slug>/requirements.md` | the spec's domain model, use-case Steps, contracts, UX file; the run's intake, orders, results, receipts and T0 verdicts | `results/plan-requirements.json` |

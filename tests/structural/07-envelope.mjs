@@ -34,6 +34,8 @@ export async function run(ctx) {
     check(denies(gate({ prompt: `--order "${noWorker}"` })), "an order missing a required field denies the dispatch");
     const badMode = put(cwd, ".shapeup/demo/orders/bad-mode.json", { ...ORDER, mode: "freestyle" });
     check(denies(gate({ prompt: `--order "${badMode}"` })), "an order with a value outside the enum denies the dispatch");
+    const retired = put(cwd, ".shapeup/demo/orders/spike.json", { ...ORDER, operation: "spike" });
+    check(denies(gate({ prompt: `--order "${retired}"` })), "an order for an operation the schema no longer carries denies the dispatch");
     check(denies(gate({ prompt: `--order "${join(cwd, "nope.json")}"` })), "an order path that does not exist denies the dispatch");
     check(!denies(gate({ prompt: "a plain prompt with no order" })), "no --order named: a standalone dispatch stays free (fail-open)");
     check(denies(gate({ skill_args: `--order=${noWorker}` })) , "the order is found through the Skill form of the call as well");

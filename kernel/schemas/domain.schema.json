@@ -338,12 +338,11 @@
       ]
     },
     "Operation": {
-      "description": "The full operation vocabulary. Replaces lifecycle flags (--tasks-only, --from-discovered, --map-scopes …): the caller knows the pipeline position; the worker never re-derives it. Ownership: execute/fix/spike = task-executor · plan = the loop itself, a fence-only order no sub-agent answers (one per planning substep: requirements, spec, wire, scopes) · evaluate = spec-evaluator · orient = orient · hunt = qa-edge-hunter. The stop census, the retro and the intake's language gate are the loop's own acts and carry no order at all.",
+      "description": "The full operation vocabulary. Replaces lifecycle flags (--tasks-only, --from-discovered, --map-scopes …): the caller knows the pipeline position; the worker never re-derives it. Ownership: execute/fix = task-executor · plan = the loop itself, a fence-only order no sub-agent answers (one per planning substep: requirements, spec, wire, scopes) · evaluate = spec-evaluator · orient = orient · hunt = qa-edge-hunter. The stop census, the retro and the intake's language gate are the loop's own acts and carry no order at all.",
       "type": "string",
       "enum": [
         "execute",
         "fix",
-        "spike",
         "evaluate",
         "orient",
         "hunt",
@@ -361,7 +360,7 @@
           "items": {
             "type": "string"
           },
-          "description": "Globs the worker MAY write. For build attempts: the scope's allowed_file_substrate + the spike dir."
+          "description": "Globs the worker MAY write. For build attempts: the scope's allowed_file_substrate."
         },
         "shared": {
           "type": "array",
@@ -389,7 +388,7 @@
           "items": {
             "type": "string"
           },
-          "description": "Paths this order may write DESPITE a broader freeze — the loop's grant, derived from the order's own identity and never requested by a worker. For a build leg: its own WorkResult (no sibling's — a leg that can write another's can report work nobody did), its task files, the discovery ledger, its spikes. Checked BEFORE `frozen`, and only against the contract that declared it, so another live order's exception never licenses this write."
+          "description": "Paths this order may write DESPITE a broader freeze — the loop's grant, derived from the order's own identity and never requested by a worker. For a build leg: its own WorkResult (no sibling's — a leg that can write another's can report work nobody did), its task files, the discovery ledger. Checked BEFORE `frozen`, and only against the contract that declared it, so another live order's exception never licenses this write."
         }
       }
     },
