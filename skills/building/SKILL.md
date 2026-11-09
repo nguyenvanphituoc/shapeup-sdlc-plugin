@@ -75,7 +75,7 @@ re-run with `--answer <decision>`; 5 = the set aborts: close the run as aborted 
 | 11 | GATE QA not crossed | `K gate --resolve QA --slug <slug> --round R --verdict pass --preset <set>` |
 | 12 | QA answered `run` and no `results/hunt.json` (skipped under `noQa`) | **dispatch** `qa-edge-hunter`. Do not move on without it: GATE L4 refuses `ship` over a hunt the run owed and never ran, and the only recorded way out is `K gate --resolve QA … --answer skip` |
 | 13 | no census file | do the census (`resources/ship/census.md`) and write `<run>/reports/hammer-census.json`; then GATE H |
-| 14 | GATE H crossed, no `<spec>REPORT.md` | write the ship report (`resources/ship/census.md`); then GATE L4 |
+| 14 | GATE H crossed, no `<spec>REPORT.md` | write the ship report (`resources/ship/report.md`); then GATE L4 |
 | 15 | GATE L4 crossed | `K order close --slug <slug> --status <shipped\|escalated\|aborted> --cause "<verdict, rounds>"`; `shipped` is refused (exit 1) unless this run's L4 row says `ship`, so a refusal here means the gate was not crossed — go back to phase 14; then GATE COACH-1 |
 
 **A plan substep** is done here, in this session, with no sub-agent: write the substep's order (`resources/orders.md`, operation `plan`,
@@ -127,18 +127,18 @@ census compares what is green against the baseline and ships what works. A run k
 `/ship` with none runs the whole loop. A sub-command does one activity of it:
 `plan` (`/scopes`, `/wire`) — the planning substeps; `stop` (`/hammer`) — the census over the run in hand;
 `retro` (`/retro`, `/retro --scan`, `/retro --research <stack>`) — `resources/retro/retro.md`, `resources/retro/scan.md`, `resources/retro/research.md`;
-`intake <path>…` (`--check` writes nothing) — the language gate alone, `resources/intake/open-run.md` §2.
+`intake <path>…` (`--check` writes nothing) — the language gate alone, `resources/intake/language.md`.
 
 ## Resume
 
 `/ship` again over an open run is the resume (over a closed one, phase 0 reports the ending and stops): `init run` refuses and prints what is on disk, and you continue from the phase table, reading files and nothing else.
 A run closed without shipping is reopened by `init run --force`, which resolves every order nobody answered as abandoned before it writes.
 
-> **Intake, language check and translation, profile, the launch record** → `resources/intake/open-run.md`
+> **Intake, language check and translation, profile, the launch record** → `resources/intake/open-run.md`, `resources/intake/language.md`
 > **The order for each operation: substrate, payload, where each field comes from** → `resources/orders.md`
 > **Planning: how a substep runs, requirements; the spec, wiring and scope formats** → `resources/plan/substep.md` and its `resources/plan/*.md` siblings
 > **Which knowledge-base file is read where, and under what name a rule is filed** → `resources/guidance.md`
 > **How to put a gate to the PO, and what to have read first** → `resources/gates.md`
 > **What a round is; the attempt loop; why the loop stops where it does** → `resources/build/round.md`
-> **The census, the baseline comparison, the cut list, the ship report (GATE H)** → `resources/ship/census.md`
+> **The census, the baseline comparison, the cut list, the ship report (GATE H)** → `resources/ship/census.md`, `resources/ship/report.md`
 > **After a ship: feedback, the retro gate, `--scan`, `--research`** → `resources/retro/retro.md`, `resources/retro/scan.md`, `resources/retro/research.md`
