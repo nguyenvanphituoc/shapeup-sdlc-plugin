@@ -7,7 +7,7 @@ is a **non-UI** deliverable — no browser, no Playwright, nothing to install be
 Every command below is real, and every block of output marked **verbatim** was produced by
 running it. Nothing here is illustrative-only.
 
-**One convention before you start.** Slash commands are written short here — `/ship`, `/build` —
+**One convention before you start.** Slash commands are written short here — `/ship`, `/orient` —
 and their real names carry the plugin's namespace: `/shapeup-sdlc-plugin:ship`. Typing the bare
 form answers `Unknown command`. Interactively `/`-completion supplies the prefix, so you will rarely
 notice; a script or a `claude -p` invocation has to spell it out.
@@ -54,7 +54,7 @@ testable invariant, and the no-gos are what stop the agent gold-plating.
 ## 2. Shape it
 
 ```
-/shape idea.md
+/shapeup idea.md
 ```
 
 Shaping produces a pitch: problem, appetite, the solution at the right altitude, rabbit holes,
@@ -68,10 +68,10 @@ downstream starts until you do.
 
 ```
 /orient          # recon: read the code, spike the riskiest part, write no production code
-/scopes          # pitch → spec tree (domain model → use cases → tasks) + the board
+/ship plan       # pitch → spec tree (domain model → use cases → tasks) + the board
 ```
 
-`/scopes` produces the **Test Surface** — the rows the build will be graded against — derived
+`/ship plan` produces the **Test Surface** — the rows the build will be graded against — derived
 from the use cases rather than invented. For this pitch it includes the happy paths (`add`,
 `list`, `done`, `rm`) *and* the edges the idea called out. Those edges are the difference
 between a demo and a tool:
@@ -91,7 +91,7 @@ last cheap moment to change your mind.
 ## 4. Build it
 
 ```
-/build           # or let /ship drive the whole loop
+/task-executor   # or let /ship drive the whole loop
 ```
 
 Each task is a separate dispatch with a fresh worker: it receives a work order, writes code, and
@@ -104,7 +104,7 @@ denies it.
 Suppose two tasks are still unfinished and the agent decides it has done enough:
 
 ```
-/eval
+/spec-evaluator
 ```
 
 **Verbatim output** — this is the gate's real warning, not a paraphrase:
@@ -210,15 +210,15 @@ evidence.
 ## 8. Hunt the edges, then ship
 
 ```
-/qa        # exploratory hunt OUTSIDE what the evaluator already probed
-/hammer    # must-have census → compare against baseline → cut list → ship verdict
+/qa-edge-hunter   # exploratory hunt OUTSIDE what the evaluator already probed
+/ship stop        # must-have census → compare against baseline → cut list → ship verdict
 ```
 
 QA has **no verdict and no score** — findings land in the discovery ledger as `~` and never
 block the ship. It is looking for what the Test Surface did not think to ask (`todo done` twice,
 a store that is a JSON array of the wrong shape, a 10,000-item list).
 
-`/hammer` compares against the **baseline — what people live with today, which is nothing** —
+`/ship stop` compares against the **baseline — what people live with today, which is nothing** —
 not against an ideal todo app. That is what makes it possible to stop.
 
 **Ship Sign-off gate.** You sign off. Feedback you give here is not lost: `/retro` files it under the

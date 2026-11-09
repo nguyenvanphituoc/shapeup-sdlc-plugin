@@ -13,6 +13,34 @@ working. The consequence is stated here rather than left to be discovered: **an 
 to predate the current layout is not converted for you.** Run `install-harness.sh` against it
 instead and treat it as a fresh install.
 
+## Upgrading to 5.0
+
+5.0 removes names. Nothing a run does changes, and no file in your project needs editing unless it types one of them.
+
+### Eight commands are gone; each was a second name for something else
+
+A removed name now answers `Unknown command`, at once. Every one has a name that was already there. Each carries the
+`shapeup-sdlc-plugin:` prefix when typed in full, as before.
+
+| Removed | Type instead | Note |
+|---|---|---|
+| Was `/shape` | `/shapeup` | the skill, by its own name |
+| Was `/orient`, the command | `/orient` | the same name; the skill answers it now |
+| Was `/build` | `/task-executor` | the skill |
+| Was `/eval` | `/spec-evaluator` | the skill |
+| Was `/qa` | `/qa-edge-hunter` | the skill |
+| Was `/scopes` | `/ship plan` | stops once Board Review is crossed, as it did |
+| Was `/wire` | `/ship plan` | to stop after the wiring map, stop at the Wiring Review gate; there is no flag for it |
+| Was `/hammer` | `/ship stop` | |
+
+`/ship` and `/retro` are unchanged. Your `AGENTS.md` carries a copy of the harness block that still names one of the
+removed commands; re-run `npx shapeup-sdlc init` to refresh it.
+
+### The `spike` operation is gone from the order schema
+
+No version of the plugin wrote such an order. If something of yours does, the envelope gate now refuses it, where it
+was accepted before. The Scout's spike, inside `orient`, is unchanged.
+
 ## Upgrading to 4.0
 
 This release (4.0.0) removes the scripted decision engine. The loop that drives a run still lives in the `building`
@@ -68,11 +96,11 @@ and is read by nothing. Move its rules into `shapeup/knowledge-base/_INBOX.md` a
 to assign each one — the Retro Ownership gate asks which skill owns a rule, it never assumes — then commit
 `shapeup/` so the team inherits it on `git pull`.
 
-### Three skills are gone; their commands are not
+### Three skills are gone, and their work is the loop's
 
 `scope-hammer`, `coach` and `translator` were folded into the `building` loop: the stop census, the retro and the
-language gate are now steps and sub-commands of `/ship`. `/hammer` and `/retro` (with `--scan` and
-`--research <stack>`) keep their names. A `shapeup/knowledge-base/scope-hammer.md`, `coach.md` or
+language gate are now steps and sub-commands of `/ship`: `/ship stop`, `/ship retro`, `/ship intake`. `/retro` (with
+`--scan` and `--research <stack>`) keeps its own name too. A `shapeup/knowledge-base/scope-hammer.md`, `coach.md` or
 `translator.md` is read by nothing — re-file its rules with `/retro` under one of the five categories.
 
 ### Metrics are sharded per machine, and local

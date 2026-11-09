@@ -19,7 +19,7 @@ graph LR
     BUILD --> EVAL["Evaluate\n/spec-evaluator"]
     EVAL -- FAIL --> BUILD
     EVAL -- PASS --> QA["Edge Hunt\n/qa-edge-hunter"]
-    QA --> SHIP["Triage + Ship\n/hammer (the census)"]
+    QA --> SHIP["Triage + Ship\n/ship stop (the census)"]
     TL["/ship\nthe building loop drives the shaded steps"] -.-> KO
 
     classDef plan fill:#f4e2cd,stroke:#c4711f,color:#14202b;

@@ -107,7 +107,7 @@ installer, and troubleshooting are in
 ## Agent support
 
 The harness targets **Claude Code only**. The reason is the row that never travelled when we
-compiled to other CLIs: hooks. The 6 skills, 10 slash commands and the kernel are
+compiled to other CLIs: hooks. The 6 skills, 2 slash commands and the kernel are
 portable prose and plain Node — but hook-enforced gates (envelope validation, the substrate
 fence, the safety spine, dispatch receipts) are a per-CLI mechanism, and without them every gate degrades from
 **enforced** to **instructed** — the same honor system every other framework runs on
@@ -175,22 +175,23 @@ populated; every arm is skipped when its artifact is absent, so older specs are 
 
 ### Commands
 
-`/ship` runs the whole lifecycle; the phase commands run one step each, so the pipeline is
-learnable from `/`-completion alone. Names are written short here; the real name of each carries the
+`/ship` runs the whole lifecycle, and with a sub-command one activity of it. `/retro` files feedback and seeds the
+knowledge base. Every other step is a skill, typed by its own name, so the pipeline is still learnable from
+`/`-completion alone. Names are written short here; the real name of each carries the
 `shapeup-sdlc-plugin:` prefix, which `/`-completion fills in for you and a script must spell out.
 
-| Command | Phase | Description |
-|---------|-------|-------------|
+| Type this | Phase | What it does |
+|-----------|-------|--------------|
 | `/ship` | all | Run the full harness on a pitch (interactive gates by default; `--auto`, `--unattended`). |
-| `/shape` | Shaping | Shape a raw idea into a pitch: boundaries → breadboard → spike → `pitch.md`. |
-| `/orient` | Orient | Builder-led recon; spikes the riskiest area, writes no production code. |
-| `/wire` | Wiring Review | Alias of `/ship plan`, through the wiring map — engine → seam → entry-point call site, per use case. |
-| `/scopes` | Board Review | Alias of `/ship plan`: spec tree + board, then scope contracts. |
-| `/build` | Build | Implement one task's acceptance criteria exactly. |
-| `/eval` | Verdict | The single judge. Round mode crosses the Round Close gate first. |
-| `/qa` | post-PASS | Exploratory edge hunt; findings never block ship. |
-| `/hammer` | Cut-List Review | Must-have census, baseline comparison, cut list + ship verdict. |
+| `/ship plan` | Wiring Review, Board Review | The planning steps alone: requirements, spec tree + board, the wiring map, then scope contracts. Stops once Board Review is crossed. |
+| `/ship stop` | Cut-List Review | Must-have census, baseline comparison, cut list + ship verdict. |
+| `/ship intake` | Intake & Config | The language gate alone: a non-English pitch becomes a faithful English copy plus a glossary. |
 | `/retro` | after Ship Sign-off | File ship-gate feedback into the per-reader knowledge base; `--scan` and `--research <stack>` seed it. |
+| `/shapeup` | Shaping | The skill. Shape a raw idea into a pitch: boundaries → breadboard → spike → `pitch.md`. |
+| `/orient` | Orient | The skill. Builder-led recon; spikes the riskiest area, writes no production code. |
+| `/task-executor` | Build | The skill. Implement one task's acceptance criteria exactly. |
+| `/spec-evaluator` | Verdict | The skill. The single judge. Its feature-level form crosses the Round Close gate first. |
+| `/qa-edge-hunter` | post-PASS | The skill. Exploratory edge hunt; findings never block ship. |
 
 ### What is enforced, and by what
 
@@ -317,7 +318,7 @@ kernel/{verify,init}/ #   its subcommands: the T0 witness, the envelope check, t
 kernel/{gate,order}.mjs #   the gate resolver, and the verb that arms and retires the fence
 kernel/lib/           # argv (the typed CLI boundary), paths (+ the run key), contract (shape)
 kernel/schemas/       # the envelope port: WorkOrder, WorkResult, domain registry
-commands/*.md         # slash commands (/ship + the 9 phase commands)
+commands/*.md         # the 2 slash commands (/ship and /retro); every other step is a skill, typed by its name
 hooks/                # hooks.json + the three walls: safety-spine, sandbox-guard (the substrate fence and the
                       #   committed-tier write check) — PreToolUse, beside the kernel's `verify envelope`
                       #   + dispatch-receipt (PostToolUse, denies nothing, attests which worker ran and what the host measured)

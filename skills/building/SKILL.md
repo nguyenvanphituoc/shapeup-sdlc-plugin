@@ -125,7 +125,7 @@ census compares what is green against the baseline and ships what works. A run k
 ## Sub-commands
 
 `/ship` with none runs the whole loop. A sub-command does one activity of it:
-`plan` (`/scopes`, `/wire`) — the planning substeps; `stop` (`/hammer`) — the census over the run in hand;
+`plan` — the planning substeps; `stop` — the census over the run in hand;
 `retro` (`/retro`, `/retro --scan`, `/retro --research <stack>`) — `resources/retro/retro.md`, `resources/retro/scan.md`, `resources/retro/research.md`;
 `intake <path>…` (`--check` writes nothing) — the language gate alone, `resources/intake/language.md`.
 

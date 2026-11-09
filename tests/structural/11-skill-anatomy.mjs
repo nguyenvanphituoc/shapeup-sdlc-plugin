@@ -18,6 +18,7 @@
 // holds). The checks below hold the three to each other — the phase table, the index, the headers —
 // and hold the headers to the schema's operations, the order templates and the kernel's gate list.
 // The schema's operations and the order templates are also held to each other, both ways.
+// Last, the names: a slash name the plugin's documents write has to be one the plugin answers.
 //
 // Reachability has one deliberate looseness. A file in a library folder — a folder some reachable
 // file points at, holding no file the index lists — counts as named when its file name appears, or
@@ -169,4 +170,45 @@ export async function run(ctx) {
   }
   const orphans = resources.filter((r) => !reached.has(r)).map((r) => `skills/building/${r}`);
   check(orphans.length === 0, `each of the ${resources.length} resource files is named by a file SKILL.md leads to${list(orphans)}`);
+
+  // C7 — a slash name the plugin's own documents write is one the plugin answers: a command file, a
+  // skill folder, or, after `/ship`, a sub-command the loop lists. Read in the files that speak for the
+  // plugin. docs/install.md is about the host's commands and the upgrade guide is where a removed name
+  // belongs, so neither is read; of README.md only the Commands section is.
+  section("skill anatomy — every slash name the plugin's documents write is one it answers");
+  const commandNames = readdirSync(join(ROOT, "commands")).filter((f) => f.endsWith(".md")).map((f) => f.replace(/\.md$/, ""));
+  const answers = new Set([...commandNames, ...skillRoots.map((d) => basename(d))]);
+  const subCommands = new Set([...sectionOf(skillMd, "## Sub-commands").matchAll(/`([a-z]+)(?: [^`]*)?` (?:\(|—)/g)].map((m) => m[1]));
+  const readme = readFileSync(join(ROOT, "README.md"), "utf8");
+  const commandsSection = (() => { const a = readme.indexOf("### Commands"); const b = readme.indexOf("\n### ", a + 5); return a < 0 ? "" : readme.slice(a, b < 0 ? readme.length : b); })();
+  const voices = [
+    ["AGENTS.md", readFileSync(join(ROOT, "AGENTS.md"), "utf8")],
+    ["README.md (Commands)", commandsSection],
+    ["skills/building/SKILL.md", skillMd],
+    ...commandNames.map((n) => [`commands/${n}.md`, readFileSync(join(ROOT, "commands", `${n}.md`), "utf8")]),
+    ...["docs/quickstart.md", "docs/glossary.md", ...readdirSync(join(ROOT, "docs/design")).filter((f) => /^0.*\.md$/.test(f)).map((f) => `docs/design/${f}`)]
+      .map((f) => [f, readFileSync(join(ROOT, f), "utf8")]),
+  ];
+  const unanswered = [];
+  let slashNames = 0;
+  for (const [file, text] of voices) {
+    for (const m of text.matchAll(/(?:^|[\s`("])\/([a-z][a-z-]*)(?::([a-z][a-z-]*))?(?=[\s`.,;:)"]|$)/gm)) {
+      const name = m[2] ?? m[1];
+      slashNames++;
+      if (!answers.has(name)) unanswered.push(`${file}: /${m[1]}${m[2] ? ":" + m[2] : ""} is neither a command file nor a skill`);
+    }
+    for (const m of text.matchAll(/(?:`|^)\/(?:[a-z-]+:)?ship ([a-z][a-z-]*)(?=[\s`]|$)/gm)) {
+      if (!subCommands.has(m[1])) unanswered.push(`${file}: /ship ${m[1]} is not a sub-command the loop lists (${[...subCommands].join(", ")})`);
+    }
+  }
+  check(slashNames > 20 && subCommands.size >= 4, `the scan found ${slashNames} slash names and ${subCommands.size} sub-commands (a scan that finds none proves nothing)`);
+  check(unanswered.length === 0, `every slash name the plugin's documents write is a command, a skill or a sub-command of /ship${list([...new Set(unanswered)])}`);
+
+  // C8 — where a document counts the slash commands, the count is the number of files in commands/.
+  const WORDS = { two: 2, three: 3, nine: 9, ten: 10 };
+  const counted = ["README.md", "docs/design/06-appendix.md", "docs/design/README.md", "docs/quickstart.md", "CONTRIBUTING.md"]
+    .filter((f) => existsSync(join(ROOT, f)))
+    .flatMap((f) => [...readFileSync(join(ROOT, f), "utf8").matchAll(/\b([0-9]+|two|three|nine|ten) slash commands/gi)].map((m) => [f, m[0], Number(WORDS[m[1].toLowerCase()] ?? m[1])]));
+  const miscounted = counted.filter(([, , n]) => n !== commandNames.length).map(([f, text]) => `${f} says "${text}" and commands/ holds ${commandNames.length}`);
+  check(counted.length > 0 && miscounted.length === 0, `each of the ${counted.length} places a document counts the slash commands says ${commandNames.length}${list(miscounted)}`);
 }

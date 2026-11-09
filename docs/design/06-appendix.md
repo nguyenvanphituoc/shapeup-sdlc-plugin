@@ -20,8 +20,8 @@ kernel/harness.mjs       the deterministic half behind ONE entry point (and ther
                           lib/    — argv · contract · paths · floor
 kernel/schemas/          WorkOrder · WorkResult · gate-answers · domain registry
 bin/init.mjs             `npx shapeup-sdlc init` — pure-Node scaffolding + permission grant
-commands/*.md            10 slash commands (/shape /orient /scopes /wire /build /eval /qa
-                         /hammer /ship /retro)
+commands/*.md            2 slash commands (/ship /retro); every other step is a skill, typed by its
+                         own name
 hooks/                   hooks.json + PreToolUse: safety-spine ·
                          sandbox-guard (+ the kernel's harness verify envelope) ·
                          PostToolUse: dispatch-receipt (records only, no deny path) ·
