@@ -9,7 +9,7 @@
 | **Gate on every stage** | `npm test` green, the conservation check of section 6 clean, and `git diff --stat da972b7 -- kernel hooks agents bin` empty in every stage but K1, which exists to change them. `commands/` and `AGENTS.md` are untouched through S4 and change only in R1 and R2 |
 | **Rule** | One stage per commit. A stage that only moves text changes no sentence; a stage that adds text removes none. S5 is a measurement and may end in "keep". The R stages start after S4 and start with an executed proof, not a deletion |
 | **Quick view** | skill: [before](../../visualize/building-anatomy-before.svg) · [after](../../visualize/building-anatomy-after.svg) · commands: [before and after](../../visualize/building-commands-before-after.svg) |
-| **Status** | **S0 to S2 executed on 2026-11-09**, on the PO's go-ahead for those three stages, on branch `plan/building-anatomy`: S1 is `20d356d`, S2 is `47f1658`. Each stage's acceptance passed in a fresh clone, 37 rows in all, and `npm test` is at 230 checks. S3 waits on D2; S4, S5 and R0 to R3 are not started. D8 is decided. **No real run has been made on the regrouped skill**: that is S4's gate, and until it runs, the loop following the new pointers is unverified |
+| **Status** | **S0 to S2 executed on 2026-11-09**, on the PO's go-ahead for those three stages, on branch `plan/building-anatomy`: S1 is `20d356d`, S2 is `47f1658`. Each stage's acceptance passed in a fresh clone, 37 rows in all, and `npm test` is at 230 checks. S3 is unblocked but not yet approved; S4, S5, K1 and R0 to R3 are not started. D2 and D8 are decided. **No real run has been made on the regrouped skill**: that is S4's gate, and until it runs, the loop following the new pointers is unverified |
 
 Every figure is derived from the tree at the baseline or labelled as a projection. Section 7 says what would change the answer.
 
@@ -308,7 +308,7 @@ Three ways to answer D2 for `spike`:
 | | What changes | Cost | What it leaves |
 |---|---|---|---|
 | **A. Keep it and write the row** | `resources/orders.md` gains `spike` beside `execute` / `fix`, the substrate the compiler gave it | one line in a skill resource; S3 can ship C5 at once | a template no phase asks for. The check goes green over vocabulary that is still dead |
-| **B. Retire the operation** (recommended) | stage K1: the enum, the hook's set, the two worker lines, `spikesDir` and the `spikes/**` entries go. A `SPIKE` task stays a planner's task type and a Board Review blocker, which is what it is in practice | touches `kernel/` and `hooks/`, so it needs the cross-directory check and one nested session; removing an enum member is a breaking schema change and rides in 5.0.0 with the commands | one meaning of "spike" in the plugin: the Scout's |
+| **B. Retire the operation** (chosen by the PO, 2026-11-09) | stage K1: the enum, the hook's set, the two worker lines, `spikesDir` and the `spikes/**` entries go. A `SPIKE` task stays a planner's task type and a Board Review blocker, which is what it is in practice | touches `kernel/` and `hooks/`, so it needs the cross-directory check and one nested session; removing an enum member is a breaking schema change and rides in 5.0.0 with the commands | one meaning of "spike" in the plugin: the Scout's |
 | **C. Make it real** | a phase-table row that dispatches a `SPIKE` task as a `spike` order before the tasks it blocks | new loop behaviour, and no pitch on record that would exercise it | a feature nobody has asked for, unmeasured |
 
 ## 5. What not to do
@@ -342,8 +342,8 @@ flowchart LR
   R1 --> R2["R2 · delete eight files,<br/>re-point every document, C7 C8"]
   R2 --> R3["R3 · close-out<br/>audit · upgrade notes"]
   R3 --> SHIP2(["shippable as 5.0.0"])
-  S4 -.-> K1["K1 · retire the spike operation<br/>kernel · hook · worker skill, if D2 says B"]
-  K1 -.-> SHIP2
+  S3 --> K1["K1 · retire the spike operation<br/>kernel · hook · worker skill"]
+  K1 --> SHIP2
 ```
 
 **The conservation check, used by S1, S2 and S5.** Take every non-blank line of every `.md` under `skills/building/` at the stage's parent commit and at the stage's commit, as two multisets. Each line present in one and absent from the other must contain a path the move map of section 4.2 rewrites, or be a title line a split had to add. Anything else is a lost or reworded sentence, and the stage is not done. The executor writes the script (about 20 lines of Node, builtins only) into its run workspace.
@@ -380,15 +380,15 @@ flowchart LR
 
 ### S3 — the contract, the index, the rest of the test
 
-Starts after the PO has answered D2 in section 9.
+D2 was answered on 2026-11-09: the two pointer fixes as written, and the `spike` operation retired in K1. So S3 fixes the pointers and ships C1 to C4 and C6; C5 lands in K1, with the change that makes it green.
 
 | Do | Done when |
 |---|---|
 | Write `resources/contract.md`: the four rows, their allowed values, and the rule that a value is copied from the table that owns it | the file exists and is on the index |
 | Add the contract header to each activity file: `intake/open-run`, `intake/language`, the four `plan/` substeps, `ship/census`, `ship/report`, `retro/retro`, `retro/scan`, `retro/research` | 11 headers; each value traced to the phase table, `orders.md` or `gates.md` in the commit message |
 | Replace the eight pointer lines at the end of `SKILL.md` with the index: phase rows · activity · file. Rows the router still answers itself (0, and 1, 7, 9, 12 until S5) are listed as `this file` | every row 0 to 15 and step 0 is on exactly one line |
-| Apply the D2 fixes: point `contract-patterns.md` at the three contract templates by path; give `spike` its rows in `orders.md` and name `task-spike.tmpl.md`, or do what D2 says instead | C2 and C5 are green without an exemption |
-| Add C2 to C6 to the module | each is green, and each is shown red once by a deliberate one-line break that is then reverted |
+| Apply the two pointer fixes of D2: point `contract-patterns.md` at the three contract templates in `resources/plan/templates/contracts/`, and name `resources/plan/templates/task-spike.tmpl.md` from the planner's SPIKE Task Rules. `orders.md` gets no `spike` row: the operation is retired in K1 | C2 is green without an exemption |
+| Add C2, C3, C4 and C6 to the module (C5 waits for K1) | each is green, and each is shown red once by a deliberate one-line break that is then reverted |
 | Additive check: every line of the S2 tree is still present | no line removed except the eight pointer lines the index replaces |
 
 ### S4 — close-out
@@ -456,9 +456,9 @@ Done on a `git archive` copy of the tree at another path, never in this checkout
 
 No real run is asked of the R stages beyond that session. They change what a person types to start a skill, and nothing a skill does once started.
 
-### K1 — retire the `spike` operation (only if D2 chooses B)
+### K1 — retire the `spike` operation (D2: chosen by the PO, 2026-11-09)
 
-The one stage that changes `kernel/` and `hooks/`. It can run any time after S3 and ships with the R stages in 5.0.0.
+The one stage that changes `kernel/` and `hooks/`. It runs after S3, which creates the module C5 is added to, and ships with the R stages in 5.0.0.
 
 | Do | Done when |
 |---|---|
@@ -506,8 +506,8 @@ Rollback is `git revert` of the stage's commit, in reverse order. No stage write
 
 | # | Decision | Default if unanswered |
 |---|---|---|
-| D1 | Run S0 to S4 as proposed | **S0 to S2: approved by the PO and run, 2026-11-09.** S3 and S4 are not approved yet |
-| D2 | The three P4 defects. (a) `contract-patterns.md` line 34: point it at the three contract templates in `resources/plan/templates/contracts/`. (b) `task-spike.tmpl.md`: name it by path from the planner's SPIKE Task Rules. (c) The `spike` operation: A, B or C of section 4.7 | (a) and (b) as written, in S3. (c) **B is recommended**: stage K1, shipped in 5.0.0, with C5 landing in K1 and not in S3. Until (c) is answered C5 stays out of the suite |
+| D1 | Run S0 to S4 as proposed | **S0 to S2: approved by the PO and run, 2026-11-09.** S3, S4 and K1 are not approved yet: choosing B decided what K1 does, not when it runs |
+| D2 | The three P4 defects. (a) `contract-patterns.md` line 34: point it at the three contract templates in `resources/plan/templates/contracts/`. (b) `task-spike.tmpl.md`: name it by path from the planner's SPIKE Task Rules. (c) The `spike` operation: A, B or C of section 4.7 | **Decided by the PO on 2026-11-09** ("B: gỡ trong 5.0.0"). (c) is B: the operation is retired in stage K1 and ships in 5.0.0, and C5 lands there. (a) and (b) had no objection and go in S3 as written |
 | D3 | S5 at all | **not now.** It moves 39 lines out of a 144-line file for the price of two real runs, and carries the plan's only behaviour risk. Revisit when `SKILL.md` next grows |
 | D4 | The version the S stages ship as | patch on 4.0.0: no command, gate, schema or hook changes |
 | D5 | How far S4's real run goes | through Board Review |
