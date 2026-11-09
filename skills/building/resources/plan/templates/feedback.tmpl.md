@@ -72,8 +72,8 @@ Estimated: N weeks/days | Actual: N weeks/days
 
 | Signal | Affects | Action |
 |--------|---------|--------|
-| [what was missing] | `references/[file].md` | [what to add/change] |
-| [what was wrong] | `assets/templates/[file].tmpl.md` | [what to fix] |
+| [what was missing] | `resources/plan/references/[file].md` | [what to add/change] |
+| [what was wrong] | `resources/plan/templates/[file].tmpl.md` | [what to fix] |
 
 ---
 
