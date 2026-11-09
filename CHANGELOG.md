@@ -3,6 +3,23 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased] · The loop's resources are grouped by phase, and the suite reads the skill's structure
+
+Nothing a run does changes. No command, gate, schema, hook or kernel verb is touched, and no instruction is reworded: every sentence
+of the `building` skill is where a phase row now points, in the words it had.
+
+- **Moved.** The skill's resources sit under `resources/intake/`, `resources/plan/`, `resources/build/`, `resources/ship/` and
+  `resources/retro/`, one file per activity. `resources/orders.md`, `resources/gates.md` and `resources/guidance.md` keep their paths.
+  Three files that each did two jobs are split: opening the run and the language gate, the planning protocol and the requirements
+  substep, the census and the ship report.
+- **Added.** Each of the eleven activity files opens with four rows — Phase, Order, Gate, Done when — and `resources/contract.md`
+  says what each holds. `SKILL.md` ends with an index: one line per file, with the phase rows it answers.
+- **Fixed.** Three pointers named folders the skill does not have, left from the layout the planning templates came from. Four
+  templates that no file named are now named by path.
+- **Tests.** A new structural module resolves every `resources/` pointer the skills write, holds the phase table, the index and the
+  headers to each other and to the schema's operations and the kernel's gates, and checks that every resource of the loop is
+  reachable from its `SKILL.md`. The suite is at 236 checks.
+
 ## [4.0.0] — 2026-11-09 · One loop in the session, native agents, and no scripted engine
 
 **Breaking.** The run is driven by one skill, `building`, in your own session. It reads the run's files, follows its own phase table, writes

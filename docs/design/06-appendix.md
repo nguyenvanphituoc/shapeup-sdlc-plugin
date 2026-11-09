@@ -7,6 +7,9 @@
 ```
 .claude-plugin/          plugin.json · marketplace.json
 skills/<name>/SKILL.md   the 6 harness skills (+ references/ and resources/)
+skills/building/         the loop. SKILL.md is the phase table and an index; resources/ holds one file
+                         per activity under intake/ plan/ build/ ship/ retro/, each opening with a
+                         four-row contract, beside the order templates and the two planning libraries
 agents/<worker>.md       the 4 workers as plugin subagents; each preloads its skill
 kernel/harness.mjs       the deterministic half behind ONE entry point (and therefore one
                          permission prefix). Subcommands:
@@ -29,7 +32,7 @@ oracles/                 the evaluation-contract oracle registry (test · snapsh
                          process), proven to discriminate against negative controls
 tools/                   repo-only, never shipped — demo/
 tests/structural.mjs     Tier 0 runner — threads tests/lib/ helpers through the per-domain
-tests/{lib,structural}/  ten modules in tests/structural/*.mjs, zero LLM calls; the runner holds a
+tests/{lib,structural}/  eleven modules in tests/structural/*.mjs, zero LLM calls; the runner holds a
                          floor on the check count so a refactor that silently deletes checks fails
                          loudly. The floor was reset in the native-first release, when the suite
                          went from 110 modules that pinned the removed engine to ten that execute

@@ -33,7 +33,10 @@ never `.mjs` paths.
   release CI fails on mismatch.
 - A new worker skill takes 4 steps: `SKILL.md` → declare fields in
   `kernel/schemas/domain.schema.json` (and add it to `WorkerName`) → `agents/<name>.md` preloading it → a row in
-  the `building` skill's phase table and its order in `resources/orders.md`. Step 1 alone yields a skill the loop can't dispatch.
+  the `building` skill's phase table, a line on the index that ends its `SKILL.md`, and its order in `resources/orders.md`. Step 1 alone yields a skill the loop can't dispatch.
+- An activity the loop does itself takes 3 steps: one file under `skills/building/resources/<phase>/` opening with the
+  four-row contract (`resources/contract.md` says what each row holds) → its line on the index → the phase row or
+  sub-command that reaches it. `npm test` reads the three against each other, and against the schema's operations and the kernel's gates.
 - `tools/` is repo-only and never ships; what ships is the `files` allowlist in `package.json`.
 - Commit subjects: `type(scope): lowercase declarative`.
 - Public documents (`README.md`, `AGENTS.md`, `docs/`, `commands/`, `SECURITY.md`) name a gate by its plain name

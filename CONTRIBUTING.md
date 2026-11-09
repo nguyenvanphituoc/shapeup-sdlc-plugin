@@ -54,10 +54,11 @@ behaviour. Do not hand-edit `docs/assets/demo-gate.svg`.
 ```
 skills/<name>/SKILL.md    one skill = one craft. Markdown. This is most of the project.
 skills/building/         the loop: a skill that drives a run over the run's own files
+skills/building/resources/  one file per activity, grouped by phase: intake/ plan/ build/ ship/ retro/
 kernel/                   the deterministic half: t0, the gate resolver, the envelope check, init run, order
 kernel/schemas/           domain.schema.json + the envelope schemas
 hooks/                    three .mjs hooks and the envelope check; hooks.json wires them
-tests/structural.mjs      the test entrypoint (ten modules, each executing shipped code)
+tests/structural.mjs      the test entrypoint (eleven modules, each executing shipped code)
 ```
 
 The one architectural thing worth knowing before you change anything: **the orchestrator owns
@@ -79,8 +80,13 @@ highest friction today (we know; help welcome):
    `kernel/schemas/domain.schema.json`. Every cross-boundary field is defined there
    **once**, annotated with its tier, location, writer and readers. No skill defines its own.
 3. Add `agents/<name>.md` (its tools, its model, the skill it preloads), a row to the `building` skill's
-   phase table, and its order to `skills/building/resources/orders.md`. Step 1 alone yields a skill the loop
-   has no way to dispatch.
+   phase table, a line on the index that ends its `SKILL.md`, and its order to
+   `skills/building/resources/orders.md`. Step 1 alone yields a skill the loop has no way to dispatch.
+
+An activity the loop does itself (a planning substep, the census, the retro) has no agent and no schema
+entry. It is one file under the phase folder that reads it, opening with the four-row contract that
+`skills/building/resources/contract.md` describes, plus its line on the index and the phase row or
+sub-command that reaches it. `npm test` reads the three against each other.
 
 If step 2 or 3 is where you got stuck, please say so in the PR or an issue — reducing that cost
 is an explicit goal, not a fact of life.

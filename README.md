@@ -310,7 +310,7 @@ claude --plugin-dir .                # load this working copy without installing
 .claude-plugin/
   plugin.json         # plugin manifest
   marketplace.json    # marketplace listing (points at this repo)
-skills/<name>/SKILL.md # the 6 harness skills (+ references/, resources/ and assets/)
+skills/<name>/SKILL.md # the 6 harness skills (+ references/ and resources/)
 agents/<worker>.md    # the 4 workers as plugin subagents: each preloads its skill; a dispatch names the agent
 kernel/harness.mjs    # ONE entry point for every deterministic step; the whole permission grant
 kernel/{verify,init}/ #   its subcommands: the T0 witness, the envelope check, the roster check, init run
@@ -328,7 +328,7 @@ scripts/install-harness.sh, migrate.sh   # stable public entrypoints (fresh inst
 scripts/shapeup-sdlc/lib/                # shell libs both entrypoints source
 tools/                # repo-only: demo/
                       #   demo/record-demo.mjs (regenerates docs/assets/demo-gate.svg)
-tests/structural.mjs, tests/structural/*.mjs   # Tier 0 — ten modules, zero LLM calls
+tests/structural.mjs, tests/structural/*.mjs   # Tier 0 — eleven modules, zero LLM calls
 docs/install.md, upgrading.md, glossary.md
 docs/design/          # the design document (pipeline, gates, circuit breaker, ERD)
 docs/visualize/       # the before-and-after view of the v4 loop

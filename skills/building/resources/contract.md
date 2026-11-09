@@ -34,4 +34,4 @@ libraries under `resources/plan/references/` and `resources/plan/templates/`. Th
 those with `—` where an activity has its rows.
 
 **Adding an activity** is one file with this header, one line on the index, and the phase row or sub-command
-that reaches it. The structural suite reads the three against each other.
+that reaches it. The three have to agree: a header naming a row the index does not give it is a defect in one of them.
