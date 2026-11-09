@@ -6,7 +6,7 @@
 | **Baseline** | `da972b7` on `plan/single-loop` (4.0.0). `npm test`: 228 checks, 0 failures, run 2026-11-09. `skills/building/`: 43 markdown files, 5,103 lines (`find` and `wc -l`) |
 | **Question** | The `building` skill carries the whole loop. Can it be cut into smaller, easier-to-manage parts on atomic-design lines without weakening what the runtime enforces? And which of the ten slash commands are still needed once it is? |
 | **Answer** | Yes, inside the one skill. Not by splitting it into several skills. The five mechanisms live in `kernel/` and `hooks/` and no stage here touches them; what changes is where each instruction sits, and that the suite starts checking the skill's structure. Eight of the ten command files are a second name for a skill or for a `/ship` sub-command; they go in stages of their own (R0 to R3), and `/ship` and `/retro` stay |
-| **Gate on every stage** | `npm test` green, the conservation check of section 6 clean, and `git diff --stat da972b7 -- kernel hooks agents bin` empty in every stage. `commands/` and `AGENTS.md` are untouched through S4 and change only in R1 and R2 |
+| **Gate on every stage** | `npm test` green, the conservation check of section 6 clean, and `git diff --stat da972b7 -- kernel hooks agents bin` empty in every stage but K1, which exists to change them. `commands/` and `AGENTS.md` are untouched through S4 and change only in R1 and R2 |
 | **Rule** | One stage per commit. A stage that only moves text changes no sentence; a stage that adds text removes none. S5 is a measurement and may end in "keep". The R stages start after S4 and start with an executed proof, not a deletion |
 | **Quick view** | skill: [before](../../visualize/building-anatomy-before.svg) · [after](../../visualize/building-anatomy-after.svg) · commands: [before and after](../../visualize/building-commands-before-after.svg) |
 | **Status** | **S0 to S2 executed on 2026-11-09**, on the PO's go-ahead for those three stages, on branch `plan/building-anatomy`: S1 is `20d356d`, S2 is `47f1658`. Each stage's acceptance passed in a fresh clone, 37 rows in all, and `npm test` is at 230 checks. S3 waits on D2; S4, S5 and R0 to R3 are not started. D8 is decided. **No real run has been made on the regrouped skill**: that is S4's gate, and until it runs, the loop following the new pointers is unverified |
@@ -20,6 +20,7 @@ Every figure is derived from the tree at the baseline or labelled as a projectio
 > | Non-goal: "a new skill, command, agent, hook or kernel verb"; `commands/` and `AGENTS.md` frozen in every stage | Eight command files are removed in stages R0 to R3; `commands/` and `AGENTS.md` stay frozen through S4 only | section 1, P6 |
 > | Ships as a patch on 4.0.0 | The S stages are a patch. The R stages remove published commands, which is a breaking change: one release, 5.0.0 (D8, decided by the PO on 2026-11-09) | the tag `v4.0.0` is on the remote (`git ls-remote`, 2026-11-09) |
 > | Six checks, C1 to C6 | Eight: C7 (every slash name a document writes resolves) and C8 (the counted commands) | a removed command must not survive in a document |
+> | `spike` with no order row: one of three defects waiting on D2 | Investigated on 2026-11-09 (section 4.7). No version of the plugin has ever written a `spike` order. A stage K1 is proposed to retire the operation; it is the one stage that touches `kernel/` and `hooks/` | 0 of 2,362 archived orders |
 
 ## 1. Problem
 
@@ -262,6 +263,54 @@ What the host's documentation says, read 2026-11-09 (the skills page and the plu
 
 **One thing is given up, and it is small.** `/wire` asked for planning to stop after the wiring map with nobody at the gate. After the removal a person stops there by answering Wiring Review; an unattended run has no flag for it. Adding one would be a new feature, which this plan does not do.
 
+### 4.7 What the investigation of `spike` found
+
+Asked on 2026-11-09, to let the PO answer D2: does the loop use the `spike` operation? Every figure below was read off
+the tree, the git history or the archived runs on that date.
+
+**There are two things called a spike, and only one of them runs.**
+
+| | The Scout's spike | The `spike` operation |
+|---|---|---|
+| What it is | part of the `orient` operation: the Scout de-risks the single riskiest area and writes `orient/spike-<area>.md` | an order of its own to `task-executor`, to produce a decision document for a `SPIKE` task |
+| Order row in `resources/orders.md` | yes, as `orient` | none |
+| Phase-table row that dispatches it | row 1 | none |
+| On record | 210 spike files across the archived runs | nothing |
+
+**The record of the operation.**
+
+| Looked at | Found |
+|---|---|
+| every archived order, in this repository's traces and the consumer project's (2,362 files, all parseable) | 0 with `"operation": "spike"`. By operation: `execute` 936, `plan` 358, `evaluate` 224, `orient` 198, `hunt` 129, `fix` 55, and the retired planning and census operations for the rest |
+| a caller that asks for one, at `0081c38` (3.18.4) and at the tag `engine-measured` | none. The compiler had `case "execute": case "fix": case "spike":` for the substrate, so it could build one; no run script, probe or skill ever requested it |
+| the `spikes/` workspace the substrate grants | never created, in any archived run. `spikesDir` in `kernel/lib/paths.mjs` has no caller |
+| a `SPIKE` task on any board (1,036 task files) | 0. Every task file carries `type: task` |
+| the trigger for a `SPIKE` task, an unverified third-party capability | never occurred: 160 contract files exist, none is a third-party contract with a `spike_status`, and no `api-feasibility.md` was ever written |
+
+**Where the word still lives.** The `Operation` enum and two descriptions in `kernel/schemas/domain.schema.json`;
+`BUILD_OPERATIONS` in `hooks/sandbox-guard.mjs`; two lines of `skills/task-executor/SKILL.md` ("SPIKE orders produce
+a decision document"); `spikesDir`; and the `.shapeup/<slug>/spikes/**` entries of the `execute` / `fix` row in
+`resources/orders.md`. The row for the operation itself was lost when the compiler was replaced by the order
+templates: the `spike` case was not carried over, and nothing noticed, because nothing used it.
+
+**And if a `SPIKE` task were generated today, no phase would run it.** The planner's rules say one MUST be generated
+for an unverified third-party capability (`resources/plan/references/task-generation.md`). A scope takes its tasks
+through their `use_case_refs`; the `SPIKE` template carries none. `Build a scope` dispatches `execute` or `fix`. The
+worker's decision-document rule is keyed to the order's operation, not the task's type. What the loop does have is
+Board Review, which already prints "any spike blockers" and asks "any spike to resolve before build?"
+(`resources/gates.md`): an open spike reaches the PO there, and that is the only place it is handled.
+
+**What this licenses:** the operation is vocabulary with no writer, in every version there is a record of. **What it
+does not:** a claim that no consumer elsewhere writes one. There is one consumer project on record.
+
+Three ways to answer D2 for `spike`:
+
+| | What changes | Cost | What it leaves |
+|---|---|---|---|
+| **A. Keep it and write the row** | `resources/orders.md` gains `spike` beside `execute` / `fix`, the substrate the compiler gave it | one line in a skill resource; S3 can ship C5 at once | a template no phase asks for. The check goes green over vocabulary that is still dead |
+| **B. Retire the operation** (recommended) | stage K1: the enum, the hook's set, the two worker lines, `spikesDir` and the `spikes/**` entries go. A `SPIKE` task stays a planner's task type and a Board Review blocker, which is what it is in practice | touches `kernel/` and `hooks/`, so it needs the cross-directory check and one nested session; removing an enum member is a breaking schema change and rides in 5.0.0 with the commands | one meaning of "spike" in the plugin: the Scout's |
+| **C. Make it real** | a phase-table row that dispatches a `SPIKE` task as a `spike` order before the tasks it blocks | new loop behaviour, and no pitch on record that would exercise it | a feature nobody has asked for, unmeasured |
+
 ## 5. What not to do
 
 1. **Do not create a second skill**, or rename `building`. Section 2 says why.
@@ -293,6 +342,8 @@ flowchart LR
   R1 --> R2["R2 · delete eight files,<br/>re-point every document, C7 C8"]
   R2 --> R3["R3 · close-out<br/>audit · upgrade notes"]
   R3 --> SHIP2(["shippable as 5.0.0"])
+  S4 -.-> K1["K1 · retire the spike operation<br/>kernel · hook · worker skill, if D2 says B"]
+  K1 -.-> SHIP2
 ```
 
 **The conservation check, used by S1, S2 and S5.** Take every non-blank line of every `.md` under `skills/building/` at the stage's parent commit and at the stage's commit, as two multisets. Each line present in one and absent from the other must contain a path the move map of section 4.2 rewrites, or be a title line a split had to add. Anything else is a lost or reworded sentence, and the stage is not done. The executor writes the script (about 20 lines of Node, builtins only) into its run workspace.
@@ -405,6 +456,23 @@ Done on a `git archive` copy of the tree at another path, never in this checkout
 
 No real run is asked of the R stages beyond that session. They change what a person types to start a skill, and nothing a skill does once started.
 
+### K1 — retire the `spike` operation (only if D2 chooses B)
+
+The one stage that changes `kernel/` and `hooks/`. It can run any time after S3 and ships with the R stages in 5.0.0.
+
+| Do | Done when |
+|---|---|
+| Remove `spike` from the `Operation` enum and from the two descriptions that name it in `kernel/schemas/domain.schema.json` | `verify envelope` refuses a fixture order whose operation is `spike`, naming the enum |
+| Remove it from `BUILD_OPERATIONS` in `hooks/sandbox-guard.mjs`; delete `spikesDir` from `kernel/lib/paths.mjs` | `grep -rni spike kernel hooks` returns only lines about the Scout's spike |
+| `skills/task-executor/SKILL.md`: the operation list loses `spike`, and the "SPIKE orders" bullet goes | the skill names the operations the schema has |
+| `resources/orders.md`: the `execute` / `fix` row loses its two `.shapeup/<slug>/spikes/**` entries | the row grants nothing no order has ever used |
+| Add C5 to `tests/structural/11-skill-anatomy.mjs`, both ways: every schema operation has a row in both tables of `orders.md`, and every operation `orders.md` names is in the schema | green, with no exemption; shown red once by putting `spike` back in the enum |
+| Every order in this repository's archived traces is checked against the new schema | all validate: none used the member that went |
+| `npm test`, `npm run verify:cross-dir`, and one nested session `claude -p --plugin-dir <repo> --permission-mode acceptEdits` that makes one fenced write | the suite is green, and the write's decision is in `decisions.jsonl`. A missing row means the hook failed to load, which fails open |
+
+Not in K1: the planner's `SPIKE` task rules. They stay, with the template named by path in S3. What happens to an open
+spike is already written down at Board Review.
+
 ## 7. What would change this plan
 
 - **A resource pointer convention the host enforces.** If Claude Code starts resolving or validating a skill's resource links itself, C1 and C2 are redundant and S1's rewrite should follow the host's form.
@@ -414,7 +482,8 @@ No real run is asked of the R stages beyond that session. They change what a per
 - **A skill name that is not typed directly.** If R0 shows `/shapeup-sdlc-plugin:task-executor` (or any of the five) does not load its skill, that command is the only way in and stays.
 - **Completion that hides plugin skills.** `README.md` says the commands make the pipeline "learnable from `/`-completion alone". After the removal that list is the six skill names and two commands. If the host's menu does not list a plugin's skills, the short names were doing work this plan did not see, and the five skill aliases stay.
 - **Usage nobody can see.** The plugin makes no network call, so there is no count of who types `/build`. The removal is decided on structure, not on use. A report from a consumer that a removed name is in their scripts is a reason to reopen D8 and take the two-release route, not to keep ten names.
-- **The PO deciding `spike` is dead.** Then C5 is satisfied by removing the operation from the schema, which is a kernel change and its own plan, not a line in this one.
+- **A consumer that writes `spike` orders.** Section 4.7 read every order there is a record of and found none, across one consumer project. One report of a real `spike` order turns D2 from B to A: the row is written and the operation stays.
+- **A pitch with an unverified third-party API.** It would be the first to generate a `SPIKE` task, and the first evidence of whether Board Review is enough to resolve one. If it is not, option C stops being a feature nobody asked for.
 
 ## 8. Risks and rollback
 
@@ -438,7 +507,7 @@ Rollback is `git revert` of the stage's commit, in reverse order. No stage write
 | # | Decision | Default if unanswered |
 |---|---|---|
 | D1 | Run S0 to S4 as proposed | **S0 to S2: approved by the PO and run, 2026-11-09.** S3 and S4 are not approved yet |
-| D2 | The three P4 defects. (a) `contract-patterns.md` line 34: point it at the three contract templates. (b) `task-spike.tmpl.md` and the `spike` operation: give `orders.md` a `spike` row and name the template, or say the operation is not used by the loop | S3 does not start; C2 and C5 stay out of the suite |
+| D2 | The three P4 defects. (a) `contract-patterns.md` line 34: point it at the three contract templates in `resources/plan/templates/contracts/`. (b) `task-spike.tmpl.md`: name it by path from the planner's SPIKE Task Rules. (c) The `spike` operation: A, B or C of section 4.7 | (a) and (b) as written, in S3. (c) **B is recommended**: stage K1, shipped in 5.0.0, with C5 landing in K1 and not in S3. Until (c) is answered C5 stays out of the suite |
 | D3 | S5 at all | **not now.** It moves 39 lines out of a 144-line file for the price of two real runs, and carries the plan's only behaviour risk. Revisit when `SKILL.md` next grows |
 | D4 | The version the S stages ship as | patch on 4.0.0: no command, gate, schema or hook changes |
 | D5 | How far S4's real run goes | through Board Review |
