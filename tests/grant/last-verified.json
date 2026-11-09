@@ -2,7 +2,7 @@
   "cli_version": "2.1.318 (Claude Code)",
   "plugin_version": "4.0.0",
   "entry_point": "kernel/harness.mjs",
-  "git_sha": "c0557cc61f9fd922955ee30a1017eac077f23c6c",
+  "git_sha": "40f090fd87b819141a4282e0d0a9ed60f3372792",
   "rules": 2,
   "cases": [
     {
