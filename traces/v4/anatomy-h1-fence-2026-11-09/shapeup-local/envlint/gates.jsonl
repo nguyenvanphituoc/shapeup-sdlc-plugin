@@ -1,0 +1,1 @@
+{"at":"2026-11-09T04:15:13.722Z","run_id":"envlint-20261109T041513Z-941e09ad","gate":"L0","status":"ok","decision":"proceed","source":"preset:ci","note":"Pre-approved for a headless lane. No human is present; the decision is recorded here so the ledger still names a source. — run opened: intake recorded, receipt written","round":null}

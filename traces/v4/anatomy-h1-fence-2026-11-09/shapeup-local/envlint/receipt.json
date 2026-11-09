@@ -1,0 +1,24 @@
+{
+  "receipt_version": 1,
+  "type": "harness-run-receipt",
+  "slug": "envlint",
+  "run_id": "envlint-20261109T041513Z-941e09ad",
+  "started_at": "2026-11-09T04:15:13.722Z",
+  "intake_sha256": "7a70801d41c890a141685f8bd7e410389cd6cbc23508db02b4d9c294d12ed4cf",
+  "intake_chars": 2379,
+  "intake_lines": 42,
+  "intake_source": "pitch.gate.md",
+  "started": true,
+  "plugin": {
+    "name": "shapeup-sdlc-plugin",
+    "version": "4.0.0",
+    "root": "/Users/liberty/Documents/proj-shapeup-sdlc-plugin-consumer/.plugin-under-test/plugin-anatomy-h1"
+  },
+  "config": {
+    "auto_level": "unattended",
+    "max_rounds": 1,
+    "attempt_budget": 5,
+    "spec_folder": "shapeup/envlint/spec/",
+    "gate_answers": "ci"
+  }
+}

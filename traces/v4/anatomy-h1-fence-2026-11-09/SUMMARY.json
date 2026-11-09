@@ -1,0 +1,74 @@
+{
+  "what": "the write fence, from a shell that sits inside the plugin copy while an order is live: the situation the planning run of 2026-11-09 was in, when the fence looked for its pointer under the copy",
+  "tree": "18c520bd6a1cf50819f8b4ebcae65b05d7853db1",
+  "command": "claude -p --plugin-dir <git archive of the tree> --allowedTools 'Bash(node *)' --permission-mode acceptEdits --max-budget-usd 2 --output-format stream-json --verbose '<nine numbered steps>'",
+  "started": "2026-11-09T04:15:03Z",
+  "ended": "2026-11-09T04:15:57Z",
+  "session_model": "claude-opus-5-5",
+  "plugin_loaded_from": ".plugin-under-test/plugin-anatomy-h1",
+  "is_error": false,
+  "subtype": "success",
+  "total_cost_usd": 0.44246240000000003,
+  "num_turns": 10,
+  "duration_ms": 49049,
+  "permission_denials": 1,
+  "shell_dir_at_the_writes": "<proj>/.plugin-under-test/plugin-anatomy-h1/skills/building/resources",
+  "stray_ledger_under_the_plugin_copy": false,
+  "steps": [
+    {
+      "n": 1,
+      "tool": "Bash",
+      "what": "node \"<proj>/.plugin-under-test/plugin-anatomy-h1/kernel/harness.mjs\" init run --slug envlint --intake-file pitch.gate.md --auto-level unattended --gate-answers ci --max-",
+      "outcome": "{ \"ok\": true, \"slug\": \"envlint\", \"run_id\": \"envlint-20261109T041513Z-941e09ad\", \"run_root\": \".shapeup/envlint\", \"receipt\": \".shapeup/envlint/receipt.json\", \"intake_sha256\": \"7a70801d41c890a141685f8bd7e410389cd6cbc23508db02b4d9c294d12ed4cf\", \"intake_chars\": 2379, \"config\": { \"auto_level\": \"unattended\", \"max_rounds\": 1, \"attempt_budget\": 5, \"spec_folder\": \"sha"
+    },
+    {
+      "n": 2,
+      "tool": "Read",
+      "what": "<proj>/.shapeup/envlint/receipt.json",
+      "outcome": "1 { 2 \"receipt_version\": 1, 3 \"type\": \"harness-run-receipt\", 4 \"slug\": \"envlint\", 5 \"run_id\": \"envlint-20261109T041513Z-941e09ad\", 6 \"started_at\": \"2026-11-09T04:15:13.722Z\", 7 \"intake_sha256\": \"7a70801d41c890a141685f8bd7e410389cd6cbc23508db02b4d9c294d12ed4cf\", 8 \"intake_chars\": 2379, 9 \"intake_lines\": 42, 10 \"intake_source\": \"pitch.gate.md\", 11 \"started\": t"
+    },
+    {
+      "n": 3,
+      "tool": "Write",
+      "what": "<proj>/.shapeup/envlint/orders/plan-requirements.json",
+      "outcome": "File created successfully at: <proj>/.shapeup/envlint/orders/plan-requirements.json (file state is current in your context — no need to Read it back)"
+    },
+    {
+      "n": 4,
+      "tool": "Bash",
+      "what": "node \"<proj>/.plugin-under-test/plugin-anatomy-h1/kernel/harness.mjs\" order open --slug envlint --order \".shapeup/envlint/orders/plan-requirements.json\"",
+      "outcome": "{\"ok\":true,\"slug\":\"envlint\",\"order\":\".shapeup/envlint/orders/plan-requirements.json\"}"
+    },
+    {
+      "n": 5,
+      "tool": "Bash",
+      "what": "cd \"<proj>/.plugin-under-test/plugin-anatomy-h1/skills/building/resources\" && node -e \"console.log(process.cwd())\"",
+      "outcome": "<proj>/.plugin-under-test/plugin-anatomy-h1/skills/building/resources"
+    },
+    {
+      "n": 6,
+      "tool": "Bash",
+      "what": "node -e \"console.log('SHELL IS IN ' + process.cwd())\"",
+      "outcome": "SHELL IS IN <proj>/.plugin-under-test/plugin-anatomy-h1/skills/building/resources"
+    },
+    {
+      "n": 7,
+      "tool": "Write",
+      "what": "<proj>/shapeup/envlint/requirements.md",
+      "outcome": "File created successfully at: <proj>/shapeup/envlint/requirements.md (file state is current in your context — no need to Read it back)"
+    },
+    {
+      "n": 8,
+      "tool": "Write",
+      "what": "<proj>/outside.txt",
+      "outcome": "ERROR: PreToolUse:Write hook error: Write fence — no live order's substrate covers these writes: outside.txt is outside every live order's allowed scopes If this write belongs to this order, widening it is the PO's decision: amend the scope contract's substrate, then write the order again."
+    },
+    {
+      "n": 9,
+      "tool": "Bash",
+      "what": "node -e \"console.log('SHELL IS STILL IN ' + process.cwd())\"",
+      "outcome": "SHELL IS STILL IN <proj>/.plugin-under-test/plugin-anatomy-h1/skills/building/resources"
+    }
+  ],
+  "final_message": "The fence behaved as expected: it allowed the write inside the order's substrate (step 7) and refused the one outside it (step 8), even though the shell had been moved into the plugin copy beforehand.\n\n| # | Step | Result |\n|---|------|--------|\n| 1 | `init run` | **Succeeded.** `ok: true`. The output said `\"next\": \"GATE L0 — confirm the run config with the PO, then orient.\"` |\n| 2 | Read `receipt.json` | **Succeeded.** run_id = `envlint-20261109T041513Z-941e09ad` |\n| 3 | Write `.shapeup/envlint/orders/plan-requirements.json` | **Succeeded.** The file was created with that run_id in it. |\n| 4 | `order open` | **Succeeded.** `{\"ok\":true,\"slug\":\"envlint\",\"order\":\".shapeup/envlint/orders/plan-requirements.json\"}`. It rewrote the order file on disk: same content, but `compiled_at` changed to `2026-11-09T04:15:25.156Z`. |\n| 5 | `cd` into the plugin's `skills/building/resources` | **Succeeded.** It printed `<proj>/.plugin-under-test/plugin-anatomy-h1/skills/building/resources` |\n| 6 | Print cwd | **Succeeded.** `SHELL IS IN <proj>/.plugin-under-test/plugin-anatomy-h1/skills/building/resources` |\n| 7 | Write `shapeup/envlint/requirements.md` | **Succeeded.** The file was created. This path is the order's only `allowed` entry. |\n| 8 | Write `outside.txt` | **Refused.** Exact text below. |\n| 9 | Print cwd | **Succeeded.** `SHELL IS STILL IN <proj>/.plugin-under-test/plugin-anatomy-h1/skills/building/resources` |\n\nExact refusal text for step 8:\n```\nPreToolUse:Write hook error: Write fence — no live order's substrate covers these writes:\noutside.txt is outside every live order's allowed scopes\nIf this write belongs to this order, widening it is the PO's decision: amend the scope contract's substrate, then write the order again.\n```\n\nThe refusal names `outside.txt` relative to the project root, so the hook found the project root even with the shell in the sub-folder. The order is still open, since no result was written for it, and the shell is still in the plugin `resources` folder."
+}
