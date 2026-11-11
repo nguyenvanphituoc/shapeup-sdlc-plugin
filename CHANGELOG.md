@@ -3,6 +3,16 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [4.1.1] — 2026-11-11 · Dispatch receipts for workers the host launches in the background
+
+- **Fixed.** A worker the host launched in the background without the call asking for it left no dispatch receipt: the hook
+  required `run_in_background` on the call, while the host's own result (`isAsync`, `status: "async_launched"`, an `agentId`) is
+  what says the launch happened. Every dispatch of a measured run came back "nothing to attest", so Ship Sign-off read an empty
+  record as a clean one. The structured result now attests the launch, and the model the host resolved is recorded beside the one
+  the call asked for.
+- **Fixed.** Ship Sign-off now lists every dispatched worker order that no receipt names, in the gate's row (`models.unattested`
+  and its note). It is advisory, never a refusal, and a run with no receipts at all no longer reads as empty evidence.
+
 ## [4.1.0] — 2026-11-09 · Two commands and six skills by their own names, one operation fewer, and a fence that follows the run
 
 **Breaking, in a minor release.** Eight slash commands are removed, and one operation leaves the order schema. The number is

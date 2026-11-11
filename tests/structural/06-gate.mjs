@@ -6,6 +6,7 @@
 // that cleared the run. Each is asserted against the same call the loop makes, and the source of
 // every decision is read from the ledger rather than from what the command printed.
 import { join } from "node:path";
+import { rmSync } from "node:fs";
 import { scratch, put, kernel, slurp, json, existsSync } from "../lib/fixture.mjs";
 
 export async function run(ctx) {
@@ -103,6 +104,18 @@ export async function run(ctx) {
       "a receipt with no model is counted as unreported and claims nothing; the role that matched is not a mismatch");
     check(row?.gate === "L4" && /model differs from the launch record/.test(row.note || "") && row.models?.mismatch?.length === 1,
       "the ledger row carries the difference in its note and as data, so a cost read later is read against the model that ran");
+    put(cwd, ".shapeup/w/orders/build-r1.json", { order_id: "w/build-r1", run_id: runId, worker: "task-executor", mode: "orchestrated" });
+    put(cwd, ".shapeup/w/orders/plan-spec.json", { order_id: "w/plan-spec", run_id: runId, worker: "building", mode: "standalone" });
+    receipts(receipt("orient", "claude-sonnet-5-5"));
+    r = gate("L4", "ci");
+    check(r.status === 0 && r.out?.decision === "ship" && JSON.stringify(r.out?.models?.unattested) === '["w/build-r1"]'
+      && /no dispatch receipt for 1 dispatched order/.test(rows().at(-1)?.note || "") && rows().at(-1)?.models?.unattested?.length === 1,
+      "a dispatched order no receipt names is written into the ship row as unattested, advisory and not refused; a planning order is not a dispatch");
+    receipts();
+    r = gate("L4", "ci");
+    check(r.status === 0 && r.out?.models?.unattested?.includes("w/build-r1"), "a run with no receipts at all reads as unattested, not as empty evidence");
+    rmSync(join(cwd, ".shapeup/w/orders/build-r1.json"));
+    rmSync(join(cwd, ".shapeup/w/orders/plan-spec.json"));
     receipts(receipt("task-executor", "claude-sonnet-5-5"), receipt("spec-evaluator", "claude-haiku-4-5"));
     r = gate("L4", "ci");
     check(r.status === 4 && r.out?.refused === "ship" && /eval ran on claude-haiku-4-5.*below the model floor/.test(r.out?.reason || ""),

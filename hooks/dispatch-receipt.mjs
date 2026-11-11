@@ -49,7 +49,10 @@
 // against a model that never ran.
 //
 // A SCOPE LAUNCHED IN THE BACKGROUND reports no agent at all: the result is "Async agent launched"
-// plus an `agentId`, because the host has not run anything yet. Parallel scope builds are exactly that
+// plus an `agentId` (structured: `isAsync`, `status: "async_launched"`), because the host has not run
+// anything yet. The host decides this: it launched every worker of a measured run in the background
+// although no call carried `run_in_background`, so the receipt cannot wait for the call to ask. The
+// result still carries the model the host resolved, which the row records beside the one asked for. Parallel scope builds are exactly that
 // case, and without this arm the receipt hook went blind to every one of them. What the host did
 // establish is that it accepted the call — an agent type it cannot resolve is rejected before this
 // event — so the name the CALL carried (`subagent_type`) is the attestation, and the usage is null
@@ -120,7 +123,14 @@ export function skillInvokedFrom(toolResponse) {
  * @returns {boolean} True for an accepted background launch.
  */
 export function backgroundLaunch(toolResponse, toolInput) {
-  if (toolInput?.run_in_background !== true || !toolResponse) return false;
+  if (!toolResponse) return false;
+  // The host's own account of the launch is the evidence: a structured result that says it was
+  // asynchronous and names the agent it started. A host may run an agent in the background without
+  // the call asking for it, so the call's flag is not required.
+  if (typeof toolResponse === "object" && typeof toolResponse.agentId === "string" && toolResponse.agentId
+    && (toolResponse.isAsync === true || toolResponse.status === "async_launched")) return true;
+  // A host that reports the launch only as text: the call must have asked for the background.
+  if (toolInput?.run_in_background !== true) return false;
   const text = typeof toolResponse === "string" ? toolResponse : JSON.stringify(toolResponse);
   return /\bagentId\b/.test(text) && /launched/i.test(text);
 }

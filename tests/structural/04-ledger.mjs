@@ -83,6 +83,18 @@ export async function run(ctx) {
     check(rows().length === before + 1 && row.skill_invoked === "task-executor" && row.dispatch_ok === true && row.usage.tokens_total === null,
       "a background launch is attested by the name the accepted call carried, with usage left null rather than invented");
 
+    // The measured payload: no run_in_background on the call, and the host launched it asynchronously anyway.
+    const asyncResult = { isAsync: true, status: "async_launched", agentId: "a3", resolvedModel: "claude-sonnet-5-5",
+      description: "Build", prompt, outputFile: "/tmp/x.output", canReadOutputFile: true };
+    r = dispatch({ subagent_type: "shapeup-sdlc-plugin:task-executor", model: "sonnet", prompt }, asyncResult);
+    row = rows().at(-1);
+    check(r.rows.at(-1)?.rule === "receipt-written" && row.skill_invoked === "task-executor" && row.dispatch_ok === true
+      && row.usage.tokens_total === null && row.usage.model === "claude-sonnet-5-5" && row.model_requested === "sonnet",
+      "a launch the host made asynchronous without being asked is attested, and the model the host resolved is recorded");
+    const m = rows().length;
+    r = dispatch({ subagent_type: "shapeup-sdlc-plugin:task-executor", prompt }, { isAsync: true, status: "async_launched" });
+    check(rows().length === m && r.rows.at(-1)?.rule === "no-skill-named", "an async result that names no agent attests nothing");
+
     r = dispatch({ subagent_type: "general-purpose", prompt }, { status: "completed", agentType: "general-purpose" });
     row = rows().at(-1);
     check(row.skill_invoked === "general-purpose" && row.worker_declared === "orient",

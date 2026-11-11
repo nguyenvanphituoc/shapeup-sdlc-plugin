@@ -298,8 +298,9 @@ export function sameModel(asked, ran) {
  * than to what was asked; any other difference is written down, because a cost or a verdict read against
  * the wrong model is a figure about a different run.
  *
- * A receipt with no model (a background launch reports none) is counted as `unreported` and claims
- * nothing. Rows of another run are ignored.
+ * A receipt with no model is counted as `unreported` and claims nothing. A dispatched order with no
+ * receipt at all is listed in `unattested`: advisory, written into the gate's row, never a refusal.
+ * Rows of another run are ignored.
  *
  * @param {string} cwd - Project root.
  * @param {string} slug - Feature slug.
@@ -317,6 +318,18 @@ export function modelEvidence(cwd, slug) {
   } catch { rows = []; }
   const ran = { exec: {}, eval: {}, qa: {} };
   let unreported = 0;
+  // Orders the loop dispatched to a worker (mode orchestrated) that no receipt of this run names. A
+  // missing receipt is the one failure a count over the receipts cannot see: with none at all the
+  // evidence reads as empty rather than as absent.
+  const attested = new Set(rows.map((r) => r.order_id));
+  const unattested = [];
+  try {
+    for (const f of readdirSync(ordersDir(cwd, slug)).filter((x) => x.endsWith(".json")).sort()) {
+      const o = readJson(join(ordersDir(cwd, slug), f));
+      if (o?.mode === "orchestrated" && WORKER_ROLE[o.worker] && o.order_id && (!runId || o.run_id === runId)
+        && !attested.has(o.order_id)) unattested.push(o.order_id);
+    }
+  } catch { /* no orders directory: nothing was dispatched */ }
   for (const r of rows) {
     const role = WORKER_ROLE[r.skill_invoked] ?? null;
     if (!role) continue;
@@ -332,7 +345,7 @@ export function modelEvidence(cwd, slug) {
       if (role !== "qa" && belowFloor(m)) below.push(`${role} ran on ${m} in ${n(k)}, below the model floor (sonnet or above)`);
     }
   }
-  return { asked, ran, unreported, mismatch, below_floor: below };
+  return { asked, ran, unreported, unattested, mismatch, below_floor: below };
 }
 
 /**
@@ -595,10 +608,15 @@ export function gateNote(r, verdict) {
   }
   // A ship over workers that ran on a model other than the launch record's says so in the row itself,
   // where whoever reads the ledger for a cost or a verdict will see it.
+  const notes = [];
   if (r.gate === "L4" && r.decision === "ship" && r.models?.mismatch?.length) {
-    return `${own ?? ""}${own ? " — " : ""}model differs from the launch record: ${r.models.mismatch.join("; ")}`;
+    notes.push(`model differs from the launch record: ${r.models.mismatch.join("; ")}`);
   }
-  return own;
+  if (r.gate === "L4" && r.decision === "ship" && r.models?.unattested?.length) {
+    notes.push(`no dispatch receipt for ${r.models.unattested.length} dispatched order(s): ${r.models.unattested.join(", ")} — ` +
+      `the shipped worker is unattested and the model that ran is unknown`);
+  }
+  return notes.length ? `${own ?? ""}${own ? " — " : ""}${notes.join(" — ")}` : own;
 }
 
 function out(obj, code = 0) {
@@ -711,7 +729,7 @@ export function cli(rawArgv) {
       round: args.round ?? null,
       ...(verdict ? { verdict } : {}),
       // What ran, per role, beside what was asked — the machine-readable half of the note above.
-      ...(r.models ? { models: { asked: r.models.asked, ran: r.models.ran, unreported: r.models.unreported, mismatch: r.models.mismatch } } : {}),
+      ...(r.models ? { models: { asked: r.models.asked, ran: r.models.ran, unreported: r.models.unreported, unattested: r.models.unattested, mismatch: r.models.mismatch } } : {}),
     });
   }
   if (r.status === "ask") out({ ...r, ok: false }, 4);
