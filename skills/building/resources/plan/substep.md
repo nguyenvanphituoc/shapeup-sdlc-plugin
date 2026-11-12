@@ -49,7 +49,7 @@ scopes, spec-lint and GATE L1b, where the plan is still cheap to change.
 | "My output looks complete, score it 92" | You do not grade yourself. The lint reports facts; the judge judges. |
 | "Re-scanning the codebase is safer than trusting orient" | `code-surface.md` IS the map. Re-scanning burns tokens and forks the truth. |
 | "unlocks is quick to fill in by hand" | Hand-authored `unlocks` drifts asymmetric. Compute it as the inverse of `depends_on` over the whole board, every time a task changes. |
-| "The appetite overflow is small, I will drop a nice-to-have" | Overflow is a cut-list question for the PO at the stop gate. Report the fact and the candidates. |
+| "The appetite overflow is small, I will drop a nice-to-have" | Overflow is a cut-list question for the Cut-List Review gate. Report the fact and the candidates. |
 | "I will also slice the scopes (or wire, or write the spec) while I am here" | Each substep has its own fence and its own artifact. Cross-substep writes are denied, and a defect when they are not. |
 
 ## Mid-run: discovered items and older specs
@@ -62,12 +62,12 @@ Two spec-substep modes exist for work after the first plan, each with its own fe
   case; a new task continues the numbering (never renumber); a `~`/Cut item becomes a "Hammered Out" row
   in `synthesis.md`, no file. A Keep item that asserts a new invariant is APPENDED to that use case as
   `[INV-NN]` plus a `TS-INV-NN` Test Surface row (append-only sections). A new actor/action with no use
-  case is the PO's call, not yours. Finish by recomputing `unlocks` (appetite overflow is reported) and
+  case is not yours to add: raise it with the gate agent as a question. Finish by recomputing `unlocks` (appetite overflow is reported) and
   re-reading the spec against the checklist. Never re-run the analysis, edit use-case Steps, or resolve an appetite overflow yourself.
 - **retrofit-surface** — append `## Test Surface` (derived rows only, after Error Cases) to each use case
   of a spec that predates it; a use case whose sources are all empty gets the explicit empty-sources line.
   Touch nothing else.
 
-Neither is offered by the phase table; the loop opens one by hand when the PO asks for it, with a `plan` order
+Neither is offered by the phase table; the loop opens one by hand when a new invariant is found, with a `plan` order
 whose payload carries `"step":"spec"` and `"mode":"reconcile"`, then the same
 `close` as any substep.

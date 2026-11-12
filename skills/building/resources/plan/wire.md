@@ -33,7 +33,7 @@ client-only game's `main.js` is not a web service's `src/server.ts`). Read the p
 entry point. **A missing profile is a `need` the loop stops on — do not invent an entry point:** the whole
 point is that the seam resolves against a *declared* composition root, and a guessed `main.js` would make
 the later oracle certify nothing. A guideline that disagrees with the profile's `entry_point` is told to
-the PO, not applied.
+the gate agent as a question, not applied.
 
 ## Process
 

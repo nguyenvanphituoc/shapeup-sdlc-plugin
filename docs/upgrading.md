@@ -13,9 +13,9 @@ working. The consequence is stated here rather than left to be discovered: **an 
 to predate the current layout is not converted for you.** Run `install-harness.sh` against it
 instead and treat it as a fresh install.
 
-## Upgrading to 4.2
+## Upgrading to the next release (unreleased)
 
-Every run is unattended. A gate agent answers each of the ten gates in the PO's place, reads the run's decision log first, and writes a baseline and a decision for each; the ship report prints the log. `--auto`, `--unattended` and `--gate-answers` are no longer needed: the loop passes no answer set and an old command line still works. Nothing in your project needs editing.
+Every run is unattended. A gate agent answers each of the ten gates in the PO's place, reads the run's decision log first, and writes a baseline and a decision for each; the ship report prints the log. `--auto`, `--unattended` and `--gate-answers` are no longer needed: the loop passes no answer set and the loop ignores them. Nothing in your project needs editing.
 
 ## Upgrading to 4.1
 

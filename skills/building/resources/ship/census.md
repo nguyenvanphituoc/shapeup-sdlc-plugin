@@ -10,7 +10,7 @@
 The census is yours: you do it in this context — no sub-agent — and GATE L4 reads one file to know it was done. The bar is Shape Up's own: as the budget runs
 out, cut perfectionist ambition by comparing the product to the **baseline** — what customers live with
 today — **never to a hypothetical ideal**. "Better than the baseline" is good enough to ship; "not as good as
-I imagined" is not a reason to keep building. You propose; the PO decides.
+I imagined" is not a reason to keep building. You propose; the gate agent decides.
 
 ## When you do it
 
@@ -63,7 +63,7 @@ Carry candidates        : [scopes still uphill/downhill, or exhausted attempt bu
    "baseline not first-class — comparison is approximate" in the report. **Do not invent one.**
 2. For each MUST-HAVE: "with this item cut or carried, is the shipped product still strictly better than the
    baseline for the pitch's core problem?"
-   - YES → safe to cut or carry; it is a cut-list candidate anyway (the PO is still asked).
+   - YES → safe to cut or carry; it is a cut-list candidate anyway (the gate agent is still asked).
    - NO → this item blocks shipping as it stands and is **not hammer-cuttable**. Fix it now (one more focused
      attempt, not a full extra round) or the run genuinely fails the appetite: say so, do not ship anyway.
 3. NICE-TO-HAVE items never block; they are cut-list candidates by construction.
@@ -110,7 +110,7 @@ The ship report, written after GATE H and before GATE L4, has its own file: `res
 | Compare to the baseline, never to a perfect ideal | the actual trade-off algorithm of the stop step |
 | Default classification is NICE-TO-HAVE | a generous must-have list defeats the point |
 | A MUST-HAVE that fails the comparison is never cut silently | the one case where the census refuses to make the run look shippable |
-| Cuts are proposals; the PO confirms every one | the census never overrides the human at the ship gate |
+| Cuts are proposals; the gate agent confirms every one | the census never overrides the human at the ship gate |
 | Every ownership, exhaustion and requirement claim cites its file | derived from the contracts and the receipts, never from what the report remembers |
 | You never set `status: done`, deploy, or ship | the run closes only after GATE L4 is crossed — `order close --status shipped` refuses without this run's `ship` row; the judge, the doer and the census stay separate acts |
 | Guidance never decides a gate | a knowledge-base rule may add a question to the H block, never an answer; there is no `stop` knowledge-base file — the census's claims come from files |

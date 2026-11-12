@@ -78,13 +78,19 @@ export async function run(ctx) {
     check(!denied(write(`.shapeup/${SLUG}/results/plan-spec.json`, "{}")), "a plan order writes its own result although the results directory is frozen");
     check(denied(write(`.shapeup/${SLUG}/results/plan-wire.json`, "{}")), "…and no other result");
     check(denied(write(`.shapeup/${SLUG}/orders/plan-scopes.json`, "{}")), "a live plan order freezes the next order until it is answered");
+    check(denied(write(`.shapeup/${SLUG}/decision-log.md`, "## 1")), "a live plan order fences the decision log too: its substrate does not name it, so a gate is never put while an order is open");
     put(root, `.shapeup/${SLUG}/results/plan-spec.json`, "{}");
     kernel(ROOT, ["order", "open", "--slug", SLUG, "--order", path], { cwd: root });
+
+    // The decision log is the gate agent's to write between dispatches. A live order fences it like any
+    // other run-trace file, so a gate must never be put while an order is open; once the result lands it is writable.
+    check(denied(write(`.shapeup/${SLUG}/decision-log.md`, "## 1")), "the decision log is fenced while a build order is live");
 
     // The two ways the fence lifts, distinguished by rule.
     put(root, `.shapeup/${SLUG}/results/build-r1-a1.json`, "{}");
     r = write("lib/outside.js");
     check(!denied(r) && rule(r) === "no-order", `an answered order stops fencing, rule "${rule(r)}"`);
+    check(!denied(write(`.shapeup/${SLUG}/decision-log.md`, "## 1")), "…and the decision log is writable once the order is answered");
 
     // Close retires both pointers and records the ending — and a shipped ending rests on a sign-off.
     put(root, ".shapeup/active-scope", { slug: SLUG });

@@ -38,7 +38,7 @@ Never inferred from nothing: read what the pitch, the command line and the setti
 | Auto level | `unattended`: every run is; the gate agent answers each gate (until the answer sets are removed the launch record may still carry a preset, which the loop does not pass) |
 | Models | resolve once: flags, then `.claude/settings.local.json`, then `.claude/settings.json`, then defaults, and pass the result as `--exec-model` / `--eval-model` / `--qa-model`. Exec and eval must be sonnet or above — `init run` refuses a cheaper tier. A model the member's plan does not offer degrades one tier down, and the degrade is said at the L0 gate, never silent. |
 | Run commands | the build command (`run_cmd`), and the profile's `build_probe` and `launch_probe`. A `mobile` profile with no launch probe has nobody owning the install and launch risk: say so. |
-| Knowledge base | read `shapeup/knowledge-base/building.md` and then `tech-lead.md` (the same guidance under its old name; `resources/guidance.md`) if they exist. It may add a question or a check to a gate block and may propose run values (not applied by the loop: the gate agent records that it was proposed, as a question entry). It never answers, skips or reorders a gate. With no file at all, offer `/retro --scan` once and go on whether or not the PO takes it. |
+| Knowledge base | read `shapeup/knowledge-base/building.md` and then `tech-lead.md` (the same guidance under its old name; `resources/guidance.md`) if they exist. It may add a question or a check to a gate block and may propose run values (not applied by the loop: the gate agent records that it was proposed, as a question entry). It never answers, skips or reorders a gate. With no file at all, go on: the PO may run `/retro --scan` between runs. |
 
 ## 4. Open the run
 
@@ -50,11 +50,11 @@ run` writes the launch record (§7) in the same act as the receipt, so a switch 
 node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" init run --slug <slug> --intake-file <path> --auto-level unattended [--max-rounds 3] [--attempts 5] [--exec-model <m>] [--eval-model <m>] [--qa-model <m>] [--no-eval] [--no-qa] [--parallel-scopes <N>]
 ```
 
-Ask for every value in §3 *before* this command, so the record is right the first time; a change the gate agent asks
+Collect every value in §3 *before* this command, so the record is right the first time; a change the gate agent asks
 for at the L0 gate (§6) re-opens the run with `--force` — nothing has been planned yet.
 
 **Exit 2 naming a role** means a model is below the floor (`exec` and `eval` must be sonnet or above; `qa` and,
-under `--no-eval`, `eval` are not checked): say which, and ask for another. An unknown switch exits 2 too, naming it.
+under `--no-eval`, `eval` are not checked): say which and stop: a failed preflight is the PO's to fix, and is never put to the gate agent. An unknown switch exits 2 too, naming it.
 
 **Exit 3 means a run is already open, or the worker roster is missing.** For an open run the refusal prints the
 launch record it keeps — the switches typed to *this* call were not applied — and the loop continues from the phase
@@ -98,7 +98,7 @@ Knowledge    : building.md — <N> rules | none
 node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" gate --resolve L0 --slug <slug> --answer <proceed|abort> --by agent:gate-agent --note "<reason>"
 ```
 
-Exit 4: put the block to the PO and wait. Exit 0 `proceed`: continue. Exit 5: stop; do not launch.
+Exit 0 `proceed`: continue. Exit 5 (`abort`): close the run `aborted` and stop. Exit 4: the kernel refused on the evidence; close the run `escalated`. Use the absolute kernel path in the command, as `resources/gates.md` says.
 
 ## 7. The launch record
 

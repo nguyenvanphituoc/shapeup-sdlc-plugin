@@ -3,7 +3,7 @@
 A run is unattended: every gate is answered by the gate agent (`shapeup-sdlc-plugin:gate-agent`), never by you
 and never by a person. Start it anew at each gate with **the gate id and plain name, the round and verdict where
 the gate has them, the kernel's `block` verbatim, and the paths below**. Do not send your own opinion of the
-answer. It reads the decision log first, then these paths, decides, writes its entry and records the answer.
+answer. **Give it the absolute kernel path**, `node "<absolute plugin root>/kernel/harness.mjs"`: a command that spells it through a variable is refused in a headless session before any permission rule is read, and the agent takes no order that would carry it. It reads the decision log first, then these paths, decides, writes its entry and records the answer.
 What each gate decides, and the answers it may give, are in the gate agent's skill.
 
 | Gate | Send the paths |

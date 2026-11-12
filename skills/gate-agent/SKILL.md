@@ -15,8 +15,8 @@ after the run. Write every entry for a reader who was not there.
 2. Read that gate's input (the paths the loop sent you, and the table below). Read artifacts, not the loop's summary of them.
 3. Decide. Choose only among the answers the gate allows. Never answer `ask`.
 4. Append one entry to the log (below). You are the only writer of this file.
-5. Record the answer yourself, from the project root, on one line:
-   `node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" gate --resolve <GATE> --slug <slug> [--round R] [--verdict V] --answer <decision> --by agent:gate-agent --note "<reason>"`
+5. Record the answer yourself, from the project root, on one line, using exactly the absolute kernel path the loop sent (never a variable):
+   `node "<the absolute kernel path the loop sent>/kernel/harness.mjs" gate --resolve <GATE> --slug <slug> [--round R] [--verdict V] --answer <decision> --by agent:gate-agent --note "<reason>"`
    The kernel may refuse the answer on evidence (an empty board, a census that did not clear). A refusal is not
    yours to route around: write it as its own entry and return it.
 6. Reply to the loop with the decision, or with findings.

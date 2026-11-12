@@ -19,7 +19,7 @@ a shipped FAIL opens with `Shipped over a FAIL verdict, with the cut list below`
   having run. Where the two differ, say so here: a cost or a verdict read against the wrong model is a figure about a different run.
 - **Verification** — one row per scope from its latest trial: fixtures passed of total, regressions, trials, last status.
 - **Requirements** — one row per registered clause: its source, the covering criterion, its verdict. A projection, never a verdict; none of it blocks the ship.
-- **The cut list and the known gaps** — every cut the PO accepted, and every ship-blocking item the PO overrode.
+- **The cut list and the known gaps** — every cut the gate agent accepted, and every ship-blocking item it overrode.
 - **What did not finish** — the unfinished tasks by use case. A run launched with `noEval` says nothing was evaluated and never reads as verified.
 
 Every figure is read off a file you opened in this step. A report written from memory of the run is the failure this section exists to prevent.

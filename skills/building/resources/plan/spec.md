@@ -26,8 +26,7 @@ orient directory.
 
 ## The pipeline (mode `full`)
 
-Read the reference file before its phase; pause for the PO at a checkpoint only when the run is
-interactive, at most two questions each.
+Read the reference file before its phase; never pause at a checkpoint: a question goes to the gate agent.
 
 ```
 1  INGEST      pitch + breadboard + orient artifacts + guidance. Extract slug, appetite, in/out boundaries,
@@ -57,7 +56,7 @@ interactive, at most two questions each.
                  critical path; do the appetite arithmetic — an overflow is a fact you REPORT for the stop
                  gate, never resolve. Then read the tree back: structure, wikilinks, edge symmetry — fix what
                  you find. BREADBOARD-PLACE / BREADBOARD-UI: every Place with UI affordances is its own
-                 screen — add it or defer the Place with the PO's yes; never fold it into another
+                 screen — add it; a run defers no Place; never fold it into another
                → scope-summary.md + synthesis.md (traceability matrix, risk register, dependency graph —
                  the judgment layers over the board's numbers)
 8  INDEX       _index.md (pitch digest + document map) + feedback.md template
