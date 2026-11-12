@@ -13,9 +13,14 @@ working. The consequence is stated here rather than left to be discovered: **an 
 to predate the current layout is not converted for you.** Run `install-harness.sh` against it
 instead and treat it as a fresh install.
 
-## Upgrading to 4.2
+## Upgrading to 5.0
 
-Every run is unattended. A gate agent answers each of the ten gates in the PO's place, reads the run's decision log first, and writes a baseline and a decision for each; the ship report prints the log. `--auto`, `--unattended` and `--gate-answers` are no longer needed: the loop passes no answer set and the loop ignores them. Nothing in your project needs editing.
+5.0 removes options, so it is a major release. 4.2 made every run unattended (a gate agent answers each of the ten gates in the PO's place, reads the run's decision log first, and writes a baseline and a decision for each; the ship report prints the log). 5.0 removes what that made redundant.
+
+- **Answer sets are gone.** The `ci`, `guarded` and `interactive` presets, answer files, `gate --init`, `--list` and `--verify`, the `ask` answer and the answer-set schema are removed. A gate is answered with `gate --resolve <gate> --answer <decision> --by <who> --note "<reason>"`. An answer file on disk is no longer read.
+- **Old command lines still open a run.** `--auto`, `--unattended`, `--gate-answers` and `--auto-level` on `/ship` and `init run`, and `--preset`, `--file`, `--out`, `--tiny` and `--no-qa` on `gate`, are accepted and ignored, with one line saying so.
+- **The launch record no longer carries `autoLevel` or `answers`.** A record written by an older version is still read.
+- **Unchanged:** the evidence checks (an empty board, a census that did not clear, an owed QA hunt, a worker below the model floor) and exit codes 0, 2, 4 (refused on the evidence) and 5 (an `abort` answer).
 
 ## Upgrading to 4.1
 

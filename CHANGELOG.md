@@ -3,7 +3,7 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased] · The answer sets are removed
+## [5.0.0] — 2026-11-12 · The answer sets are removed
 
 **Breaking.** A gate is answered with `gate --resolve <gate> --answer <decision>`, by name (`--by`), with its reason (`--note`); nothing else answers one.
 
