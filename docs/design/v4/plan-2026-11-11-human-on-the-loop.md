@@ -5,10 +5,10 @@
 | **Date** | 2026-11-11 |
 | **Baseline** | `f44984f` on `plan/building-anatomy` (4.1.1). `npm test`: 245 checks, 0 failures, run 2026-11-11. Re-based the day it was written: the plan was first drafted against `6596157` (4.1.0, 241 checks), and 4.1.1 landed on the branch while it was being discussed. Section 4.10 says what that release changes here |
 | **Question** | Can a run cross its gates with the human only watching, without the gate becoming a rubber stamp? |
-| **Answer** | Yes, as a third decision source beside the two the resolver already has. A gate is answered by the loop, after the evidence exists, from a **baseline** file the resolver checks; every assumption in it was confirmed by a different agent whose dispatch the host attested; the ledger row names the decision maker and the confirmer. The evidence narrowing is untouched: an agent's answer, like a preset's, chooses among the answers the gate allows and supplies none of the evidence |
+| **Answer** | Yes, as a third decision source beside the two the resolver already has. A gate is answered by the loop, after the evidence exists, from a **baseline** file the resolver checks; every assumption in it was confirmed by a different agent whose dispatch the host attested; the ledger row names the decision maker and the confirmer. The evidence narrowing is untouched: an agent's answer, like a preset's, chooses among the answers the gate allows and supplies none of the evidence. A gate the agent cannot confirm crosses on its most conservative allowed answer, and only Board Review stops the run. The confirmation trace is tamper-evident, not tamper-proof: an honest loop leaves a true record, and a dishonest one in the same session can forge it (section 4.11) |
 | **Gate on every stage** | `npm test` green; `claude plugin validate . --strict` clean; `npm run verify:cross-dir` green on any stage that touches `hooks/` or `kernel/lib/paths.mjs`; the three existing lanes resolve every gate exactly as at the baseline (section 6, the lane-parity check) |
 | **Rule** | One stage per commit. Every stage is additive: no existing answer set, order, result or ledger row becomes invalid. A stage that fails its acceptance rows is not followed by the next one |
-| **Status** | **Proposed, reviewed 2026-11-12, four design questions open (section 9; the findings behind them are section 4.11).** Nothing is executed. Decided by the PO on 2026-11-11: D2 (an agent may cut, with confirmation) and D3 (the `eval` role's model). D1: the PO asked what the literature says about an agent learning from its own runs (section 4.8) and then decided the learning belongs in this plan, not the next one (section 4.9, stages S5 and S6). D4 to D7 are open. On 2026-11-12 three independent reviews (the code, the user's goal, the literature) found that principle 4 is recorded but not enforced, and that the refusal path keeps the human in the loop. The fact errors they found are corrected in place; the design changes are D3 re-opened and D8 to D10, for the PO |
+| **Status** | **Proposed and reviewed; nothing is executed.** Decided by the PO on 2026-11-11: D1 (learning on the loop belongs in this plan, section 4.9) and D2 (an agent may cut, with confirmation). On 2026-11-12 three independent reviews (the code, the user's goal, the literature) found that principle 4 is recorded but not enforced and that every refusal kept the human in the loop (section 4.11); the fact errors are corrected in place, and the PO decided the questions they raised the same day: D3 re-decided (a different Claude model confirms), D8 (an unconfirmed gate falls back, only Board Review stops), D9 (no learned rule under `plan`), D10 (a cut needs a no-go or rabbit-hole clause). D4, D5 and D7 are open |
 
 Every figure is derived from the tree at the baseline. Section 7 says what would change the answer.
 
@@ -33,7 +33,7 @@ Every figure is derived from the tree at the baseline. Section 7 says what would
 | G2 | An agent answer needs a baseline the resolver has checked | `gate --resolve … --by agent:<name> --baseline <path>`; a missing or invalid baseline resolves to `ask` |
 | G3 | Every assumption is confirmed by a different agent before the decision is written, and the trace survives | one row per assumption in `assumptions.jsonl`, written by the kernel from the confirm order, its result and its dispatch receipt, never by hand |
 | G4 | The ledger names the decision maker | the gate row carries `decision_maker`, `confirmed_by` and the baseline's hash |
-| G5 | A gate the agent cannot answer ends on a record, never a stall | the run closes `escalated` with the gate and the refusal in its close record. Today no phase row closes a run `escalated`, the close record has no gate field, and reopening a closed run is `init run --force`, which mints a new `run_id` and so leaves the old run's gate rows behind (`kernel/init/run.mjs:79`, `skills/building/SKILL.md` row 0). S4 adds the row and the field; whether a refusal closes the run at all is D8 |
+| G5 | A gate the agent cannot confirm keeps the run moving on the most conservative answer the gate allows, and only Board Review stops it (D8) | the row says `decision_maker: fallback` and names the refusal; a run that does stop closes `escalated` with the gate and the refusal in its close record. Today no phase row closes a run `escalated` and the close record has no gate field, and reopening a closed run is `init run --force`, which mints a new `run_id` (`kernel/init/run.mjs:79`, `skills/building/SKILL.md` row 0). S4 adds the row and the field |
 | G6 | The three existing lanes behave exactly as before | the lane-parity check of section 6 |
 | G7 | A run learns from itself without a human, and no rule becomes guidance on one run's word | a lesson is a confirmed sighting; a rule is appended to a reader's file by the kernel only when sightings from two different features agree (section 4.9) |
 
@@ -72,7 +72,7 @@ sequenceDiagram
     K->>K: check baseline, join order + result + receipt, narrow to evidence
     K-->>L: ok (row written) or ask (refusal written)
     K--)H: gates.jsonl · assumptions.jsonl
-    Note over L,K: ask with nobody to ask → close the run `escalated`
+    Note over L,K: refused → the gate's fallback answer (D8); at Board Review → close the run `escalated`
 ```
 
 **The decision is written after the confirmation, not before.** When the confirmer runs, no file on disk holds the answer the loop is leaning towards, so the confirmer cannot be handed a conclusion to agree with. That ordering is the blind brief made structural; an instruction to "not read the baseline" would be a sentence nothing checks.
@@ -96,6 +96,7 @@ An answer set gains one optional key. Nothing else in it changes, and every file
 
 - `--by agent:<name>` on a gate not in `delegated` exits 2. An interactive run's loop cannot start answering its own gates.
 - A gate in `delegated` with no agent answer yet resolves to `ask`, exactly as an unanswered gate does today. That exit 4 is the loop's cue to start the sequence above.
+- **Only the three judgment gates need a confirmer (D8).** Board Review, Cut-List Review and Ship Sign-off go through the whole sequence. At the other six the loop still writes a baseline, but a refusal there costs nothing: the gate's fallback answer is the one `guarded` gives it today. A baseline with no assumptions at those gates is valid, and the confirm dispatch is skipped.
 - `gate --verify` treats a delegated gate as answered for the unattended lane, so an `on-loop` set is not reported as a stall.
 - **Where the delegation comes from.** The auto level selects no answer set: `init run` records `auto_level` and `gate_answers` side by side and independently (`kernel/init/run.mjs:288-294`), and the loop resolves each gate with the launch record's `answers`. A built-in `on-loop` preset with a constant `authorized_by` would be the self-declared authority section 5 forbids, and a set read from `.shapeup/<slug>/gate-answers.json` is a file the loop can write (`kernel/lib/paths.mjs:305`). So `init run`, the command a human launches, writes the answer set's sha256 into the run receipt, and `--by agent:` is refused when the set the resolver discovers hashes differently.
 - The launch record's auto level gains `on-loop` (`AUTO_LEVELS` in `kernel/lib/floor.mjs`, the schema's `autoLevel` enum, the two places `kernel/gate.mjs` tests for `unattended`).
@@ -119,7 +120,21 @@ Each refusal resolves the crossing to `ask`, writes the gate row with a `refused
 
 After B1 to B8 the answer goes through `narrowToEvidence` unchanged. A baseline, however well confirmed, cannot make `ship` allowed over a census that does not clear.
 
-**`refute` and `unknown` are both a stop.** A refuted claim may be answered by one revised claim set and one more confirm order per crossing; the second failure is an `ask`. The cap is the number, not a judgment: an agent that may re-ask until it hears yes has no confirmer.
+**`refute` and `unknown` are both a refusal.** A refuted claim may be answered by one revised claim set and one more confirm order per crossing; the second failure is a refusal. The cap is the number, not a judgment: an agent that may re-ask until it hears yes has no confirmer.
+
+**What a refusal does (D8, decided 2026-11-12).** The resolver crosses the gate on its fallback answer and writes the row with `decision_maker: fallback` and the refusal that caused it. The fallback is the most conservative answer the gate allows, and it chooses among allowed answers like any other, so `narrowToEvidence` still applies and nothing supplies evidence:
+
+| Gate | Fallback | Why it is safe |
+|---|---|---|
+| Intake & Config, Orient Review, Wiring Review | `proceed` | what `guarded` answers today; the judgment comes later, at Board Review |
+| Round Close | `proceed` | the empty-board refusal still applies; over unfinished tasks it is today's flagged warning |
+| Verdict | `loop` | bounded by the round budget, which ends at the census |
+| QA Edge Hunt | `run` | a hunt discovers and never blocks |
+| Cut-List Review | `accept-cut-list` | the census's own list, never one the loop changed |
+| Ship Sign-off | `hold` | then the run closes `escalated` with the gate and the refusal: `shipped` needs a `ship` row, and deploy is the PO's anyway |
+| **Board Review** | **none: the run closes `escalated`** | no forward answer is safe over a board nobody confirmed |
+
+So a human is pulled in at exactly two places: a Board Review that could not be confirmed, and a run that was held at Ship Sign-off. Both are the places the PO would have wanted to look.
 
 ### 4.4 The trace
 
@@ -152,7 +167,7 @@ A fifth worker, `gate-confirmer`, and a seventh operation, `confirm`. It follows
 - **Result out:** per claim `confirm`, `refute` or `unknown`, and a citation (path, hash, and the lines that settle it). A `confirm` with no citation is malformed.
 - **Its instruction is to look for the refutation.** `unknown` is a correct answer and the skill says so.
 - **Substrate:** its own result file. It reads; it writes nothing else, and the fence holds it to that.
-- **Model:** the launch record's `eval` role. No new role in the matrix, so no launch record changes shape. In `WORKER_ROLE` (`kernel/gate.mjs:269`) the value is both the bucket receipts are counted in and the key into the launch record, so mapping the confirmer to `eval` would count its receipts as the judge's, and leaving it out would skip them and hide its unattested orders. It gets a bucket of its own, `confirm`, and a lookup from bucket to launch-record role (`confirm` → `eval`) for the floor and mismatch checks.
+- **Model (D3, re-decided 2026-11-12):** a Claude model other than the loop's. The launch record gains the loop's own model, since nothing records it today (the loop is the main session and leaves no receipt), and the kernel refuses a crossing whose confirmer resolved to it. The confirmer's model is the `eval` role's unless the PO names another. The declared loop model goes stale if the session switches model mid-run; S0 experiment 1 checks whether a hook payload names the session's model, which would replace the declaration. In `WORKER_ROLE` (`kernel/gate.mjs:269`) the value is both the bucket receipts are counted in and the key into the launch record, so mapping the confirmer to `eval` would count its receipts as the judge's, and leaving it out would skip them and hide its unattested orders. It gets a bucket of its own, `confirm`, and a lookup from bucket to launch-record role (`confirm` → `eval`) for the floor and mismatch checks.
 - **Not `spec-evaluator`.** The judge grades a round, once; an agent that also answers the loop's questions about a gate is a second verdict under another name.
 
 ### 4.6 What the observer reads
@@ -165,8 +180,8 @@ A fifth worker, `gate-confirmer`, and a seventh operation, `confirm`. It follows
 
 The PO's decision: an agent may cut a requirement or defer a Place at Board Review, with confirmation. A cut is the one change that makes a board green by removing what it was graded on, so it is the change held hardest.
 
-- **A cut is a `changes[]` entry and an assumption, both.** `{ "kind": "cut" | "defer" | "waive", "target": "REQ-7", "assumption": "A2" }`, where A2 claims that a named clause of the pitch permits it: a no-go, a rabbit hole, or the appetite.
-- **The confirmer's citation must land in the pitch.** A `confirm` that cites the plan, the board or the scope contracts is not a confirmation of a cut: those are the loop's own work. B8 checks the path against the staged pitch and breadboard, which the planning fence already freezes.
+- **A cut is a `changes[]` entry and an assumption, both.** `{ "kind": "cut" | "defer" | "waive", "target": "REQ-7", "assumption": "A2" }`, where A2 claims that a named clause of the pitch permits it. **Only a no-go or a rabbit-hole clause that names the cut subject qualifies (D10, decided 2026-11-12).** A cut that rests on the appetite alone is refused, and since Board Review has no fallback, the run escalates: every pitch has an appetite, so it permits any cut.
+- **The confirmer's citation must land in the pitch.** A `confirm` that cites the plan, the board or the scope contracts is not a confirmation of a cut: those are the loop's own work. B8 checks the path against the staged pitch and breadboard, and checks that the pitch's hash equals the intake digest on the run receipt: the planning fence freezes the pitch only while a plan order is live, and Bash is not fenced at all.
 - **The marker is its own.** `CUT (agent-confirmed)` joins the requirement status enum in `kernel/schemas/domain.schema.json` beside `CUT (PO-approved)`. A reader of `requirements.md` never mistakes one for the other, and the planning read-back accepts both.
 - **A cut nobody listed is refused.** B8 reads the committed plan: every `CUT (agent-confirmed)` row and every Deferred Place must be a `changes[]` entry of this crossing.
 - **The ship report's first lines name them.** The Decisions table lists each cut with the pitch clause it rests on, above the Requirements table, so "shipped" is never read without "minus these".
@@ -212,7 +227,7 @@ flowchart LR
 
 | Field | Holds | Checked by the kernel at admission |
 |---|---|---|
-| `reader` | `task-executor`, `plan`, `orient` or `qa-edge-hunter` (D6) | one of the four |
+| `reader` | `task-executor`, `orient` or `qa-edge-hunter` (D6, D9) | one of the three |
 | `rule`, `why` | one sentence each, capped | length |
 | `evidence` | `kind`, a path in this run's trace, its sha256, and the excerpt that shows it | the path is inside this run's ledgers, verdicts, results or receipts; the hash matches; the excerpt is in the file. A path into the pitch, the breadboard or anything fetched is refused |
 | `same_as` | the id of an earlier sighting this one repeats, or null | that sighting exists |
@@ -245,7 +260,7 @@ Claims 1 and 2 must both come back `confirm`, joined to a dispatch receipt by th
 
 **What the observer gets.** The ship report's Decisions section gains three lines: sightings admitted by this run, rules promoted by it, and any learned rule whose own lesson was sighted again *after* promotion. The last is the only effect signal this design has, and it is only a flag: a rule that keeps being re-learned is not working, and whether to retire it is a human's call.
 
-**What stays out.** `building`: a learned rule there would add checks to gates the same agent now answers, which is the loop editing its own decision procedure (D6). `Suggested run config`: a value there is confirmed with the PO at Intake & Config, and recurrence is not a PO. `spec-evaluator` and the census, as today.
+**What stays out.** `building` and `plan`: a learned rule in either would steer the agent that now answers the gates and makes the cuts, since the plan substeps run in the loop's own session. That is the loop editing its own decision procedure (D6, D9). The PO's `/retro` can still file a rule under either. `Suggested run config`: a value there is confirmed with the PO at Intake & Config, and recurrence is not a PO. `spec-evaluator` and the census, as today.
 
 ### 4.10 What 4.1.1 changes here
 
@@ -266,15 +281,15 @@ Three reviews ran independently, each handed the user's own goal rather than thi
 | 2 | **The delegation is self-declarable.** A built-in preset and a loop-writable answer file both reach `--by agent:` | `kernel/lib/paths.mjs:305`; `kernel/init/run.mjs:288-294` | corrected: section 4.2, the answer set's hash on the receipt |
 | 3 | **A refused baseline can be re-crossed as `PO (live)`** | `kernel/gate.mjs:668` | corrected: section 4.1 |
 | 4 | **The confirmer is not blind in fact.** The loop writes the claims and the dispatch prompt, and the receipt does not record the prompt | `hooks/dispatch-receipt.mjs:186-209` | S2: the envelope check denies a confirm dispatch whose prompt is more than the order reference; S3: the kernel writes the claims a judgment gate must confirm, and the loop may only add to them |
-| 5 | **Every refusal ends the run, and a closed run reopens only under a new `run_id`.** About eleven delegated crossings in a two-round run, each one a chance to stop. More stopping points than `guarded` has today | section 4.3; `kernel/init/run.mjs:79` | D8 |
-| 6 | **Same-model confirmation is the weakest arrangement measured** | section 4.8, the last row | D3 re-opened |
-| 7 | **A `plan` rule edits the agent that answers Board Review.** The plan substeps run in the loop's own session, so D6's reason applies to `plan` too | AGENTS.md, Phase 3 | D9 |
-| 8 | **A cut can rest on the appetite, which every pitch has**, and the pitch is frozen only while a plan order is live | section 4.7 | D10 |
+| 5 | **Every refusal ends the run, and a closed run reopens only under a new `run_id`.** About eleven delegated crossings in a two-round run, each one a chance to stop. More stopping points than `guarded` has today | section 4.3; `kernel/init/run.mjs:79` | D8: decided, fallback (section 4.3) |
+| 6 | **Same-model confirmation is the weakest arrangement measured** | section 4.8, the last row | D3: re-decided, a different Claude model |
+| 7 | **A `plan` rule edits the agent that answers Board Review.** The plan substeps run in the loop's own session, so D6's reason applies to `plan` too | AGENTS.md, Phase 3 | D9: decided, `plan` excluded |
+| 8 | **A cut can rest on the appetite, which every pitch has**, and the pitch is frozen only while a plan order is live | section 4.7 | D10: decided, section 4.7 |
 | 9 | **Mechanically checkable claims were given to the model.** "REQ-7 is graded in UC-03" is a `covers:` lookup; a hash is B4 | section 4.4's example | S3: the kernel checks these itself; the confirmer is given only claims that need reading |
 
 **What can be promised.** In one session where the loop has Bash and `node`, no local check stops a determined forgery: a hash chain can be recomputed and no secret is out of the loop's reach. The target is **tamper-evident**: a lazy or accidental self-approval is caught and visible, a deliberate one is not prevented. The plan says that, and does not claim more.
 
-**Size.** The plan has grown to nine stages against two of the principles it enforces, simplify and minimise surgery. D8's fallback and moving mechanical claims into the kernel both shrink it.
+**Size.** The plan had grown to nine stages against two of the principles it enforces, simplify and minimise surgery. D8 shrinks it: the confirmer is needed at three gates, not nine. Moving mechanical claims into the kernel shrinks what the confirmer is asked.
 
 ## 5. What not to do
 
@@ -316,7 +331,7 @@ The two experiments are the assumptions this plan would otherwise meet in its la
 | Write the lane-parity script and run it twice at the baseline | the two outputs are identical (a script that cannot say "equal" proves nothing) |
 | Read how the launch record's auto level selects an answer set, how a dispatch receipt keys its order, and which phase row closes a run | each is written into this plan as file and line, or the section that assumed otherwise is corrected |
 | **Experiment 1, the receipt.** From a `git archive` copy at another path, drive one nested headless session that dispatches a throwaway fifth agent type against a scratch project. Also answer: does the host fire any event when a background agent *finishes* that carries its final output (a sub-agent stop hook, or the completion notification), so that a hook, not the loop, could write the answer down? | a receipt row exists for the order, names that agent, and carries a model; the completion question has a yes or no with the payload that shows it. A row with no model, or no row, is recorded as found and section 7 applies |
-| **Experiment 2, the confirmer.** With a throwaway agent definition carrying the brief of section 4.5, put about thirty false and thirty true distinct claims to it over fixture runs, three samples each. The false ones are drawn from the loop model's own wrong assumptions on fixture runs, labelled by hand, weighted toward claims that need reading (a pitch clause that does not permit a cut, a criterion that does not grade what it says). No claim a script can check (a hash, a `covers:` lookup) is in the set. Two arms on the same items: blind, and shown the decision; and, if D3 allows, same model against a different one. Six claims would bound almost nothing | the pass threshold is written into this document **before** the run; false confirms, false refutes and `unknown` on true claims are each counted, since the last two drive escalation. The model, the date and the counts go in. A result under the threshold decides D3 before S1 starts |
+| **Experiment 2, the confirmer.** With a throwaway agent definition carrying the brief of section 4.5, put about thirty false and thirty true distinct claims to it over fixture runs, three samples each. The false ones are drawn from the loop model's own wrong assumptions on fixture runs, labelled by hand, weighted toward claims that need reading (a pitch clause that does not permit a cut, a criterion that does not grade what it says). No claim a script can check (a hash, a `covers:` lookup) is in the set. Two arms on the same items: blind against shown the decision, and the loop's own model against a different Claude model (D3). Six claims would bound almost nothing | the pass threshold is written into this document **before** the run; false confirms, false refutes and `unknown` on true claims are each counted, since the last two drive escalation. The model, the date and the counts go in. A result under the threshold decides D3 before S1 starts |
 
 ### S1 — the baseline schema and the delegation (additive)
 
@@ -324,7 +339,7 @@ The two experiments are the assumptions this plan would otherwise meet in its la
 |---|---|
 | Add `kernel/schemas/gate-baseline.schema.json` (section 3's fields) | a valid and five invalid fixtures behave as named in a new block of `tests/structural/06-gate.mjs` |
 | Add `CUT (agent-confirmed)` to the requirement status enum, and to the Board Review read-back in `resources/gates.md`, which is prose with no fixture today | a fixture `requirements.md` carrying it validates against the schema; a test loads the answer-set schema, which none does today, since `validate()` is hand-written and ignores unknown keys |
-| Add optional `delegated` to the answer-set schema and to `validate()`; add `on-loop` to the preset enum and to `PRESETS` | every answer set fixture in the suite still validates; `gate --list --preset on-loop` prints the set |
+| Add optional `delegated` to the answer-set schema and to `validate()`; add `on-loop` to the preset enum and to `PRESETS`; the fallback table of section 4.3 as one constant beside `VALID_BY_GATE`; the loop's model as a field of the launch record | every answer set fixture in the suite still validates; `gate --list --preset on-loop` prints the set |
 | No resolver behaviour changes | lane parity clean; `--by agent:x` is still just the `--init` author string |
 
 ### S2 — the confirmer (the four-step rule)
@@ -342,6 +357,8 @@ The two experiments are the assumptions this plan would otherwise meet in its la
 |---|---|
 | `--baseline <path>` in `ARGV_SPEC`; `--by agent:<name>` with `--resolve --answer` builds the agent source; refuse when the gate is not `delegated` or the discovered set's hash is not the receipt's. Today `--answer` skips discovery (`kernel/gate.mjs:663-672`), so the branch is restructured to read the set first | exit 2 with the gate named |
 | In an on-loop run, `--answer` without `--by` is refused | exit 2 |
+| A refusal crosses on the fallback of section 4.3 with `decision_maker: fallback`; at Board Review it resolves `ask` | one test per gate |
+| A confirmer whose receipt names the loop's own model is refused (D3) | a fixture with matching models is refused |
 | The kernel decides the claims a script can decide (hashes, `covers:` lookups, disjointness) and writes the claims a judgment gate must put to the confirmer from the gate block | a baseline that omits a kernel-written claim is refused |
 | The `confirm` bucket in `WORKER_ROLE`, mapped to the `eval` launch role | a confirm order with no receipt appears in `models.unattested`; a confirmer receipt is not counted under the judge's role |
 | B1 to B8 as one exported function beside `narrowToEvidence`, applied before it | one test per refusal, each from a fixture run that is valid but for that one fault |
@@ -391,7 +408,7 @@ This is the cheap check a candidate can be held to. It is evidence about the pha
 
 | Do | Done when |
 |---|---|
-| From a `git archive` copy at another path, drive one nested session on the consumer project in the `on-loop` lane, with `delegated` holding only the gates the `guarded` preset already pre-approves and Board Review | the run crosses at least Board Review with `decision_maker: agent:building`, and each assumption row joins to a receipt naming `gate-confirmer` with a model |
+| From a `git archive` copy at another path, drive one nested session on the consumer project in the `on-loop` lane, with `delegated` holding only the gates the `guarded` preset already pre-approves and Board Review, so the first real run exercises the confirmer at one gate and the fallback at the rest | the run crosses at least Board Review with `decision_maker: agent:building`, and each assumption row joins to a receipt naming `gate-confirmer` with a model |
 | Widen `delegated` to Cut-List Review and Ship Sign-off only after that run's rows have been read | a second run, or a recorded decision not to widen yet |
 | Record three numbers per run: gates crossed by the agent against gates that escalated or fell back; cuts made; confirm dispatches. Tokens are null on every background launch's receipt by construction, so cost is read from the completion event if experiment 1 found one, and is otherwise recorded as unmeasured | in the dated section below, each with the model and the date. None is a rate until more than one run stands behind it |
 | Probe 1: delete the confirm result before resolving | `ask`, B5, and the run closes `escalated` through S4's row, or falls back under D8 |
@@ -411,7 +428,7 @@ This is the cheap check a candidate can be held to. It is evidence about the pha
 - **Experiment 1 finds no completion-side event.** Then the answer a confirmer gave is always a file the loop could have written, the lane is tamper-evident only through the receipt's existence, and the PO decides whether that is enough to ship it.
 - **S8 shows baselines citing files a gate has no business reading.** Then the per-gate evidence roots of section 5 are added, as one table the resolver and `resources/gates.md` both read.
 - **The confirmer answers `confirm` to a planted false claim** in experiment 2 of S0, or in probe 5 or probe 7 of S8. Then the design's central assumption is wrong for that model, and the lane does not ship until the confirm order runs on a different model than the loop's, recorded on the row.
-- **Most on-loop runs end `escalated` at one gate.** Then the human is still in the loop, only later, and that gate's refusals are read before anything is loosened: a refusal that keeps firing on honest work is a defect in the check, and one that keeps firing on weak baselines is the check working.
+- **Most on-loop runs fall back or escalate at one gate.** Then the human is still in the loop there, only later, and that gate's refusals are read before anything is loosened: a refusal that keeps firing on honest work is a defect in the check, and one that keeps firing on weak baselines is the check working.
 - **A run needs more than one revision per crossing to get through honestly.** Then the cap of 4.3 is a launch-record number, not a constant.
 
 ## 8. Risks and rollback
@@ -425,7 +442,8 @@ This is the cheap check a candidate can be held to. It is evidence about the pha
 | Two agents agree on a generous reading of the pitch and cut what the PO wanted | the citation must be in the pitch; the marker is distinct; the report names every cut in its first lines | the reading itself. A human meets it after the fact |
 | The host stops reporting a receipt or its model | B5 and B7 turn every on-loop gate into `ask`; the run escalates and says why | the lane is unusable until the host reports again. Deliberate |
 | The lane escalates so often it saves no attention | the three numbers of S8; `delegated` widened one step at a time | unmeasured until S8 |
-| Cost: one more dispatch per gate | one order carries all of a crossing's claims | a run with ten gates pays about ten confirm dispatches; unmeasured until S8 |
+| Cost: confirm dispatches | one order per judgment-gate crossing carries all its claims; D8 limits them to three gates | unmeasured until S8 |
+| A fallback hides a gate the agent could not justify | the row names the refusal; the report lists every fallback | a run that falls back everywhere still finishes. The observer reads that in the report, after the fact |
 | A wrong lesson becomes a rule | evidence from a party other than the loop; three confirmed claims; two features; five per reader; a diff a human reads | two features that share one bad habit will agree with each other |
 | The same lesson is not recognised the second time | the confirmer answers `same_as`; an unrecognised repeat is still admitted and can be matched later | a rule that is true and never promoted. It errs on the quiet side on purpose |
 | An existing lane changes behaviour | lane parity on every stage | — |
@@ -438,11 +456,11 @@ This is the cheap check a candidate can be held to. It is evidence about the pha
 |---|---|---|---|
 | D1 | Does an on-loop run learn from itself? | **Decided 2026-11-11: yes, in this plan.** Section 4.9, stages S5 and S6 | the PO's decision. The recommendation had been a plan of its own after the first real run |
 | D2 | May an agent cut a requirement or defer a Place at Board Review? | **Decided 2026-11-11: yes, with confirmation.** Section 4.7 | the PO's decision. The recommendation had been to escalate |
-| D3 | Which model answers a confirm order? | Decided 2026-11-11: the `eval` role's. **Re-opened 2026-11-12** by the review: same-model verification is the weakest arrangement measured (section 4.8). Recommended: the confirmer runs on a different Claude model from the loop, and the kernel refuses a crossing where they match | the paper's strongest arrangement is another provider; inside this host every model is Claude and the cheapest tier is below the floor, so the real choice is the loop's own model or a different Claude model, which the paper ranks in the middle. **Nothing records the loop's own model today**: the loop is the main session, which leaves no receipt, and the launch record names only `exec`, `eval` and `qa`. So the launch record gains the loop's model, which goes stale if the session switches model mid-run; S0 experiment 1 checks whether any hook payload names the session's model |
+| D3 | Which model answers a confirm order? | **Re-decided 2026-11-12: a different Claude model from the loop's,** and the kernel refuses a crossing where they match. (Decided 2026-11-11 as the `eval` role's; re-opened by the review.) Section 4.5 | the PO's decision. Same-model verification is the weakest arrangement measured (section 4.8); inside this host every model is Claude, so a different Claude model is the strongest option available |
 | D4 | The name of the lane and preset | `on-loop` | it says where the human is |
 | D5 | The release number | 4.2.0, on top of 4.1.1 | additive: one worker, one operation, one preset, one kernel verb, no removal. The lane is usable after S4, so a release there and the learning in the one after is open to the PO without rewriting a stage |
 | D6 | May a learned rule be filed under `building`? | **No, in this version** | it would add checks to the gates the same agent answers. The PO's `/retro` can still file one |
 | D7 | The two numbers: features needed to promote, and learned rules per reader | 2 and 5 | two is the least that is not one run's word; five keeps a reader's file inside what it already loads. Both are constants until a run shows they are wrong |
-| D8 | When a gate cannot be confirmed, does the run stop? | **Open.** Recommended: fall back to the gate's most conservative allowed answer (Round Close `proceed` only over a green board, Verdict `loop` within the round budget, QA `run`, Cut-List Review the census's list, Ship Sign-off `hold`, after which the run closes `escalated` with the gate and the refusal on the record, since `shipped` needs a `ship` row and deploy is the PO's anyway), recorded as `decision_maker: fallback`; escalate only at Board Review, where no forward answer is safe over an unconfirmed board | closest to "the human only observes", and fewer stopping points than `guarded`. A fallback chooses among allowed answers and supplies no evidence, so the invariant holds |
-| D9 | May a learned rule be filed under `plan`? | **Open.** Recommended: no, for D6's reason | the plan substeps run in the loop's own session, the agent that answers Board Review and makes cuts |
-| D10 | Tighten D2? | **Open.** Recommended: a cut resting on the appetite alone escalates; only a no-go or rabbit-hole clause naming the cut subject qualifies; the pitch's hash must equal the intake digest on the receipt | narrows what D2 granted, so it is the PO's |
+| D8 | When a gate cannot be confirmed, does the run stop? | **Decided 2026-11-12: no, it falls back** to the gate's most conservative allowed answer, recorded as `decision_maker: fallback`; only Board Review escalates. Section 4.3 | the PO's decision. Closest to "the human only observes", and it limits the confirmer to the three judgment gates |
+| D9 | May a learned rule be filed under `plan`? | **Decided 2026-11-12: no.** Section 4.9 | the PO's decision, for D6's reason: the plan substeps run in the loop's own session |
+| D10 | Tighten D2? | **Decided 2026-11-12: yes.** Only a no-go or rabbit-hole clause naming the cut subject qualifies; the pitch's hash must equal the intake digest. Section 4.7 | the PO's decision. It narrows what D2 granted |
