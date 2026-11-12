@@ -3,6 +3,14 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased] · The answer sets are removed
+
+**Breaking.** A gate is answered with `gate --resolve <gate> --answer <decision>`, by name (`--by`), with its reason (`--note`); nothing else answers one.
+
+- **Removed.** The three presets (`ci`, `guarded`, `interactive`), answer files and their discovery, `gate --init`, `--list` and `--verify`, the `ask` answer, the abort-on-missing path, the answer-set schema, and the `autoLevel` and `answers` fields of the launch record.
+- **Retired, not refused.** `--preset`, `--file`, `--out`, `--auto-level`, `--tiny` and `--no-qa` on `gate`, and `--auto-level` and `--gate-answers` on `init run`, are accepted and ignored with one line saying so, so a script that still launches a run opens it.
+- **Unchanged.** The evidence checks: `proceed` over an empty board, `ship` over a census that did not clear, a QA hunt owed and never run, or a worker below the model floor are refused, and a `shipped` close needs a `ship` row. Exit codes 0, 2, 4 (refused on the evidence) and 5 (an `abort` answer).
+
 ## [4.2.0] — 2026-11-12 · Every run is unattended: a gate agent answers each gate
 
 - **Added.** The gate agent (an agent and a skill of the same name), started by the loop at every gate and every question, reads the run's decision log first, decides, appends a baseline and a decision to the log, and records the gate's answer under its own name. `gate --resolve … --answer` takes `--by` and `--note`. The ship report prints the decision log. The kernel's three evidence checks apply to its answers as to any other.

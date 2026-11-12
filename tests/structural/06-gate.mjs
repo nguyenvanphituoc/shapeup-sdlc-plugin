@@ -16,37 +16,42 @@ export async function run(ctx) {
   try {
     const cwd = s.dir;
     const k = (args) => kernel(ROOT, [...args, "--cwd", cwd], { cwd });
-    const gate = (id, preset, extra = []) => k(["gate", "--resolve", id, "--slug", "w", "--preset", preset, "--round", "1", ...extra]);
+    // What a gate agent would answer at each gate on a clean run. A gate is answered with `--answer`,
+    // by name; the evidence checks below narrow the answer exactly as they narrowed a preset's.
+    const AGENT_ANSWER = { L0: "proceed", L1a: "proceed", "L1a.5": "proceed", L1b: "proceed", L2: "proceed", L3: "loop", QA: "run", H: "accept-cut-list", L4: "ship", "COACH-1": "skip" };
+    const gate = (id, _unused, extra = []) => k(["gate", "--resolve", id, "--slug", "w", ...(extra.includes("--answer") ? [] : ["--answer", AGENT_ANSWER[id] ?? "proceed", "--by", "agent:gate-agent"]), "--round", "1", ...extra]);
     const rows = () => slurp(join(cwd, ".shapeup/w/gates.jsonl")).split("\n").filter(Boolean).map((l) => JSON.parse(l));
 
-    section("gate — a run opens with its L0 row, and presets answer or stop");
+    section("gate — a run opens with its L0 row, and an answer is ledgered under its source");
     const open = k(["init", "run", "--slug", "w", "--intake-text", "Add a widgets page", "--auto-level", "unattended"]);
     check(open.status === 0 && rows()[0]?.gate === "L0" && rows()[0].decision === "proceed", "opening a run ledgers GATE L0 as proceed");
     let r = gate("L1a", "ci");
-    check(r.status === 0 && r.out?.decision === "proceed", "preset ci crosses L1a (exit 0)");
-    check(rows().at(-1)?.source === "preset:ci", "the ledger names the answer set as the source of the decision");
-    r = gate("L1a", "interactive");
-    check(r.status === 4, "preset interactive stops L1a for the PO (exit 4)");
-    r = gate("L1b", "guarded");
-    check(r.status === 4, "preset guarded stops the judgment gate L1b for the PO");
+    check(r.status === 0 && r.out?.decision === "proceed", "an answer of proceed crosses L1a (exit 0)");
+    check(rows().at(-1)?.source === "agent:gate-agent", "the ledger names who answered as the source of the decision");
+    r = k(["gate", "--resolve", "L1a", "--slug", "w"]);
+    check(r.status === 2, "a gate with no --answer is a usage error: nothing answers it by default");
+    r = k(["gate", "--resolve", "L1a", "--slug", "w", "--answer", "ask"]);
+    check(r.status === 2, "ask is not an answer any gate takes");
+    r = k(["gate", "--resolve", "L1a", "--slug", "w", "--answer", "proceed", "--preset", "ci"]);
+    check(r.status === 0 && /retired and ignored/.test(r.err), "a retired flag is accepted, ignored, and one line says so");
     r = gate("L1a", "ci", ["--answer", "abort"]);
     check(r.status === 5 && rows().at(-1)?.source === "PO (live)", "a live answer of abort exits 5 and is ledgered with the source PO (live)");
     r = gate("L1a", "ci", ["--answer", "proceed", "--by", "agent:gate-agent", "--note", "map covers the pitch"]);
     check(r.status === 0 && rows().at(-1)?.source === "agent:gate-agent" && rows().at(-1)?.note === "map covers the pitch", "--by and --note put the agent's name and reason in the row instead of PO (live)");
-    check(kernel(ROOT, ["gate", "--resolve", "L1a", "--slug", "w", "--preset", "ci"], { cwd: join(cwd, ".shapeup/w") }).status === 2, "a gate resolved from inside a run trace is refused rather than ledgered in a nested one");
+    check(kernel(ROOT, ["gate", "--resolve", "L1a", "--slug", "w", "--answer", "proceed"], { cwd: join(cwd, ".shapeup/w") }).status === 2, "a gate resolved from inside a run trace is refused rather than ledgered in a nested one");
     r = gate("NOPE", "ci");
     check(r.status === 2, "an unknown gate id is a usage error (exit 2)");
 
     section("gate — L2 will not proceed over a board with no tasks");
     r = gate("L2", "ci");
-    check(r.status === 4 && r.out?.refused === "proceed", "100% of nothing: preset ci is narrowed from proceed to ask over an empty board");
+    check(r.status === 4 && r.out?.refused === "proceed", "100% of nothing: an answer of proceed is refused over an empty board");
     put(cwd, ".shapeup/w/tasks/TASK-001-parse.md", "---\nid: TASK-001\nstatus: done\n---\nbody\n");
     r = gate("L2", "ci");
-    check(r.status === 0 && r.out?.decision === "proceed", "with one task on the board the same preset proceeds");
+    check(r.status === 0 && r.out?.decision === "proceed", "with one task on the board the same answer proceeds");
 
     section("gate — L4 will not ship without a census that cleared the run");
     r = gate("L4", "ci");
-    check(r.status === 4 && r.out?.refused === "ship", "no census on disk: ship is refused whatever the answer set says");
+    check(r.status === 4 && r.out?.refused === "ship", "no census on disk: ship is refused whatever the answer says");
     r = gate("L4", "ci", ["--answer", "ship"]);
     check(r.status === 4, "a live PO answer of ship is narrowed the same way: an answer chooses, it never supplies the evidence");
     r = gate("L4", "ci", ["--answer", "ship", "--by", "agent:gate-agent", "--note", "looks fine"]);
@@ -59,7 +64,7 @@ export async function run(ctx) {
     check(r.status === 4, "a census whose verdict is cannot-ship does not clear the run");
     census("ship-now");
     r = gate("L4", "ci");
-    check(r.status === 0 && r.out?.decision === "ship" && rows().at(-1)?.source === "preset:ci", "a ship-now census lets the set answer ship, and the row says so");
+    check(r.status === 0 && r.out?.decision === "ship" && rows().at(-1)?.source === "agent:gate-agent", "a ship-now census lets the agent answer ship, and the row says so");
     put(cwd, ".shapeup/w/reports/hammer-census.json", "{ not json");
     r = gate("L4", "ci");
     check(r.status === 4, "a census that cannot be read proves nothing and does not clear the run");
@@ -132,16 +137,5 @@ export async function run(ctx) {
     r = gate("L4", "ci");
     check(r.status === 0 && r.out?.models?.mismatch?.length === 0, "receipts of another run are ignored");
 
-    section("gate — an answer file, and a gate it does not answer");
-    const file = join(cwd, "answers.json");
-    const made = k(["gate", "--init", "--preset", "ci", "--by", "tester", "--out", file]);
-    check(made.status === 0 && existsSync(file), "gate --init writes an answer file naming who authorised it");
-    const v = k(["gate", "--verify", "--file", file]);
-    check(v.status === 0, "gate --verify accepts a file it wrote");
-    r = k(["gate", "--resolve", "L1a", "--slug", "w", "--file", file]);
-    check(r.status === 0 && rows().at(-1)?.source.includes("answers.json"), "a gate is resolved from the file, and the ledger names the file");
-    put(cwd, "bad-answers.json", "{ \"version\": 1");
-    r = k(["gate", "--resolve", "L1a", "--slug", "w", "--file", join(cwd, "bad-answers.json")]);
-    check(r.status !== 0, "an answer file that does not parse never resolves a gate");
   } finally { s.done(); }
 }

@@ -289,24 +289,6 @@ export const metricsDir = (cwd) => join(localDir(cwd), "metrics");
 export const metricsShard = (cwd, id = process.env.HOSTNAME || "local") =>
   join(metricsDir(cwd), `${id}.jsonl`);
 
-/**
- * Gate answer sets, in resolution order (first hit wins).
- *
- * ONE TIER ONLY. There used to be a third candidate — a COMMITTED
- * `gate-answers.json`, auto-discovered with no flag — so a file with `preset: ci` pre-approved
- * GATE L4 ship sign-off for everyone who pulled the repo, and the same filename meant "my
- * personal lane" at one path and "team policy" at another. Consent is now per-machine by
- * construction: no committed file can cross a gate on another person's behalf.
- *
- * @param {string} cwd - Project root.
- * @param {(string|null)} [slug] - Feature slug; adds the per-run candidate when given.
- * @returns {string[]} Candidate paths, most specific first.
- */
-export const gateAnswerCandidates = (cwd, slug = null) => [
-  ...(slug ? [join(localRoot(cwd, slug), "gate-answers.json")] : []),
-  join(localDir(cwd), "gate-answers.json"),
-];
-
 // ---------------------------------------------------------------------------
 // Relative forms — for messages, receipts and anything a human reads
 // ---------------------------------------------------------------------------

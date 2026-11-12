@@ -21,9 +21,8 @@ again: a second row after the close is a second sign-off.
    Report    : shapeup/<slug>/REPORT.md
    ```
 
-2. **Run the step's `retro.gate` command before asking anything** — it is the COACH-1 crossing, resolved with the
-   run's own answer set, and it leaves the ledger row whether or not anyone is there to answer. Exit 0 (`skip`):
-   an unattended lane — ask nothing, file nothing, go to step 4. Exit 4 (`ask`): a PO is present, go on.
+2. **Inside a run, the Retro Ownership gate is the gate agent's and it answers `skip`**: ask nothing, file nothing, go to
+   step 4. `/retro` itself is a conversation the PO starts, so a PO is present and the step goes on.
 3. Ask once: "Anything to record before I close the run?" A bare "no" ends the retro; nothing is filed.
    Substantive feedback is distilled and filed by you, here (below), and the PO's categorization at the gate
    that follows is the answer COACH-1's `ask` opened.
@@ -90,10 +89,9 @@ add speculative fields"). Keep the originating *why* — a rule without its reas
 
 ## Step 2 — ⏸ GATE COACH-1: categorize (ASK, never assume)
 
-This is the load-bearing gate. The run's `retro.gate` command (step 2 above, run before feedback is even
-asked for) crosses it with the run's own answer set and ledgers the row; outside a run, run `gate --resolve COACH-1 --slug <slug> [--file <path>|--preset <name>]`, or —
-with no run at all — hold the conversation below, which is the decision. **Exit 0 (`skip`)**: an unattended lane
-with no live PO — record nothing and stop. **Exit 4 (`ask`)**: the categorization below IS the PO conversation
+This is the load-bearing gate. The run's Retro Ownership answer (step 2 above, given before feedback is even
+asked for) is answered `skip` by the gate agent inside a run; in `/retro` the PO is present and the conversation below is the decision.
+**Inside a run (`skip`)**: record nothing and stop. **In `/retro`**: the categorization below IS the PO conversation
 this decision opens. **Do not infer which reader a rule belongs to** — a miscategorized rule lands in a file the
 wrong reader loads, or none. Present every candidate and ask the PO to assign each. Emit this block, then stop
 and wait:
@@ -202,7 +200,7 @@ The `building` file carries two sections, and the second is what makes a scan re
 
 > Workflow guidance for the loop, read at GATE L0 before the launch. **Guidance, never a gate answer**: a rule
 > here may add a question, a check or a warning to a gate block and may name a spike to insist on; it never
-> answers, skips, reorders or relaxes a gate, and the answer set (`ci`/`guarded`/`interactive`) resolves exactly
+> answers, skips, reorders or relaxes a gate, and the gate agent answers exactly
 > as it would without this file.
 
 ## Workflow guidance

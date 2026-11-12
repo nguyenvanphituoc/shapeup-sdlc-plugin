@@ -27,8 +27,9 @@ export async function run(ctx) {
     check(opened.status === 0 && receipt?.started === true && receipt.run_id && receipt.intake_sha256, "a run opens with a receipt carrying a run id and the intake digest");
     check(receipt?.plugin?.name && receipt.plugin.version, "the receipt names the plugin copy that opened the run");
     check(rec?.models?.exec === "sonnet" && rec.models.eval === "opus" && rec.models.qa === "sonnet", "the launch record carries the model matrix, qa following exec");
-    check(rec?.budgets?.maxRounds === 2 && rec.budgets.attemptBudget === 4 && rec.answers === "ci" && rec.maxParallelScopes === 2 && rec.runId === receipt.run_id,
-      "the launch record carries the budgets, the answer set, the dial and the same run id");
+    check(rec?.budgets?.maxRounds === 2 && rec.budgets.attemptBudget === 4 && rec.maxParallelScopes === 2 && rec.runId === receipt.run_id,
+      "the launch record carries the budgets, the dial and the same run id");
+    check(rec && !("answers" in rec) && !("autoLevel" in rec) && /retired and ignored/.test(opened.err), "the retired --auto-level and --gate-answers open the run, say so in one line, and reach no record");
     check(slurp(join(cwd, ".shapeup/w/intake.md")).includes("widgets page"), "the intake is kept verbatim beside the receipt");
     check(existsSync(join(cwd, ".shapeup/active-scope")), "the pointer every hook reads to know a run is in flight is written");
     check(!existsSync(join(cwd, ".shapeup/workflows")), "opening a run stages nothing into the project");

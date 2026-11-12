@@ -18,14 +18,14 @@
 // USAGE
 //   harness.mjs init run --slug <slug> --intake-file <path> [options]
 //
-//   --auto-level interactive|auto|unattended   (default interactive)
 //   --max-rounds N        outer breaker, rounds of build + evaluate     (default 3)
 //   --attempts N          inner breaker, T0 attempts per scope          (default 5)
 //   --spec-folder <dir>   where the committed spec lives                (default shapeup/<slug>/spec/)
-//   --gate-answers <preset|path>   the answer set the gates resolve from
 //   --exec-model/--eval-model/--qa-model <m>   role -> model (flag, then SHAPEUP_<ROLE>_MODEL, then sonnet)
 //   --no-eval --no-qa --parallel-scopes N
 //   --force               re-open over a run that is already open
+//
+// A run is unattended, so `--auto-level` and `--gate-answers` are retired: accepted, ignored, one line said.
 //
 // Exit 0 opened · 2 usage error · 3 refused (a run is already open, or the roster is missing).
 // A run already open keeps its record: the refusal prints what is on disk and does not overwrite it.
@@ -33,10 +33,10 @@
 import { mkdirSync, writeFileSync, readFileSync, readdirSync, existsSync, rmSync } from "node:fs";
 import { join, dirname, resolve, relative, sep } from "node:path";
 import { createHash } from "node:crypto";
-import { discover, resolve as resolveGate, appendGateLedger, PRESETS } from "../gate.mjs";
+import { appendGateLedger } from "../gate.mjs";
 import { runArgs } from "../lib/argv.mjs";
 import { mintRunId, insideRunTrace } from "../lib/paths.mjs";
-import { launchProblems, floorProblems, AUTO_LEVELS } from "../lib/floor.mjs";
+import { launchProblems, floorProblems } from "../lib/floor.mjs";
 import {
   localRoot, activeScope, activeOrder, globLocal, globShared, ordersDir, resultsDir, runArgsPath,
 } from "../lib/paths.mjs";
@@ -129,11 +129,11 @@ export function resolveModels(a, env = process.env) {
  * @returns {object} The record, pruned of unset optionals.
  */
 export function buildLaunchRecord({
-  slug, runId, autoLevel, answers, models, maxRounds, attemptBudget, pluginRoot, startedAt,
+  slug, runId, models, maxRounds, attemptBudget, pluginRoot, startedAt,
   noEval, noQa, maxParallelScopes,
 }) {
   return pruned({
-    slug, runId, autoLevel, answers,
+    slug, runId,
     models, budgets: { maxRounds, attemptBudget },
     pluginRoot, startedAt,
     noEval: noEval || undefined, noQa: noQa || undefined,
@@ -182,8 +182,8 @@ const repoRel = (cwd, p) => relative(cwd, p).split(sep).join("/");
 /** The typed argv contract (see `../lib/argv.mjs`). */
 export const ARGV_SPEC = {
   usage: 'harness.mjs init run (--intake-file <path> | --intake-text "<req>" | --intake-stdin) ' +
-         "[--slug <slug>] [--auto-level interactive|auto|unattended] " +
-         "[--max-rounds N] [--attempts N] [--spec-folder <dir>] [--gate-answers <preset|path>] " +
+         "[--slug <slug>] " +
+         "[--max-rounds N] [--attempts N] [--spec-folder <dir>] " +
          "[--exec-model <m>] [--eval-model <m>] [--qa-model <m>] [--no-eval] [--no-qa] " +
          "[--parallel-scopes N] [--cwd <dir>] [--plugin-root <dir>] [--force]",
   _: { arity: 0, max: 0, name: "(no positional operands)" },
@@ -282,16 +282,14 @@ export function cli(rawArgv) {
   }
 
   const slug = (args.slug ?? null) || slugify(intake.split("\n").find((l) => l.trim()) || "run");
-  const auto_level = args.autoLevel ?? "interactive";
-  if (!AUTO_LEVELS.includes(auto_level)) fail(2, `--auto-level must be one of: ${AUTO_LEVELS.join(", ")}`);
+  const retired = [args.autoLevel !== undefined && "--auto-level", args.gateAnswers !== undefined && "--gate-answers"].filter(Boolean);
+  if (retired.length) console.error(`init run: ${retired.join(" and ")} retired and ignored: every run is unattended, and the gate agent answers each gate.`);
   const intakeSource = args.intakeStdin || intakeFile === "-" ? "stdin" : intakeFile ? repoRel(cwd, resolve(cwd, intakeFile)) : "text";
 
   const config = {
-    auto_level,
     max_rounds: args.maxRounds ?? 3,
     attempt_budget: args.attempts ?? 5,
     spec_folder: args.specFolder ?? `${globShared(slug, "spec")}/`,
-    gate_answers: args.gateAnswers ?? null,
   };
 
   const runRoot = localRoot(cwd, slug);
@@ -335,7 +333,7 @@ export function cli(rawArgv) {
   const startedAt = new Date().toISOString();
   const receipt = buildReceipt({ slug, intake, config, startedAt, plugin, intakeSource });
   const launch = buildLaunchRecord({
-    slug, runId: receipt.run_id, autoLevel: auto_level, answers: config.gate_answers ?? undefined, models,
+    slug, runId: receipt.run_id, models,
     maxRounds: config.max_rounds, attemptBudget: config.attempt_budget,
     pluginRoot: plugin.root, startedAt,
     noEval: args.noEval, noQa: args.noQa, maxParallelScopes: args.parallelScopes ?? undefined,
@@ -357,15 +355,10 @@ export function cli(rawArgv) {
   // decision; opening the run records it, with the answer set the run was configured with. Best
   // effort: a row that cannot be written must not fail the opening.
   try {
-    const ga = config.gate_answers ?? null;
-    const presetName = ga && PRESETS[ga] ? ga : null;
-    const found = discover({ cwd, slug, preset: presetName, file: ga && !presetName ? ga : null });
-    const r = found.error
-      ? { status: "ok", decision: "proceed", source: "intake (no answer set on disk)", note: "the intake conversation is the L0 decision" }
-      : resolveGate(found.set, "L0", found.source);
+    const r = { status: "ok", decision: "proceed", source: "intake (opening the run)", note: "the intake conversation is the L0 decision" };
     appendGateLedger(cwd, slug, {
       at: startedAt, run_id: receipt.run_id, gate: "L0", status: r.status, decision: r.decision ?? null,
-      source: r.source ?? found.source, note: `${r.note ?? r.reason ?? ""} — run opened: intake recorded, receipt written`.replace(/^ — /, ""),
+      source: r.source, note: `${r.note} — run opened: intake recorded, receipt written`.replace(/^ — /, ""),
       round: null,
     });
   } catch { /* the ledger row is a record of the opening, never a condition of it */ }
@@ -381,6 +374,6 @@ export function cli(rawArgv) {
     config,
     launch_record: globLocal(slug, "run-args.json"),
     launch,
-    next: "GATE L0 — confirm the run config with the PO, then orient.",
+    next: "GATE L0 — put the run config to the gate agent, then orient.",
   }, null, 2));
 }

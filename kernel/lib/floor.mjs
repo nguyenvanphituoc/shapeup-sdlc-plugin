@@ -21,9 +21,6 @@ export function belowFloor(m) {
   return s === "" || BELOW_FLOOR.some((re) => re.test(s));
 }
 
-/** The auto levels a launch may name. */
-export const AUTO_LEVELS = ["interactive", "auto", "unattended"];
-
 /**
  * The roles whose model sits below the floor, as sentences naming the role. `qa` is never checked, and
  * `eval` is not under `--no-eval`: a run that skips evaluation never resolves a judge.
@@ -52,10 +49,9 @@ export function floorProblems(models, { noEval = false } = {}) {
  */
 export function launchProblems(a) {
   const problems = [];
-  for (const k of ["slug", "autoLevel", "models", "budgets"]) {
+  for (const k of ["slug", "models", "budgets"]) {
     if (!a || a[k] === undefined || a[k] === null || a[k] === "") problems.push(`launch record is missing "${k}"`);
   }
-  if (a?.autoLevel && !AUTO_LEVELS.includes(a.autoLevel)) problems.push(`autoLevel must be one of ${AUTO_LEVELS.join(" | ")}`);
   if (a?.budgets && !(a.budgets.maxRounds && a.budgets.attemptBudget)) {
     problems.push("budgets must carry maxRounds and attemptBudget");
   }

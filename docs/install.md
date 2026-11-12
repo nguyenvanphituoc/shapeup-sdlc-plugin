@@ -43,7 +43,7 @@ Pin to a released version:
 >
 > **Unattended, it is fatal.** There is nobody to approve, and the run cannot take its first step:
 > the session stalls into approval denial after approval denial until the agent gives up on the
-> harness and builds the feature by hand. Before any headless or `--unattended` run, get the grant by
+> harness and builds the feature by hand. Before any headless run, get the grant by
 > either running the scaffolding installer —
 >
 > ```bash

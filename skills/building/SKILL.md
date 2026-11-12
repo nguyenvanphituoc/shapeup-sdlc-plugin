@@ -45,7 +45,7 @@ L0 gate.
 
 | Fact | File |
 |---|---|
-| the launch record: models, `budgets.maxRounds`, `budgets.attemptBudget`, the answer set (`answers`), `noEval`, `noQa`, `maxParallelScopes` | `<run>/run-args.json` |
+| the launch record: models, `budgets.maxRounds`, `budgets.attemptBudget`, `noEval`, `noQa`, `maxParallelScopes` | `<run>/run-args.json` |
 | the intake, and which plugin copy opened the run | `<run>/intake.md`, `<run>/receipt.json` |
 | a gate is crossed when a row with that `gate` and `"status":"ok"` exists (matching `round` where it has one) | `<run>/gates.jsonl` |
 | orders and results — a dispatch is answered when `results/<stem>.json` exists | `<run>/orders/<stem>.json`, `<run>/results/<stem>.json` |

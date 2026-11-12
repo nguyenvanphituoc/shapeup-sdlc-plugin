@@ -182,7 +182,7 @@ knowledge base. Every other step is a skill, typed by its own name, so the pipel
 
 | Type this | Phase | What it does |
 |-----------|-------|--------------|
-| `/ship` | all | Run the full harness on a pitch (interactive gates by default; `--auto`, `--unattended`). |
+| `/ship` | all | Run the full harness on a pitch (unattended: a gate agent answers each gate). |
 | `/ship plan` | Wiring Review, Board Review | The planning steps alone: requirements, spec tree + board, the wiring map, then scope contracts. Stops once Board Review is crossed. |
 | `/ship stop` | Cut-List Review | Must-have census, baseline comparison, cut list + ship verdict. |
 | `/ship intake` | Intake & Config | The language gate alone: a non-English pitch becomes a faithful English copy plus a glossary. |

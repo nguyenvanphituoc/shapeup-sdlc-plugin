@@ -95,7 +95,7 @@ human-readable report, to `.shapeup/<slug>/reports/hammer-census.json`:
 ```
 
 `ship_blocking` is non-empty exactly when the verdict is `cannot-ship`. **GATE L4's resolver reads this file —
-and nothing else — before it lets any answer set say `ship`:** a census that lives only in your printed blocks
+and nothing else — before it lets any answer say `ship`:** a census that lives only in your printed blocks
 cannot be read by a gate. Still a proposal: the file grants nothing.
 
 Read it back before you cross GATE H: readable JSON, a verdict from the three, a `cut_list` array, and `ship_blocking`

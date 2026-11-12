@@ -35,7 +35,7 @@ Never inferred from nothing: read what the pitch, the command line and the setti
 | Stack hint | aims the Scout's sweeps and the run commands (e.g. "pnpm, Next 16 web :3000") |
 | Eval dimensions | default `auto`: the order resolves the set from the spec. Name a set only on request; it must reach every `evaluate` order's `dimensions`, or it grades nothing. What is left out is reported at the ship gate as not evaluated. |
 | Rounds, attempts | default 3 rounds, 5 attempts per scope per round. `resources/build/round.md` says why there are two breakers |
-| Auto level | `unattended`: every run is; the gate agent answers each gate (until the answer sets are removed the launch record may still carry a preset, which the loop does not pass) |
+| Auto level | none: every run is unattended and the gate agent answers each gate. `--auto-level`, `--auto`, `--unattended` and `--gate-answers` are retired: accepted, ignored |
 | Models | resolve once: flags, then `.claude/settings.local.json`, then `.claude/settings.json`, then defaults, and pass the result as `--exec-model` / `--eval-model` / `--qa-model`. Exec and eval must be sonnet or above — `init run` refuses a cheaper tier. A model the member's plan does not offer degrades one tier down, and the degrade is said at the L0 gate, never silent. |
 | Run commands | the build command (`run_cmd`), and the profile's `build_probe` and `launch_probe`. A `mobile` profile with no launch probe has nobody owning the install and launch risk: say so. |
 | Knowledge base | read `shapeup/knowledge-base/building.md` and then `tech-lead.md` (the same guidance under its old name; `resources/guidance.md`) if they exist. It may add a question or a check to a gate block and may propose run values (not applied by the loop: the gate agent records that it was proposed, as a question entry). It never answers, skips or reorders a gate. With no file at all, go on: the PO may run `/retro --scan` between runs. |
@@ -47,7 +47,7 @@ argument is where this step goes wrong. **Every switch the operator typed goes o
 run` writes the launch record (§7) in the same act as the receipt, so a switch left off it does nothing.
 
 ```bash
-node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" init run --slug <slug> --intake-file <path> --auto-level unattended [--max-rounds 3] [--attempts 5] [--exec-model <m>] [--eval-model <m>] [--qa-model <m>] [--no-eval] [--no-qa] [--parallel-scopes <N>]
+node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" init run --slug <slug> --intake-file <path> [--max-rounds 3] [--attempts 5] [--exec-model <m>] [--eval-model <m>] [--qa-model <m>] [--no-eval] [--no-qa] [--parallel-scopes <N>]
 ```
 
 Collect every value in §3 *before* this command, so the record is right the first time; a change the gate agent asks
@@ -107,8 +107,6 @@ it is the only place a typed switch survives. The loop reads nothing but the rec
 
 | Switch on `init run` | Field |
 |---|---|
-| `--auto-level` | `autoLevel` |
-| `--gate-answers <set>` | `answers` — the answer set the gates resolve through |
 | `--exec-model` `--eval-model` `--qa-model` | `models.{exec,eval,qa}` — a flag, else `SHAPEUP_EXEC_MODEL` / `SHAPEUP_EVAL_MODEL` / `SHAPEUP_QA_MODEL`, else `sonnet`; `qa` follows `exec` |
 | `--max-rounds` `--attempts` | `budgets.{maxRounds,attemptBudget}` |
 | `--no-eval` | `noEval` — skips the evaluation; the ship report says so in its first line and never reads as verified; you do not write PASS over a run launched with it |

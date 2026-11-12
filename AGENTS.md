@@ -55,7 +55,7 @@ flowchart TD
 
 Every gate below is answered by the gate agent, which stands in for the PO, reads the run's decision log first, and writes a baseline and a decision for each gate. This document and the commands call a gate by its
 plain name; the last column is the machine id the same gate carries in `decisions.jsonl`,
-`gates.jsonl` and any gate-answers file, and is the only place an id appears here.
+`gates.jsonl` and the retired answer files, and is the only place an id appears here.
 
 | Gate | What it checks | Who answers | Id in ledgers and answer files |
 |------|-----------------|-------------|------|

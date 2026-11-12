@@ -1892,7 +1892,6 @@
       "type": "object",
       "required": [
         "slug",
-        "autoLevel",
         "models",
         "budgets",
         "pluginRoot",
@@ -1907,19 +1906,6 @@
           "type": "string",
           "description": "The run key, copied from the receipt `harness init run` wrote in the same act. Identity, not run config the ledger already carries; the receipt stays the source of truth.",
           "pattern": "^[a-z0-9][a-z0-9-]*-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{8}$"
-        },
-        "autoLevel": {
-          "type": "string",
-          "enum": [
-            "interactive",
-            "auto",
-            "unattended"
-          ],
-          "description": "Resolved once at GATE L0; governs which gates pre-approve and what on_missing does (harness gate)."
-        },
-        "answers": {
-          "type": "string",
-          "description": "A gate-answers preset name (ci|guarded|interactive) or a path to a gate-answers.json file (`init run --gate-answers`) — the ONLY thing that decides whether a gate crosses, pauses, or aborts. The same input the receipt's config records as gate_answers."
         },
         "models": {
           "type": "object",

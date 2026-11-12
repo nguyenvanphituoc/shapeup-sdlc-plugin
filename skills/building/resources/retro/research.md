@@ -50,8 +50,8 @@ R2  DRAFT   candidate rules exactly as in the scan's S2, against the same catego
                             evidence lines; the PO decides, you never pick
               unknown       the document is silent → the scan rule stands, note the gap
             Cap the draft at 15 per category before the gate; fewer, sharper rules survive.
-R3  GATE    ⏸ GATE COACH-1 exactly as for feedback. In an `auto` or `unattended` run the research
-            writes NOTHING: it lists the draft for the PO at GATE L0.
+R3  GATE    ⏸ GATE COACH-1 exactly as for feedback. In a run the research
+            writes NOTHING: it lists the draft for the gate agent at GATE L0.
 R4  WRITE   Steps 3 and 3b of `resources/retro/retro.md`, with provenance `from web-research (<url>, <version>, <date>)`.
             A re-run replaces only research-provenance rules. Suggested run config lines from research
             are marked as unexecuted proposals: a command taken from a document has never run in this
