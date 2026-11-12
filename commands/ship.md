@@ -1,11 +1,11 @@
 ---
-description: Run the full Shape Up harness on a pitch, with human sign-off at gates
+description: Run the full Shape Up harness on a pitch, unattended, with a gate agent answering each gate
 ---
 Use the **building** skill to run the full harness on $ARGUMENTS.
 
-Default to **interactive** (`auto_level = interactive`): pause at every gate and require PO
-sign-off — especially the Ship Sign-off gate. The harness's safety depends on the human being in the
-loop; do not skip gates by default.
+Every run is **unattended**: it never waits for a person. A gate agent answers each of the ten gates in the PO's
+place, reading what the earlier gates decided from the run's decision log, and writes a baseline and a decision for
+each. Where Claude would otherwise stop to ask, the gate agent decides. The PO reviews the decision log after the run.
 
 **Before anything else, dispatch `building` and let it open the run** — its first action is
 `harness init run`, which writes the run receipt and the launch record. Do not summarise what the harness will do:
@@ -20,9 +20,9 @@ With a sub-command as its first word, `building` does one activity of the loop a
 phase whose condition holds, over and over: dispatch a worker, build the released scopes, run a kernel
 command, cross a gate, close. Three things follow:
 
-- **A gate is answered where it is reached.** The loop prints the gate block, asks the PO one
-  question with a recommendation, records the answer with the source `PO (live)`, and goes on. There
-  is no relaunch after an answer.
+- **A gate is answered where it is reached.** The loop starts the gate agent with the gate and the paths to read;
+  the agent reads the decision log, decides, appends its entry and records the answer under its own name. There
+  is no relaunch after an answer, and no pause.
 - **A killed session loses nothing.** The next phase is read off the files on disk, never from
   the conversation, so `/ship` again over an open run resumes it: a finished phase is not re-run.
 - **Every agent the run spawns is a worker** — `orient`, `task-executor`, `spec-evaluator` and
@@ -35,26 +35,13 @@ a two-round budget, and a small shape yields one scope): the gates and the verif
 a bigger pitch crosses, and nothing is waived for a one-file fix. Do not take any other route — a hand-built
 change outside the loop is what the harness exists to prevent.
 
-Only run headless/auto if the user explicitly asks for it in their message:
-- `--auto` → advance low-risk gates automatically, still pause at Ship Sign-off.
-  Implies `--gate-answers guarded` unless a set is named.
-- `--unattended` → fully headless, `max_rounds 3`. Intended for CI, not day-to-day local runs.
-  Implies `--gate-answers ci` unless a set is named. **Typing the flag IS the confirmation — do not
-  stop to ask for another one.** Emit the warning that no human will review the verdict before ship as
-  the run's first line, then proceed straight into the Intake & Config gate in the same turn. (In a non-interactive
-  invocation there is no second turn in which to answer; a headless flag that waits for one cannot
-  complete a headless run.)
+`--auto`, `--unattended` and `--gate-answers` are retired: a run is always unattended, so each is accepted and ignored.
 
 Additional flags, pass through to `building` only when the user names them:
 - `--breadboard <path>` → the pitch's breadboard, when it is not beside the pitch. A pitch shaped
   with `/shapeup` is `shaping.md` + `breadboard.md`; the loop finds a `breadboard.md` in the same
   folder (or in `shaping/`) on its own, and reads one written inline in a single `pitch.md`. Its
   Places become the spec's screens, and the Board Review gate is where a missing or folded one is caught.
-- `--gate-answers <ci|guarded|interactive|path.json>` → the pre-recorded PO decisions this run
-  crosses its gates with. Gates still emit their blocks and still record a decision; the decision's
-  **source** becomes the answer set instead of a live human, and the ledger says so. Generate one
-  with `harness gate --init --preset ci --by "<name>"`. Without one an unattended run waits at the
-  first gate, having built nothing.
 - `--parallel-scopes N` → how many scopes build at once (default 4). Concurrency is a cost question
   before it is a speed one — every extra leg is another worker's full context. `1` builds scopes one
   at a time.

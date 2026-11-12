@@ -13,6 +13,7 @@ After GATE H and before GATE L4, write `shapeup/<slug>/REPORT.md` — frozen at 
 (cite use cases and scope ids instead; the fence refuses the write otherwise). Its first line says what this is: **a ship is not a pass**, so
 a shipped FAIL opens with `Shipped over a FAIL verdict, with the cut list below`, never with the title alone. Then:
 
+- **Decision log** — directly under the title and status line: the run's decision log (`<run>/decision-log.md`) carried across as text, entries marked `Review first: yes` on top, the rest in order. It is the PO's one file to read after an unattended run. The report is committed, so strip run-trace paths and board ids from the entries and cite use cases and scope ids instead.
 - **Outcome** — the verdict, rounds used and judged, tasks done of planned, whether QA ran, did not run, or ran and drove nothing, and the
   models: per role, what the launch record asked for and what the dispatch receipts (`<run>/receipts/dispatch.jsonl`, `usage.model`) name as
   having run. Where the two differ, say so here: a cost or a verdict read against the wrong model is a figure about a different run.
@@ -24,5 +25,5 @@ a shipped FAIL opens with `Shipped over a FAIL verdict, with the cut list below`
 Every figure is read off a file you opened in this step. A report written from memory of the run is the failure this section exists to prevent.
 
 A write the fence refuses names a live order: a dead session left a dispatch open. That is dead work, not yours to
-answer — say so to the PO (`init run --force` answers every open order and discards the round history; only the PO
+answer — say so in the report (`init run --force` answers every open order and discards the round history; only the PO
 asks for it).

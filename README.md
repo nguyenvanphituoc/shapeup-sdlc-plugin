@@ -70,7 +70,7 @@ they are documented for [contributors](CONTRIBUTING.md), not for users.
 /shapeup-sdlc-plugin:ship "add dark mode to the settings screen"
 ```
 
-That last one walks the whole lifecycle and pauses at each gate for you. That's the whole
+That last one walks the whole lifecycle unattended: a gate agent answers each gate for you, and you read its decision log afterwards. That's the whole
 quickstart.
 
 > **The `shapeup-sdlc-plugin:` prefix is not optional.** A plugin's commands are namespaced by the
@@ -127,7 +127,7 @@ rest of this README after this table and nothing will be a surprise.
 | **scope contract** | The file defining one vertical slice: its substrate, its fixtures, its affordances. |
 | **affordance** | The thing a user can actually click, type or call. UI is graded on affordances, not on looks. |
 | **hill / hill phase** | How much of a scope is still *unknown* versus merely *unfinished*. The Scout reports a signal at orient; nothing later derives it. |
-| **gate** | A checkpoint in a run, called by its plain name: Intake & Config, Orient Review, Wiring Review, Board Review, Round Close, Verdict, QA Edge Hunt, Cut-List Review, Ship Sign-off and Retro Ownership. [`AGENTS.md`'s Gate names](AGENTS.md#gate-names) says what each one checks. Most pause for you; the Round Close gate is advisory: it can be crossed over unfinished work, recorded as a flagged `warn`. |
+| **gate** | A checkpoint in a run, called by its plain name: Intake & Config, Orient Review, Wiring Review, Board Review, Round Close, Verdict, QA Edge Hunt, Cut-List Review, Ship Sign-off and Retro Ownership. [`AGENTS.md`'s Gate names](AGENTS.md#gate-names) says what each one checks. A gate agent answers each one for you and logs why; the Round Close gate is advisory: it can be crossed over unfinished work, recorded as a flagged `warn`. |
 | **covers-closure** | Every requirement clause is graded by at least one acceptance criterion or claimed by a scope, or the PO marks it `CUT`. The loop reads the plan back for this before the board review; nothing silently drops. |
 | **discovery ledger** | The one file everything found mid-run gets written to, so nothing is lost between rounds. |
 
@@ -171,7 +171,7 @@ populated; every arm is skipped when its artifact is absent, so older specs are 
 | Evaluate (Verdict) | `spec-evaluator` | The single judge (pure worker). Verifies spec-conformance, TDD surface, and integration against the running app — skeptical, files `file:line` bugs, runs exactly once per build round. Requires a T0 artifact citation, grades UI affordance-only; verdict + refuted boxes return as data. |
 | QA (post-PASS) | `qa-edge-hunter` | Exploratory edge hunt on the running app through six fixed lenses, charting edges *outside* what the evaluator probed. Findings go to the ledger as QA findings; never blocks ship. |
 | Stop (Cut-List Review) | `building` | The `stop` sub-command — the Cut-List Review gate, done by the loop itself: must-have census (every ownership, exhaustion and requirement claim names the file it came from) → baseline comparison (never vs. the ideal) → cut list + ship verdict, written as data that the Ship Sign-off gate reads. Handles the normal stop and both circuit-breaker triggers. |
-| Retro (after Ship Sign-off) | `building` | The `retro` sub-command — RLHF for the harness: turns raw PO/TL feedback at Ship Sign-off into per-reader guidelines under committed `shapeup/knowledge-base/<reader>.md` (readers: `task-executor`, `orient`, `qa-edge-hunter`, the `plan` activity, and the loop itself at the Intake & Config gate — workflow guidance, never a gate answer). `--scan` seeds the same files from the project on disk before the first run; `--research <stack>` seeds them from the platform's official documentation when the project has nothing to scan, and cross-checks a scan's rules when it has. The Retro Ownership gate asks the PO which reader owns each rule — never assumes; mechanism defects are filed to the harness-defect register instead. |
+| Retro (after Ship Sign-off) | `building` | The `retro` sub-command — RLHF for the harness: turns raw PO/TL feedback at Ship Sign-off into per-reader guidelines under committed `shapeup/knowledge-base/<reader>.md` (readers: `task-executor`, `orient`, `qa-edge-hunter`, the `plan` activity, and the loop itself at the Intake & Config gate — workflow guidance, never a gate answer). `--scan` seeds the same files from the project on disk before the first run; `--research <stack>` seeds them from the platform's official documentation when the project has nothing to scan, and cross-checks a scan's rules when it has. `/retro` asks the PO which reader owns each rule — never assumes; mechanism defects are filed to the harness-defect register instead. |
 
 ### Commands
 

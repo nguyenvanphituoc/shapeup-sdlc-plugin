@@ -16,7 +16,9 @@ it.
 | **scope contract** | The file defining one vertical slice: its substrate, its fixtures, its affordances. |
 | **affordance** | The thing a user can actually click, type or call. UI is graded on affordances, not on looks. |
 | **hill / hill phase** | How much of a scope is still *unknown* versus merely *unfinished*. The Scout reports a signal at orient; nothing derives it after that. |
-| **gate** | A checkpoint in a run, called by its plain name (Intake & Config, Orient Review, Wiring Review, Board Review, Round Close, Verdict, QA Edge Hunt, Cut-List Review, Ship Sign-off, Retro Ownership). Most pause for you; Round Close is advisory: it can be crossed over unfinished work, recorded as a flagged `warn`. |
+| **gate agent** | The agent that stands in for the PO during a run, started anew at every gate and every question the loop cannot settle from a file. It reads the decision log first, decides, appends a baseline and a decision, and records the gate's answer under its own name. |
+| **decision log** | `decision-log.md` in the run's trace: one entry per gate and per question, written only by the gate agent, printed at the top of the ship report with the entries to review first on top. It is how a later gate knows what an earlier one decided. |
+| **gate** | A checkpoint in a run, called by its plain name (Intake & Config, Orient Review, Wiring Review, Board Review, Round Close, Verdict, QA Edge Hunt, Cut-List Review, Ship Sign-off, Retro Ownership). The gate agent answers each of them for you; Round Close is advisory: it can be crossed over unfinished work, recorded as a flagged `warn`. |
 | **covers-closure** | Every requirement clause has at least one task claiming to cover it. Nothing silently drops. |
 | **wiring reachability** | Every engine has a call site reachable from the app's real entry point. Catches "built, but never wired up". Reports itself unchecked, with a reason, when the import walk cannot be rooted — an unfollowable import, or no reachable engine to control it. |
 | **discovery ledger** | The one file everything found mid-run gets written to, so nothing is lost between rounds. |

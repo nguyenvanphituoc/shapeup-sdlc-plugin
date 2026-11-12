@@ -47,10 +47,10 @@ argument is where this step goes wrong. **Every switch the operator typed goes o
 run` writes the launch record (§7) in the same act as the receipt, so a switch left off it does nothing.
 
 ```bash
-node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" init run --slug <slug> --intake-file <path> --auto-level <interactive|auto|unattended> [--gate-answers <ci|guarded|path.json>] [--max-rounds 3] [--attempts 5] [--exec-model <m>] [--eval-model <m>] [--qa-model <m>] [--no-eval] [--no-qa] [--parallel-scopes <N>]
+node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" init run --slug <slug> --intake-file <path> --auto-level unattended [--max-rounds 3] [--attempts 5] [--exec-model <m>] [--eval-model <m>] [--qa-model <m>] [--no-eval] [--no-qa] [--parallel-scopes <N>]
 ```
 
-Ask for every value in §3 *before* this command, so the record is right the first time; a change the PO asks
+Ask for every value in §3 *before* this command, so the record is right the first time; a change the gate agent asks
 for at the L0 gate (§6) re-opens the run with `--force` — nothing has been planned yet.
 
 **Exit 2 naming a role** means a model is below the floor (`exec` and `eval` must be sonnet or above; `qa` and,
@@ -80,7 +80,7 @@ built artifact. A red step ends the round with no verdict, and its failure is th
 
 ## 6. The L0 gate
 
-Emit the block, then resolve it like every other gate:
+Emit the block, then put it to the gate agent like every other gate (it sees the block, `run-args.json`, the pitch and the profile; `abort` closes the run):
 
 ```
 ⏸ GATE L0 — Intake & Run Config
@@ -95,7 +95,7 @@ Knowledge    : building.md — <N> rules | none
 ```
 
 ```bash
-node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" gate --resolve L0 --slug <slug> [--file <path>|--preset <name>]
+node "${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs" gate --resolve L0 --slug <slug> --answer <proceed|abort> --by agent:gate-agent --note "<reason>"
 ```
 
 Exit 4: put the block to the PO and wait. Exit 0 `proceed`: continue. Exit 5: stop; do not launch.

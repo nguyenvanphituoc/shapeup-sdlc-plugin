@@ -13,6 +13,10 @@ working. The consequence is stated here rather than left to be discovered: **an 
 to predate the current layout is not converted for you.** Run `install-harness.sh` against it
 instead and treat it as a fresh install.
 
+## Upgrading to 4.2
+
+Every run is unattended. A gate agent answers each of the ten gates in the PO's place, reads the run's decision log first, and writes a baseline and a decision for each; the ship report prints the log. `--auto`, `--unattended` and `--gate-answers` are no longer needed: the loop passes no answer set and an old command line still works. Nothing in your project needs editing.
+
 ## Upgrading to 4.1
 
 4.1 removes names, although it is a minor release. Nothing a run does changes, and no file in your project needs editing unless it types one of them.
@@ -145,8 +149,7 @@ keep.
   --no-native-workflow` is accepted and does nothing. The whole grant is two Bash rules:
   `Bash(node "*/kernel/harness.mjs" *)` and `Bash(node "*/kernel/harness.mjs")`. Two, because the trailing ` *` form needs at
   least one argument; the leading `*` spans the install root, so the grant survives a plugin upgrade.
-- **A gate is answered where it is reached.** The loop prints the gate block, asks the PO one question and records the
-  answer with the source `PO (live)`; to resume a killed run, run `/ship` again.
+- **A gate is answered where it is reached.** The loop starts the gate agent, which records the answer under its own name; to resume a killed run, run `/ship` again.
 - **The model floor is enforced when a run opens.** `init run` refuses an `exec` or `eval` model below sonnet with
   exit 2, naming the role (`qa` is not checked, and `eval` is not under `--no-eval`). A model left unnamed is
   `$SHAPEUP_EXEC_MODEL` / `$SHAPEUP_EVAL_MODEL` / `$SHAPEUP_QA_MODEL`, else `sonnet`.
