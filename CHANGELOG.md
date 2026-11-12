@@ -3,7 +3,7 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased] · Every run is unattended: a gate agent answers each gate
+## [4.2.0] — 2026-11-12 · Every run is unattended: a gate agent answers each gate
 
 - **Added.** The gate agent (an agent and a skill of the same name), started by the loop at every gate and every question, reads the run's decision log first, decides, appends a baseline and a decision to the log, and records the gate's answer under its own name. `gate --resolve … --answer` takes `--by` and `--note`. The ship report prints the decision log. The kernel's three evidence checks apply to its answers as to any other.
 - **Changed.** `/ship` no longer pauses for a person: it does not put a gate or a question to the PO, and the answer sets are no longer passed. Answer sets and their flags remain in the kernel until a later release removes them.
