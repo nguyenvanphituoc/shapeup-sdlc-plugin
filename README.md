@@ -107,7 +107,7 @@ installer, and troubleshooting are in
 ## Agent support
 
 The harness targets **Claude Code only**. The reason is the row that never travelled when we
-compiled to other CLIs: hooks. The 6 skills, 2 slash commands and the kernel are
+compiled to other CLIs: hooks. The 7 skills, 2 slash commands and the kernel are
 portable prose and plain Node — but hook-enforced gates (envelope validation, the substrate
 fence, the safety spine, dispatch receipts) are a per-CLI mechanism, and without them every gate degrades from
 **enforced** to **instructed** — the same honor system every other framework runs on
@@ -311,7 +311,7 @@ claude --plugin-dir .                # load this working copy without installing
 .claude-plugin/
   plugin.json         # plugin manifest
   marketplace.json    # marketplace listing (points at this repo)
-skills/<name>/SKILL.md # the 6 harness skills (+ references/ and resources/)
+skills/<name>/SKILL.md # the 7 harness skills (+ references/ and resources/)
 agents/<worker>.md    # the 4 workers as plugin subagents: each preloads its skill; a dispatch names the agent
 kernel/harness.mjs    # ONE entry point for every deterministic step; the whole permission grant
 kernel/{verify,init}/ #   its subcommands: the T0 witness, the envelope check, the roster check, init run

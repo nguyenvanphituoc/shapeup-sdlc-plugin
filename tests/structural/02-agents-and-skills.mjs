@@ -18,7 +18,11 @@ export async function run(ctx) {
   const skillDirs = readdirSync(join(ROOT, "skills")).filter((d) => statSync(join(ROOT, "skills", d)).isDirectory());
   const { roster } = await import(join(ROOT, "kernel/verify/skills.mjs"));
   const workers = roster(ROOT);
-  check(agentFiles.length === workers.length && workers.every((w) => agentFiles.includes(`${w}.md`)), `one agent per worker in the schema's roster (${workers.join(", ")})`);
+  // The gate agent stands in for the PO and reads the run's history on purpose, so it is not a
+  // pipeline worker: no operation, no order, no roster row. It is the only agent allowed to be one.
+  const NON_WORKER_AGENTS = ["gate-agent"];
+  const extra = agentFiles.filter((f) => !workers.includes(basename(f, ".md")));
+  check(workers.every((w) => agentFiles.includes(`${w}.md`)) && extra.every((f) => NON_WORKER_AGENTS.includes(basename(f, ".md"))), `one agent per worker in the schema's roster (${workers.join(", ")}), and no agent outside it but the gate agent`);
   for (const f of agentFiles) {
     const text = readFileSync(join(ROOT, "agents", f), "utf8");
     const fm = frontmatter(text);

@@ -31,6 +31,8 @@ export async function run(ctx) {
     check(r.status === 4, "preset guarded stops the judgment gate L1b for the PO");
     r = gate("L1a", "ci", ["--answer", "abort"]);
     check(r.status === 5 && rows().at(-1)?.source === "PO (live)", "a live answer of abort exits 5 and is ledgered with the source PO (live)");
+    r = gate("L1a", "ci", ["--answer", "proceed", "--by", "agent:gate-agent", "--note", "map covers the pitch"]);
+    check(r.status === 0 && rows().at(-1)?.source === "agent:gate-agent" && rows().at(-1)?.note === "map covers the pitch", "--by and --note put the agent's name and reason in the row instead of PO (live)");
     check(kernel(ROOT, ["gate", "--resolve", "L1a", "--slug", "w", "--preset", "ci"], { cwd: join(cwd, ".shapeup/w") }).status === 2, "a gate resolved from inside a run trace is refused rather than ledgered in a nested one");
     r = gate("NOPE", "ci");
     check(r.status === 2, "an unknown gate id is a usage error (exit 2)");
@@ -47,6 +49,8 @@ export async function run(ctx) {
     check(r.status === 4 && r.out?.refused === "ship", "no census on disk: ship is refused whatever the answer set says");
     r = gate("L4", "ci", ["--answer", "ship"]);
     check(r.status === 4, "a live PO answer of ship is narrowed the same way: an answer chooses, it never supplies the evidence");
+    r = gate("L4", "ci", ["--answer", "ship", "--by", "agent:gate-agent", "--note", "looks fine"]);
+    check(r.status === 4 && r.out?.refused === "ship", "an agent's ship over a census that does not clear is narrowed exactly as a preset's is");
     const census = (verdict, ship_blocking = []) => put(cwd, ".shapeup/w/reports/hammer-census.json", {
       schema_version: 1, verdict, cut_list: [], ship_blocking, breaker: null, baseline: null,
     });

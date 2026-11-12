@@ -558,7 +558,7 @@ export function discover({ cwd = process.cwd(), file = null, preset = null, slug
 /** The typed argv contract (see `./lib/argv.mjs`). */
 export const ARGV_SPEC = {
   usage: "harness.mjs gate (--init | --list | --verify | --resolve <gate-id>) [--preset <name>] " +
-         "[--file <path>] [--slug <slug>] [--cwd <dir>] [--out <path>] [--by <who>] " +
+         "[--file <path>] [--slug <slug>] [--cwd <dir>] [--out <path>] [--by <who>] [--note <text>] " +
          "[--auto-level <level>] [--tiny] [--no-qa] [--round <n>] [--verdict <pass|fail|…>]",
   _: { arity: 0, max: 0, name: "(no positional operands)" },
   cwd: { type: "path" },
@@ -571,6 +571,7 @@ export const ARGV_SPEC = {
   slug: { type: "str" },
   out: { type: "path" },
   by: { type: "str" },
+  note: { type: "str" },
   "auto-level": { type: "str" },
   tiny: { type: "flag" },
   "no-qa": { type: "flag" },
@@ -666,7 +667,11 @@ export function cli(rawArgv) {
     if (args.answer === "ask" || !valid.includes(args.answer)) {
       die(`"${args.answer}" is not a decision GATE ${args.resolve} takes — valid: ${valid.filter((d) => d !== "ask").join(", ")}`);
     }
-    found = { set: { version: 1, preset: "custom", answers: { [args.resolve]: { decision: args.answer, note: "answered live by the PO" } } }, source: "PO (live)" };
+    // `--by <name>` names who answered (an agent standing in for the PO writes `agent:<name>`) and
+    // `--note` carries its reason; without them the row reads as it always has. The evidence checks
+    // below narrow this answer exactly as they narrow any other.
+    const source = args.by && !args.init ? args.by : "PO (live)";
+    found = { set: { version: 1, preset: "custom", answers: { [args.resolve]: { decision: args.answer, note: args.note ?? (args.by ? `answered by ${args.by}` : "answered live by the PO") } } }, source };
   } else {
     found = discover({ cwd, file: args.file ?? null, preset: args.preset ?? null, slug: args.slug ?? null });
   }

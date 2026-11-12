@@ -6,7 +6,7 @@
 
 ```
 .claude-plugin/          plugin.json · marketplace.json
-skills/<name>/SKILL.md   the 6 harness skills (+ references/ and resources/)
+skills/<name>/SKILL.md   the 7 harness skills (+ references/ and resources/)
 skills/building/         the loop. SKILL.md is the phase table and an index; resources/ holds one file
                          per activity under intake/ plan/ build/ ship/ retro/, each opening with a
                          four-row contract, beside the order templates and the two planning libraries
