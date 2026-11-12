@@ -74,5 +74,5 @@ is in `<run>/receipts/dispatch.jsonl`: a compiled order and a T0 verdict are bot
 A worker has no port for "I cannot decide this": a WorkResult carries no escalation field. A phase that cannot finish leaves
 no artifact, and you stop the run at that phase, naming it. A worker that left its artifacts and no WorkResult is dispatched
 again once, told its artifacts stand, and a result that fails the envelope check goes back once with the reason. Read the
-phase's result to find what it could not complete and resolve it yourself — amend the spec, widen the scope contract, answer
-the ambiguity with the PO — then dispatch again; only the unfinished work is dispatched.
+phase's result to find what it could not complete and resolve it yourself — amend the spec, widen the scope contract, put
+the ambiguity to the gate agent as a question — then dispatch again; only the unfinished work is dispatched.

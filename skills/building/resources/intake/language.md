@@ -25,9 +25,8 @@ concepts to the planner's domain pass. Load the feature's `shapeup/<slug>/shapin
 the base map; extract domain nouns, actor names, status/enum values, screen names and feature jargon with a
 proposed English term each; mark the do-not-translate tokens (proper nouns, brand and product names, code
 identifiers, API names, env vars, file paths), which pass through verbatim. **An ambiguous term (one source
-word, several valid English terms) is asked of the PO and never guessed** — a wrong canonical term cascades
-into every document and every round. `auto` and `unattended` runs go on when nothing is ambiguous, and still
-stop when something is.
+word, several valid English terms) is put to the gate agent as a question** — a wrong canonical term cascades
+into every document and every round. It picks the term; the glossary marks it `assumed`, and its entry says review first.
 
 **Translate.** Write `<name>.en.md` beside its source — under `shapeup/<slug>/shaping/` when the source lives
 there; the **original is never overwritten**. This is the committed tier, and the loop is its writer. Prose

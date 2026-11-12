@@ -25,7 +25,7 @@ around it or hand-build the feature.
 
 ## Rules
 
-1. **ASK, DON'T ASSUME.** Collect the intake explicitly (`resources/intake/open-run.md`); put every gate to the PO with a recommendation first.
+1. **LOOK IT UP; IF NO FILE ANSWERS, ASK THE gate agent.** A run is unattended and never waits for a person. Collect the intake from the files and the command line (`resources/intake/open-run.md`); every gate and every question goes to the gate agent, never to the PO and never answered by you.
 2. **SIMPLEST FIRST.** The smallest change that satisfies the pitch.
 3. **NON-REGRESSION.** Never touch what already works.
 4. **A CLAIM NAMES ITS FILE.** Every "done", "green" or "shipped" you write cites the file or kernel output it came from.
@@ -56,27 +56,31 @@ L0 gate.
 
 ## The phases — do the first one whose condition holds, then read the files again
 
-A gate is crossed with `K gate --resolve <GATE> --slug <slug> [--round R] [--verdict V] --preset <set>` (exit 0 = crossed; 4 = ask the PO and
-re-run with `--answer <decision>`; 5 = the set aborts: close the run as aborted and stop). `<set>` is the launch record's `answers`.
+**A gate is put to the gate agent, never answered by you.** Spawn the agent `shapeup-sdlc-plugin:gate-agent` (model: `models.eval` from the launch record) with the gate, the kernel's block
+and the paths to read (`resources/gates.md` says what to send) — not your own opinion of the answer. It reads the decision log
+(`<run>/decision-log.md`, written by it alone), decides, and records the answer itself with `K gate --resolve <GATE> … --answer <d> --by agent:gate-agent`. A gate is crossed when its row says `ok`.
+Its reply is one of: **a decision** (go on); **findings**, each naming a file (repair them in the activity that produced them and start it again; a second return with findings at the same gate closes the run `escalated`);
+**a refusal by the kernel** on the evidence (write the report if the census exists and close the run `escalated`). `hold` closes it `escalated`, `abort` closes it `aborted`. If the agent gives no answer, start it once more; if that one gives none either, close the run `escalated` at that gate — you never answer in its place.
+A kernel refusal, a fence denial, a failed preflight and a host permission prompt are not questions and are never put to the gate agent.
 
 | # | Condition | Do |
 |---|---|---|
-| 0 | `<run>/close.json` exists | the run has ended: report its `status` and `cause`, and stop. Reopening it is the PO's decision (`init run --force`) |
+| 0 | `<run>/close.json` exists | the run has ended: report its `status` and `cause`, and stop. Reopening it is the PO's decision, taken after the run (`init run --force`) |
 | 1 | no `results/orient.json` | **dispatch** `orient` (below) |
-| 2 | GATE L1a not crossed | `K gate --resolve L1a --slug <slug> --preset <set>` |
+| 2 | GATE L1a not crossed | put GATE L1a (Orient Review) to the gate agent |
 | 3 | no `<spec>requirements.md` | plan substep `requirements` |
 | 4 | no spec tree or no board | plan substep `spec`; then read the board back against `resources/plan/spec.md`'s checklist |
 | 5 | no `<spec>wiring-map.md` | plan substep `wire`; then GATE L1a.5 |
 | 6 | no `<spec>scopes/*.md` | plan substep `scopes`; then GATE L1b |
 | 7 | a scope has no green latest trial for round R (R starts at 1) | **build** it (below) |
-| 8 | every scope green or out of attempts, GATE L2 not crossed for R | `K gate --resolve L2 --slug <slug> --round R --preset <set>` |
+| 8 | every scope green or out of attempts, GATE L2 not crossed for R | put GATE L2 (Round Close, round R) to the gate agent |
 | 9 | no `results/evaluate-rR.json` (skipped under `noEval`) | **dispatch** `spec-evaluator` |
-| 10 | GATE L3 not crossed for R | `K gate --resolve L3 --slug <slug> --round R --verdict <pass\|fail\|not-evaluated>`. On fail and `R < maxRounds`, round R+1 repeats 7 to 10 for the scopes the verdict's bugs name; otherwise go to 13 |
-| 11 | GATE QA not crossed | `K gate --resolve QA --slug <slug> --round R --verdict pass --preset <set>` |
-| 12 | QA answered `run` and no `results/hunt.json` (skipped under `noQa`) | **dispatch** `qa-edge-hunter`. Do not move on without it: GATE L4 refuses `ship` over a hunt the run owed and never ran, and the only recorded way out is `K gate --resolve QA … --answer skip` |
+| 10 | GATE L3 not crossed for R | put GATE L3 (Verdict, round R, with the verdict `pass`, `fail` or `not-evaluated`) to the gate agent. On fail and `R < maxRounds`, round R+1 repeats 7 to 10 for the scopes the verdict's bugs name; otherwise go to 13 |
+| 11 | GATE QA not crossed | put GATE QA (QA Edge Hunt) to the gate agent |
+| 12 | QA answered `run` and no `results/hunt.json` (skipped under `noQa`) | **dispatch** `qa-edge-hunter`. Do not move on without it: GATE L4 refuses `ship` over a hunt the run owed and never ran, and the only recorded way out is the gate agent answering QA `skip` |
 | 13 | no census file | do the census (`resources/ship/census.md`) and write `<run>/reports/hammer-census.json`; then GATE H |
 | 14 | GATE H crossed, no `<spec>REPORT.md` | write the ship report (`resources/ship/report.md`); then GATE L4 |
-| 15 | GATE L4 crossed | `K order close --slug <slug> --status <shipped\|escalated\|aborted> --cause "<verdict, rounds>"`; `shipped` is refused (exit 1) unless this run's L4 row says `ship`, so a refusal here means the gate was not crossed — go back to phase 14; then GATE COACH-1 |
+| 15 | GATE L4 crossed | `K order close --slug <slug> --status <shipped\|escalated\|aborted> --cause "<verdict, rounds>"`; `shipped` is refused (exit 1) unless this run's L4 row says `ship`, so a refusal here means the gate was not crossed — go back to phase 14; then put Retro Ownership (`COACH-1`) to the gate agent (it answers `skip`) |
 
 **A plan substep** is done here, in this session, with no sub-agent: write the substep's order (`resources/orders.md`, operation `plan`,
 `worker: "building"`), open it with `K order open`, write only what the substep produces (`resources/plan/substep.md` and its `resources/plan/*.md`
@@ -97,7 +101,7 @@ The same five moves for every worker. `resources/orders.md` has the order for ea
    the call asked for and the model the host says ran. GATE L4 reads those receipts: an `exec` or `eval` worker that ran below the floor refuses
    `ship`, and a model other than the record's is written into the gate's row — say so in the ship report.
 4. **Read the result** at `<run>/results/<stem>.json`: `K verify envelope "<run>/results/<stem>.json" "${CLAUDE_PLUGIN_ROOT}/kernel/schemas/work-result.schema.json"`.
-   Invalid, or absent, goes back **once** with the reason; a second failure is a phase that did not complete — name it and stop at that phase.
+   Invalid, or absent, goes back **once** with the reason; a second failure is a phase that did not complete — close the run `escalated`, naming the phase.
 5. **Apply it yourself**: update the board's `status:` for the tasks the result closed, append each discovery to `<run>/discovery/ledger.md`, append the
    evaluator's verdict-ledger lines to `<run>/evaluation/.verdicts-<target>.jsonl`, and state what the result changed. Nobody else writes these.
 
@@ -148,7 +152,7 @@ contract; a line with `—` is a file the others read.
 | `step 0` | open the run: the pitch, the collect-list, `init run`, the profile, the launch record | `resources/intake/open-run.md` |
 | `sub-command` | `intake`: the language check and translation, alone or inside step 0 | `resources/intake/language.md` |
 | `0`, `1`, `7`, `9`, `12` | the run has ended; a dispatch; build a scope | this file |
-| `2`, `8`, `10`, `11` | how to put a gate to the PO, and what to have read first | `resources/gates.md` |
+| `2`, `8`, `10`, `11` | what to send the gate agent at each gate | `resources/gates.md` |
 | `3` | planning: the requirements registry | `resources/plan/requirements.md` |
 | `4` | planning: the spec tree and the board | `resources/plan/spec.md` |
 | `5` | planning: the wiring map | `resources/plan/wire.md` |

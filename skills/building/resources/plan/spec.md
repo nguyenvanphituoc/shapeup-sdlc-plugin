@@ -20,7 +20,7 @@ re-derive or "improve" a use case, or invent a task no use-case step or Test Sur
 
 Payload the step may carry: `lens` (`lite` | `standard` | `cross-context`; absent → judge it: LITE for a
 ≤ 2-week appetite, no third party, ≤ 3 user-facing actions; STANDARD for multi-team, third-party or bigger;
-genuinely unclear → one binary question to the PO), the pitch, the breadboard (its Places are your screens;
+genuinely unclear → one binary question to the gate agent), the pitch, the breadboard (its Places are your screens;
 its U# and N# are the affordances you place and cite — absent = none separate, never inferred) and the
 orient directory.
 

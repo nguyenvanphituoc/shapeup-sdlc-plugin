@@ -15,7 +15,7 @@ grade your own output, and you hold no state of your own — the same files in, 
    answer, a skip or a wider substrate), then the inputs. The Scout's `code-surface.md` IS the codebase map: do not
    re-scan the code.
 3. **Write only what the substep produces**, in the format this resource and its sibling files give. If the work
-   genuinely needs a file outside the substrate, stop and ask the PO — never widen it.
+   genuinely needs a file outside the substrate, ask the gate agent — never widen it.
 4. **Check your own work against the substep's checklist** (the end of its sibling file). No script lints the spec for you
    any more: the disjointness of scope substrates, the use-case anchor of every scope, the `depends_on` names, the
    acceptance-criterion `covers:` edges and the breadboard Places are yours to read back, file by file. Say what you read.
@@ -24,9 +24,8 @@ grade your own output, and you hold no state of your own — the same files in, 
    naming every file you wrote, and read each artifact back. A close over no artifact is `"status":"failed"`, and the run
    stops at that phase naming what is missing; it is not a thing to retry blindly.
 
-Escalation is a question to the PO in this conversation, one specific and answerable, with the context
-needed to answer it. It is never a guess and never a silent widening: a new actor or action with no use
-case is the PO's call (spawning a use case mid-cycle is re-shaping); a missing project profile is a
+Escalation is a question to the gate agent, one specific and answerable, with the files needed to answer it. It is never a guess and never a silent widening: a new actor or action with no use
+case is not added: the gate agent records it as a question entry marked review first (spawning a use case mid-cycle is re-shaping); a missing project profile is a
 `need` the loop already stops on.
 
 The `requirements` substep, the first of the four, has its own file: `resources/plan/requirements.md`.

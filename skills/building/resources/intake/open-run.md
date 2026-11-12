@@ -26,7 +26,7 @@ Step 2, the language check, has its own file: `resources/intake/language.md`.
 
 ## 3. Collect, explicitly
 
-Never inferred; ask for what the pitch does not say.
+Never inferred from nothing: read what the pitch, the command line and the settings say; for a value none of them gives, use the documented default and ask the gate agent to record that it was used (a question entry).
 
 | | |
 |---|---|
@@ -35,10 +35,10 @@ Never inferred; ask for what the pitch does not say.
 | Stack hint | aims the Scout's sweeps and the run commands (e.g. "pnpm, Next 16 web :3000") |
 | Eval dimensions | default `auto`: the order resolves the set from the spec. Name a set only on request; it must reach every `evaluate` order's `dimensions`, or it grades nothing. What is left out is reported at the ship gate as not evaluated. |
 | Rounds, attempts | default 3 rounds, 5 attempts per scope per round. `resources/build/round.md` says why there are two breakers |
-| Auto level | `interactive` (default): pause at every gate · `auto`: low-risk gates pre-answered, still pause at the judgment gates and ship · `unattended`: headless, needs an answer set |
+| Auto level | `unattended`: every run is; the gate agent answers each gate (until the answer sets are removed the launch record may still carry a preset, which the loop does not pass) |
 | Models | resolve once: flags, then `.claude/settings.local.json`, then `.claude/settings.json`, then defaults, and pass the result as `--exec-model` / `--eval-model` / `--qa-model`. Exec and eval must be sonnet or above — `init run` refuses a cheaper tier. A model the member's plan does not offer degrades one tier down, and the degrade is said at the L0 gate, never silent. |
 | Run commands | the build command (`run_cmd`), and the profile's `build_probe` and `launch_probe`. A `mobile` profile with no launch probe has nobody owning the install and launch risk: say so. |
-| Knowledge base | read `shapeup/knowledge-base/building.md` and then `tech-lead.md` (the same guidance under its old name; `resources/guidance.md`) if they exist. It may add a question or a check to a gate block and may propose run values (confirm each with the PO and note `(source: knowledge-base)`). It never answers, skips or reorders a gate. With no file at all, offer `/retro --scan` once and go on whether or not the PO takes it. |
+| Knowledge base | read `shapeup/knowledge-base/building.md` and then `tech-lead.md` (the same guidance under its old name; `resources/guidance.md`) if they exist. It may add a question or a check to a gate block and may propose run values (not applied by the loop: the gate agent records that it was proposed, as a question entry). It never answers, skips or reorders a gate. With no file at all, offer `/retro --scan` once and go on whether or not the PO takes it. |
 
 ## 4. Open the run
 
