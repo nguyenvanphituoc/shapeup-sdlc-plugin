@@ -28,6 +28,7 @@ const MODULES = [
   "09-init.mjs",
   "10-oracles.mjs",
   "11-skill-anatomy.mjs",
+  "12-layers.mjs",
 ];
 
 // The floor: a refactor that silently deletes checks must fail loudly rather than read green.

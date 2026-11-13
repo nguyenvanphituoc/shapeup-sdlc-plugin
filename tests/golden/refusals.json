@@ -1,0 +1,224 @@
+{
+  "gate/no-answer": {
+    "status": 2,
+    "out": null,
+    "err": "gate L1a needs --answer <decision> — valid: proceed, abort\\n"
+  },
+  "gate/ask": {
+    "status": 2,
+    "out": null,
+    "err": "\\\"ask\\\" is not a decision GATE L1a takes — valid: proceed, abort\\n"
+  },
+  "gate/unknown-gate": {
+    "status": 2,
+    "out": null,
+    "err": "unknown gate \\\"NOPE\\\" — known: L0, L1a, L1a.5, L1b, L2, L3, QA, H, L4, COACH-1\\n"
+  },
+  "gate/abort": {
+    "status": 5,
+    "out": {
+      "gate": "L1a",
+      "status": "abort",
+      "source": "PO (live)",
+      "decision": "abort",
+      "note": "answered live by the PO",
+      "reason": "GATE L1a is answered \"abort\".",
+      "ok": false
+    },
+    "err": ""
+  },
+  "gate/L2-empty-board": {
+    "status": 4,
+    "out": {
+      "gate": "L2",
+      "status": "ask",
+      "source": "agent:gate-agent",
+      "decision": "ask",
+      "note": "answered by agent:gate-agent",
+      "refused": "proceed",
+      "board_tasks": 0,
+      "reason": "GATE L2 cannot be answered \"proceed\": the board has no tasks, so \"board 100%\" is a hundred percent of nothing. A committed spec with no per-machine board needs the board regenerated (operation `board`) before this gate means anything. Put the block to the PO, or regenerate the board first.",
+      "ok": false
+    },
+    "err": ""
+  },
+  "gate/L4-no-census": {
+    "status": 4,
+    "out": {
+      "gate": "L4",
+      "status": "ask",
+      "source": "agent:gate-agent",
+      "decision": "ask",
+      "note": "answered by agent:gate-agent",
+      "refused": "ship",
+      "census": null,
+      "reason": "GATE L4 cannot be answered \"ship\": the census has not been written, so none exists. An answer set chooses among the answers a gate allows; it cannot supply the evidence that makes one allowed. Put the block to the PO, or run the census first.",
+      "ok": false
+    },
+    "err": ""
+  },
+  "gate/L4-cannot-ship": {
+    "status": 4,
+    "out": {
+      "gate": "L4",
+      "status": "ask",
+      "source": "agent:gate-agent",
+      "decision": "ask",
+      "note": "answered by agent:gate-agent",
+      "refused": "ship",
+      "census": "cannot-ship",
+      "reason": "GATE L4 cannot be answered \"ship\": the census returned CANNOT SHIP. An answer set chooses among the answers a gate allows; it cannot supply the evidence that makes one allowed. Put the block to the PO, or run the census first.",
+      "ok": false
+    },
+    "err": ""
+  },
+  "gate/L3-bad-answer": {
+    "status": 2,
+    "out": null,
+    "err": "\\\"ship\\\" is not a decision GATE L3 takes — valid: loop, stop\\n"
+  },
+  "gate/nested-trace": {
+    "status": 2,
+    "out": null,
+    "err": "✋ gate: <DIR>/.shapeup/w is inside a run trace (.shapeup/); run it from the project root, or its row lands in a nested ledger.\\n"
+  },
+  "order/open": {
+    "status": 0,
+    "out": {
+      "ok": true,
+      "slug": "w",
+      "order": "<DIR>/.shapeup/w/orders/b1.json"
+    },
+    "err": ""
+  },
+  "order/open-invalid": {
+    "status": 1,
+    "out": null,
+    "err": "✋ order open: order fails the order schema, so it was not opened: $: missing required field \\\"worker\\\"\\n"
+  },
+  "fence/outside-substrate": {
+    "status": 0,
+    "out": {
+      "hookSpecificOutput": {
+        "hookEventName": "PreToolUse",
+        "permissionDecision": "deny",
+        "permissionDecisionReason": "Write fence — no live order's substrate covers these writes:\nlib/outside.js is outside every live order's allowed scopes\nIf this write belongs to this order, widening it is the PO's decision: amend the scope contract's substrate, then write the order again."
+      }
+    },
+    "err": "",
+    "rule": "outside-substrate"
+  },
+  "fence/frozen": {
+    "status": 0,
+    "out": {
+      "hookSpecificOutput": {
+        "hookEventName": "PreToolUse",
+        "permissionDecision": "deny",
+        "permissionDecisionReason": "Write fence — no live order's substrate covers these writes:\nsrc/frozen/x.js is frozen by w/b1\nIf this write belongs to this order, widening it is the PO's decision: amend the scope contract's substrate, then write the order again."
+      }
+    },
+    "err": "",
+    "rule": "frozen"
+  },
+  "fence/order-dir": {
+    "status": 0,
+    "out": {
+      "hookSpecificOutput": {
+        "hookEventName": "PreToolUse",
+        "permissionDecision": "deny",
+        "permissionDecisionReason": "Write fence — no live order's substrate covers these writes:\n.shapeup/w/orders/other.json is frozen by w/b1\nIf this write belongs to this order, widening it is the PO's decision: amend the scope contract's substrate, then write the order again."
+      }
+    },
+    "err": "",
+    "rule": "frozen"
+  },
+  "fence/allowed": {
+    "status": 0,
+    "out": null,
+    "err": "",
+    "rule": "in-substrate"
+  },
+  "order/close-shipped-unsigned": {
+    "status": 1,
+    "out": null,
+    "err": "✋ order close: no Ship Sign-off row says \\\"ship\\\" for run <RUN>, so the run cannot be recorded as shipped. Resolve GATE L4 first (harness.mjs gate --resolve L4 --slug w …), or close it as escalated or aborted, which need no sign-off.\\n"
+  },
+  "fence/tier-run-trace-path": {
+    "status": 0,
+    "out": {
+      "hookSpecificOutput": {
+        "hookEventName": "PreToolUse",
+        "permissionDecision": "deny",
+        "permissionDecisionReason": "Tier guard (TIER-DIRECTION) — this write would put a reference into the committed tier that cannot survive the trip to another machine:\nshapeup/demo/spec/a.md:1 — `.shapeup/w/board.md` points into .shapeup/ — a committed file cannot reference the gitignored tier; the path dangles on every other clone. Name the committed artifact, or describe the tier without a path.\nRefused here, while the writer still knows what it meant to say. Rephrase the line now: cite the committed artifact, the use case or the scope_id, or describe the tier without naming a path."
+      }
+    },
+    "err": "",
+    "rule": "tier-direction"
+  },
+  "fence/tier-board-id": {
+    "status": 0,
+    "out": {
+      "hookSpecificOutput": {
+        "hookEventName": "PreToolUse",
+        "permissionDecision": "deny",
+        "permissionDecisionReason": "Tier guard (TIER-DIRECTION) — this write would put a reference into the committed tier that cannot survive the trip to another machine:\nshapeup/demo/spec/b.md:1 — `TASK-004` names TASK-004 — a committed file cannot carry a board id. Boards live in .shapeup/ (gitignored) and renumber on every regeneration, so this resolves on the machine that wrote it and nowhere else. Cite the use case or the scope_id, which are stable.\nRefused here, while the writer still knows what it meant to say. Rephrase the line now: cite the committed artifact, the use case or the scope_id, or describe the tier without naming a path."
+      }
+    },
+    "err": "",
+    "rule": "tier-direction"
+  },
+  "envelope/missing-field": {
+    "status": 0,
+    "out": {
+      "hookSpecificOutput": {
+        "hookEventName": "PreToolUse",
+        "permissionDecision": "deny",
+        "permissionDecisionReason": "WorkOrder gate — <DIR>/.shapeup/demo/orders/no-worker.json fails schema validation: $: missing required field \"worker\". A malformed order never reaches a worker; fix the order (or harness compile) and re-dispatch."
+      }
+    },
+    "err": ""
+  },
+  "envelope/bad-enum": {
+    "status": 0,
+    "out": {
+      "hookSpecificOutput": {
+        "hookEventName": "PreToolUse",
+        "permissionDecision": "deny",
+        "permissionDecisionReason": "WorkOrder gate — <DIR>/.shapeup/demo/orders/bad-mode.json fails schema validation: $.mode: value \"freestyle\" not in enum [orchestrated, standalone]. A malformed order never reaches a worker; fix the order (or harness compile) and re-dispatch."
+      }
+    },
+    "err": ""
+  },
+  "envelope/retired-operation": {
+    "status": 0,
+    "out": {
+      "hookSpecificOutput": {
+        "hookEventName": "PreToolUse",
+        "permissionDecision": "deny",
+        "permissionDecisionReason": "WorkOrder gate — <DIR>/.shapeup/demo/orders/spike.json fails schema validation: $.operation: value \"spike\" not in enum [execute, fix, evaluate, orient, hunt, plan]. A malformed order never reaches a worker; fix the order (or harness compile) and re-dispatch."
+      }
+    },
+    "err": ""
+  },
+  "envelope/absent-order": {
+    "status": 0,
+    "out": {
+      "hookSpecificOutput": {
+        "hookEventName": "PreToolUse",
+        "permissionDecision": "deny",
+        "permissionDecisionReason": "WorkOrder gate — order file not found: <DIR>/nope.json. Write the order first (resources/orders.md in the building skill) — a worker must never be dispatched against a dangling order."
+      }
+    },
+    "err": ""
+  },
+  "envelope/result-bad-status": {
+    "status": 1,
+    "out": null,
+    "err": "  ✗ $.status: value \\\"finished\\\" not in enum [done, partial, escalated, failed]\\n"
+  },
+  "envelope/result-absent": {
+    "status": 1,
+    "out": null,
+    "err": "  ✗ ENOENT: no such file or directory, open '<DIR>/absent.json'\\n"
+  }
+}
