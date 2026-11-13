@@ -3,6 +3,13 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [5.0.1] — 2026-11-13 · The kernel is split into a domain-free core and a Shape Up adapter
+
+Nothing a consumer sees changes: the entry point, the schema paths, the hook paths, the permission grant, the `shapeup/` and `.shapeup/` roots, every exit code and every ledger row are as in 5.0.0.
+
+- **Changed.** The mechanism the runtime holds (the run trace and run key, the hook runtime, the ledger, the gate resolver, the T0 witness and its ratchet, the write fence's decision, the contract parser, the envelope check, the worker roster, the model floor) now lives in a layer that names no workflow. The data Shape Up hands it (root names, the ten gates and their evidence rules, the contract layouts, the ratchet names, the floor) lives beside it. A second workflow can drive the core by supplying its own.
+- **Changed.** The kernel's size did not grow: it is smaller than 5.0.0 by a few lines.
+
 ## [5.0.0] — 2026-11-12 · The answer sets are removed
 
 **Breaking.** A gate is answered with `gate --resolve <gate> --answer <decision>`, by name (`--by`), with its reason (`--note`); nothing else answers one.
