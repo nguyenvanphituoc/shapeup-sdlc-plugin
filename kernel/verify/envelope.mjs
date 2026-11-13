@@ -24,7 +24,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import { resolve, join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { runArgs } from "../lib/argv.mjs";
+import { runArgs } from "../core/argv.mjs";
 import { runHook, readStdin, settle } from "../shapeup/hook.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -196,7 +196,7 @@ export function validateFile(envelopePath, schemaPath) {
 // Entry point: CLI when args are given, PreToolUse hook when fed stdin JSON.
 // ---------------------------------------------------------------------------
 /**
- * The typed argv contract (see `./lib/argv.mjs`) — CLI mode only. In hook mode argv is empty and
+ * The typed argv contract (see `core/argv.mjs`) — CLI mode only. In hook mode argv is empty and
  * the envelope arrives on stdin, so nothing here is consulted.
  */
 export const ARGV_SPEC = {

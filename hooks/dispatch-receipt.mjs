@@ -72,7 +72,7 @@
 
 import { appendFileSync, mkdirSync, readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
-import { isMain } from "../kernel/lib/argv.mjs";
+import { isMain } from "../kernel/core/argv.mjs";
 import { dispatchReceipts } from "../kernel/lib/paths.mjs";
 import { runHook, readStdin, settle, projectRoot } from "./lib/decision.mjs";
 

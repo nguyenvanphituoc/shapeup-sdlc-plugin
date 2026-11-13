@@ -109,7 +109,7 @@ function treeState(cwd) {
  * different facts, and collapsing them is the mistake that kept the hill's top phase shut for the
  * life of the seesaw arm: "not asked" was recorded the same way as "nothing wrong".
  *
- * @param {(string|null)} profilePath - `shapeup/<slug>/project-profile.md`, when the caller knows it.
+ * @param {(string|null)} profilePath - the project profile, when the caller knows it.
  * @returns {(object[]|null)} One entry per declared cache, or null when none is declared.
  */
 export function declaredCaches(profilePath) {

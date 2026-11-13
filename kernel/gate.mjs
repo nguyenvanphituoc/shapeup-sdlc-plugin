@@ -23,9 +23,9 @@
 
 import { readFileSync, writeFileSync, existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { runArgs } from "./lib/argv.mjs";
+import { runArgs } from "./core/argv.mjs";
 import { gates as gatesPath, LOCAL, resultsDir, ordersDir, qaDir, tasksDir, hammerCensus, readRunId, harnessRun, insideRunTrace, runArgsPath, dispatchReceipts } from "./lib/paths.mjs";
-import { belowFloor } from "./lib/floor.mjs";
+import { belowFloor } from "./shapeup/floor.mjs";
 import { appendLedger } from "./core/ledger.mjs";
 
 export const GATE_IDS = ["L0", "L1a", "L1a.5", "L1b", "L2", "L3", "QA", "H", "L4", "COACH-1"];
@@ -375,7 +375,7 @@ export function priorSignOff(cwd, slug, runId) {
 
 // ---- CLI -------------------------------------------------------------------
 
-/** The typed argv contract (see `./lib/argv.mjs`). */
+/** The typed argv contract (see `core/argv.mjs`). */
 export const ARGV_SPEC = {
   usage: "harness.mjs gate --resolve <gate-id> --answer <decision> [--by <who>] [--note <text>] " +
          "[--slug <slug>] [--cwd <dir>] [--round <n>] [--verdict <pass|fail|…>]",

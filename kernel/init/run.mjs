@@ -34,9 +34,9 @@ import { mkdirSync, writeFileSync, readFileSync, readdirSync, existsSync, rmSync
 import { join, dirname, resolve, relative, sep } from "node:path";
 import { createHash } from "node:crypto";
 import { appendGateLedger } from "../gate.mjs";
-import { runArgs } from "../lib/argv.mjs";
+import { runArgs } from "../core/argv.mjs";
 import { mintRunId, insideRunTrace } from "../lib/paths.mjs";
-import { launchProblems, floorProblems } from "../lib/floor.mjs";
+import { launchProblems, floorProblems } from "../shapeup/floor.mjs";
 import {
   localRoot, activeScope, activeOrder, globLocal, globShared, ordersDir, resultsDir, runArgsPath,
 } from "../lib/paths.mjs";
@@ -179,7 +179,7 @@ export function resolveAbandonedOrders(cwd, slug) {
 /** A path relative to the project root, `/`-joined on every platform. */
 const repoRel = (cwd, p) => relative(cwd, p).split(sep).join("/");
 
-/** The typed argv contract (see `../lib/argv.mjs`). */
+/** The typed argv contract (see `core/argv.mjs`). */
 export const ARGV_SPEC = {
   usage: 'harness.mjs init run (--intake-file <path> | --intake-text "<req>" | --intake-stdin) ' +
          "[--slug <slug>] " +

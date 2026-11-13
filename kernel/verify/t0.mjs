@@ -38,11 +38,11 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSy
 import { join, dirname, basename, extname, resolve as resolvePath, relative } from "node:path";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { digest } from "../probe/digest.mjs";
+import { digest } from "../core/digest.mjs";
 import { appendLedger } from "../core/ledger.mjs";
-import { environmentFingerprint } from "./env.mjs";
-import { runArgs } from "../lib/argv.mjs";
-import { snapshot, restore, keptRef } from "./ratchet-tree.mjs";
+import { environmentFingerprint } from "../core/env.mjs";
+import { runArgs } from "../core/argv.mjs";
+import { snapshot, restore, keptRef } from "../shapeup/ratchet.mjs";
 import { readContract, SCOPE_CONTRACT } from "../lib/contract.mjs";
 import { runIdFromRoot, localRoot, SHARED, projectProfile } from "../lib/paths.mjs";
 
@@ -547,7 +547,7 @@ export function writeArtifact(outDir, round, attempt, verdictBody) {
   }
 }
 
-/** The typed argv contract (see `./lib/argv.mjs`). */
+/** The typed argv contract (see `core/argv.mjs`). */
 export const ARGV_SPEC = {
   usage: "harness.mjs verify t0 <scope-contract.json> --round N --attempt M [--cwd <dir>] [--out <dir>] " +
          "[--no-ratchet]",
@@ -633,7 +633,7 @@ export async function cli(rawArgv) {
     // WHERE IT RAN, beside what it measured. A verdict that records only the tree is portable
     // evidence in appearance only: the same commit built three ways on three machines because the
     // toolchain resolved through a path-keyed cache. This block does not judge — it is what lets a
-    // disagreeing re-run be told from a regression (see verify/env.mjs).
+    // disagreeing re-run be told from a regression (see core/env.mjs).
     env: environmentFingerprint(cwd, {
       commands: [...fixtures.results.map((r) => r.cmd), ...(dbProbe?.cmd ? [dbProbe.cmd] : [])],
       profilePath: projectProfile(cwd, slugFromContractPath(contractPath)),

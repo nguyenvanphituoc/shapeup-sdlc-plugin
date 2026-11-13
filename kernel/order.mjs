@@ -23,14 +23,14 @@
 
 import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { runArgs } from "./lib/argv.mjs";
+import { runArgs } from "./core/argv.mjs";
 import { activeOrder, activeScope, localRoot, insideRunTrace, gates as gatesPath, readRunId } from "./lib/paths.mjs";
 import { validate, SCHEMAS_DIR } from "./verify/envelope.mjs";
 
 /** The endings a run may record. */
 export const CLOSE_STATUSES = ["shipped", "escalated", "aborted"];
 
-/** The typed argv contract (see `./lib/argv.mjs`). */
+/** The typed argv contract (see `core/argv.mjs`). */
 export const ARGV_SPEC = {
   usage: "harness.mjs order open --slug <slug> --order <path> | order close --slug <slug> --status <shipped|escalated|aborted> [--cause <text>]",
   _: { arity: 0, max: 0, name: "(no positional operands)" },

@@ -1,4 +1,4 @@
-// ratchet-tree — `keep(commit)` and `revert(commit)` for the T0 attempt loop.
+// ratchet — `keep(commit)` and `revert(commit)` for the T0 attempt loop.
 //
 // WHY THIS FILE EXISTS.
 //
@@ -16,7 +16,7 @@
 //
 // NO COMMITS ON THE BRANCH UNDER TEST. The harness's standing convention is that it never writes
 // commits to the user's branch, so the snapshot is a `git stash create` object published under a
-// SHADOW REF — `refs/shapeup/<scope_id>/kept` — which is invisible to `git log`, `git status` and
+// SHADOW REF — `<namespace>/<scope_id>/kept`, the namespace being the caller's — which is invisible to `git log`, `git status` and
 // every branch operation, and is reachable for `git restore` and for forensics afterwards.
 //
 // NON-REGRESSION. Every operation here is best-effort: outside a git work tree, with no
@@ -46,10 +46,11 @@ function git(argv, cwd) {
 /**
  * The shadow ref a scope's kept tree is published under.
  * @param {string} scopeId - Scope id (e.g. "SC-02").
+ * @param {string} refNamespace - The ref namespace the caller owns (under which the shadow refs are published).
  * @returns {string} The full ref name, with anything ref-unsafe in the id replaced by "-".
  */
-export function keptRef(scopeId) {
-  return `refs/shapeup/${String(scopeId || "unscoped").replace(/[^\w.-]/g, "-")}/kept`;
+export function keptRef(scopeId, refNamespace) {
+  return `${refNamespace}/${String(scopeId || "unscoped").replace(/[^\w.-]/g, "-")}/kept`;
 }
 
 /**
@@ -74,19 +75,20 @@ export function isRepo(cwd) {
  *
  * @param {string} scopeId - Scope id the snapshot belongs to.
  * @param {string} cwd - Repository working directory.
+ * @param {{refNamespace:string, stashLabel:string}} names - The shadow-ref namespace and the stash label the caller owns.
  * @returns {{ok:boolean, ref?:string, sha?:string, reason?:string}} `ok:true` with the ref and the
  *   snapshot commit sha; `ok:false` with a reason when git is unavailable, the directory is not a
  *   repo, or there was nothing to snapshot (a clean tree — the caller has nothing to restore to
  *   that HEAD does not already provide).
  */
-export function snapshot(scopeId, cwd) {
+export function snapshot(scopeId, cwd, { refNamespace, stashLabel }) {
   if (!isRepo(cwd)) return { ok: false, reason: "not a git work tree" };
-  const created = git(["stash", "create", `shapeup: kept tree for ${scopeId}`], cwd);
+  const created = git(["stash", "create", `${stashLabel}: kept tree for ${scopeId}`], cwd);
   if (!created.ok) return { ok: false, reason: created.stderr || "git stash create failed" };
   // An empty stdout means the tree is clean relative to HEAD — a legitimate state, not an error.
   const sha = created.stdout || git(["rev-parse", "HEAD"], cwd).stdout;
   if (!sha) return { ok: false, reason: "no commit to snapshot" };
-  const ref = keptRef(scopeId);
+  const ref = keptRef(scopeId, refNamespace);
   const updated = git(["update-ref", ref, sha], cwd);
   if (!updated.ok) return { ok: false, reason: updated.stderr || "git update-ref failed" };
   return { ok: true, ref, sha };
@@ -121,11 +123,11 @@ export function snapshot(scopeId, cwd) {
  *   the tree was restored; `ok:false` with a reason when there is no snapshot yet (the first trial,
  *   by definition), no pathspec to bound the revert, or git refused.
  */
-export function restore(scopeId, cwd, pathspec = []) {
+export function restore(scopeId, cwd, pathspec = [], { refNamespace }) {
   if (!isRepo(cwd)) return { ok: false, reason: "not a git work tree" };
   const paths = (pathspec || []).filter((p) => typeof p === "string" && p.trim());
   if (!paths.length) return { ok: false, reason: `no substrate pathspec for ${scopeId} — refusing a repo-wide revert` };
-  const ref = keptRef(scopeId);
+  const ref = keptRef(scopeId, refNamespace);
   const resolved = git(["rev-parse", "--verify", "--quiet", ref], cwd);
   if (!resolved.ok || !resolved.stdout) return { ok: false, reason: `no snapshot at ${ref}` };
   const restored = git(["restore", `--source=${resolved.stdout}`, "--worktree", "--", ...paths], cwd);

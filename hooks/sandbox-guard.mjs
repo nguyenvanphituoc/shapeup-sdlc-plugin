@@ -66,7 +66,7 @@
 
 import { readFileSync, existsSync, appendFileSync, mkdirSync, readdirSync, statSync, realpathSync, lstatSync, readlinkSync } from "node:fs";
 import { resolve, join, relative, dirname, basename, sep } from "node:path";
-import { isMain } from "../kernel/lib/argv.mjs";
+import { isMain } from "../kernel/core/argv.mjs";
 import { LOCAL, SHARED, activeOrder, ordersDir, resultsDir, metricsShard, dispatchReceipts } from "../kernel/lib/paths.mjs";
 import { runHook, readStdin, settle, projectRoot } from "./lib/decision.mjs";
 import { SCANNED, tierLeaks } from "./lib/tier.mjs";

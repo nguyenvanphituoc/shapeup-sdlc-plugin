@@ -30,11 +30,11 @@
 //                                      run ended.
 //
 // EXIT CODES are the subcommand's own and are part of its contract: 0 success · 1 ran, answer is
-// no · 2 malformed input, nothing ran (`lib/argv.mjs`) · 3 `init run` refused to open · 4/5 gate
+// no · 2 malformed input, nothing ran (`core/argv.mjs`) · 3 `init run` refused to open · 4/5 gate
 // stop/abort. This dispatcher adds exactly one of its own: 2 for an unknown verb, which is the same
 // "the input was malformed" case.
 
-import { isMain } from "./lib/argv.mjs";
+import { isMain } from "./core/argv.mjs";
 
 /**
  * verb → action → module, the whole routing table.
@@ -65,7 +65,7 @@ function usage() {
 }
 
 /**
- * Reject an invocation before anything runs, the same way `lib/argv.mjs` rejects a bad flag.
+ * Reject an invocation before anything runs, the same way `core/argv.mjs` rejects a bad flag.
  * @param {object} detail - Machine-readable rejection record.
  * @returns {never} Exits 2.
  */

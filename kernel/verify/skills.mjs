@@ -30,7 +30,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import { resolve, join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { runArgs } from "../lib/argv.mjs";
+import { runArgs } from "../core/argv.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 /** The plugin root, resolved from where this file actually is (`kernel/verify/` → repo root). */
@@ -97,7 +97,7 @@ export function resolveWorkers(root = PLUGIN_ROOT) {
 }
 
 // ---------------------------------------------------------------------------
-/** The typed argv contract (see `./lib/argv.mjs`). */
+/** The typed argv contract (see `core/argv.mjs`). */
 export const ARGV_SPEC = {
   usage: "harness.mjs verify skills [--plugin-root <dir>] [--json] [--quiet]",
   _: { arity: 0, max: 0 },

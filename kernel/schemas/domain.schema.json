@@ -1166,7 +1166,7 @@
         },
         "env": {
           "type": "object",
-          "description": "Where the fixtures ran — host, cwd, git tree, resolved toolchain paths, lockfile digests, profile-declared cache dirs, and a digest over an allowlist of environment variable VALUES (names in the clear, values never stored). `env_sha256` digests the whole block, so a reader compares one field and a human diffs the rest: two verdicts with the same tree and different digests were measured on different machines, which is a fact about portability rather than a regression. Written by kernel/verify/env.mjs, which judges nothing — no field here makes a verdict green or red.",
+          "description": "Where the fixtures ran — host, cwd, git tree, resolved toolchain paths, lockfile digests, profile-declared cache dirs, and a digest over an allowlist of environment variable VALUES (names in the clear, values never stored). `env_sha256` digests the whole block, so a reader compares one field and a human diffs the rest: two verdicts with the same tree and different digests were measured on different machines, which is a fact about portability rather than a regression. Written by kernel/core/env.mjs, which judges nothing — no field here makes a verdict green or red.",
           "properties": {
             "schema_version": { "const": 1 },
             "env_sha256": { "type": "string" },
