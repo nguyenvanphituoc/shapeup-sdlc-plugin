@@ -67,7 +67,7 @@ export const usecasesDir = (cwd, slug) => join(specDir(cwd, slug), "usecases");
 /** Shaping artifacts — pitch, framing, breadboard, baseline, glossary. `init run` looks here for a breadboard. */
 export const shapingDir = (cwd, slug) => join(sharedRoot(cwd, slug), "shaping");
 // The three contracts are markdown on disk and JSON on the wire — see
-// `lib/contract.mjs`. `readContract()` accepts either extension, so a project mid-migration
+// `core/contract.mjs`. `readContract()` accepts either extension, so a project mid-migration
 // keeps working; these builders name the form the harness WRITES.
 
 /** Scope contracts, one markdown file per vertical slice. */

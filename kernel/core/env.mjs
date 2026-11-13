@@ -23,7 +23,7 @@ import { join, resolve } from "node:path";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { platform, arch, release, hostname } from "node:os";
-import { splitFrontmatter } from "../lib/contract.mjs";
+import { splitFrontmatter } from "./contract.mjs";
 
 const sha256 = (t) => createHash("sha256").update(t).digest("hex");
 

@@ -3,9 +3,10 @@
   "edge: kernel/gate.mjs -> kernel/shapeup/floor.mjs": 1,
   "edge: kernel/verify/envelope.mjs -> kernel/shapeup/hook.mjs": 1,
   "edge: kernel/verify/t0.mjs -> kernel/lib/paths.mjs": 1,
+  "edge: kernel/verify/t0.mjs -> kernel/shapeup/contracts.mjs": 1,
   "edge: kernel/verify/t0.mjs -> kernel/shapeup/ratchet.mjs": 1,
   "literal: kernel/gate.mjs :: gate-id": 21,
   "literal: kernel/gate.mjs :: shapeup-name": 2,
   "literal: kernel/verify/envelope.mjs :: shapeup-name": 1,
-  "literal: kernel/verify/t0.mjs :: shapeup-name": 4
+  "literal: kernel/verify/t0.mjs :: shapeup-name": 5
 }

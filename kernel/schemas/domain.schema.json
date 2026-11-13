@@ -158,7 +158,7 @@
         "from": "ScopeContract",
         "to": "TaskRef",
         "cardinality": "1:N",
-        "via": "DERIVED — the board tasks whose use_case_refs meet this scope's use_cases (lib/contract.mjs tasksForScope)",
+        "via": "DERIVED — the board tasks whose use_case_refs meet this scope's use_cases (shapeup/contracts.mjs tasksForScope)",
         "note": "never stored: task ids are machine-local and the contract is committed, so the relation is re-derived per machine from two artifacts that are each valid alone. scope_id is the stable key on this side"
       },
       {
@@ -599,7 +599,7 @@
       }
     },
     "UseCase": {
-      "description": "One use case — the STABLE anchor both tiers name, and the only identifier the scope↔task relation is re-derived through. A UC id is assigned once and frozen: it behaves like scope_id and REQ-id, never like TASK-NNN. Referenced three ways across the tree (`UC-x`, `[[UC-x]]`, `[[usecases/UC-x]]`); `kernel/lib/contract.mjs` ucId() is the single normaliser, and both sides of any join must pass through it or they disagree about a UC they both hold.",
+      "description": "One use case — the STABLE anchor both tiers name, and the only identifier the scope↔task relation is re-derived through. A UC id is assigned once and frozen: it behaves like scope_id and REQ-id, never like TASK-NNN. Referenced three ways across the tree (`UC-x`, `[[UC-x]]`, `[[usecases/UC-x]]`); `kernel/core/contract.mjs` ucId() is the single normaliser, and both sides of any join must pass through it or they disagree about a UC they both hold.",
       "x-tier": "SHARED",
       "x-location": "shapeup/<slug>/spec/usecases/UC-*.md",
       "x-writer": "the loop's plan activity, spec substep (a reconcile pass MAY append, never renumber)",
@@ -627,7 +627,7 @@
       }
     },
     "ScopeContract": {
-      "description": "A vertical scope as a committed, mechanically enforceable contract — Shape Up's 'map the scopes' as data. Sliced by business flow (one call chain: UI screen + API route + use case + repository), NEVER by directory (PA1). The sandbox hook enforces the substrate, t0-verify runs the fixtures, the evaluator asserts against the manifest. Superseded contracts are kept, never deleted (branch and T0 history stay attributable). ON-DISK FORMAT IS MARKDOWN: frontmatter carries the scalars and [a, b] lists, a markdown table carries the one array-of-objects field, and prose carries the rationale a reviewer reads. THIS SCHEMA DESCRIBES THE PARSED OBJECT — the wire form embedded in the WorkOrder envelope — not the file. `kernel/lib/contract.mjs` is the only reader/writer of the file form; everything downstream of that parse sees exactly this shape.",
+      "description": "A vertical scope as a committed, mechanically enforceable contract — Shape Up's 'map the scopes' as data. Sliced by business flow (one call chain: UI screen + API route + use case + repository), NEVER by directory (PA1). The sandbox hook enforces the substrate, t0-verify runs the fixtures, the evaluator asserts against the manifest. Superseded contracts are kept, never deleted (branch and T0 history stay attributable). ON-DISK FORMAT IS MARKDOWN: frontmatter carries the scalars and [a, b] lists, a markdown table carries the one array-of-objects field, and prose carries the rationale a reviewer reads. THIS SCHEMA DESCRIBES THE PARSED OBJECT — the wire form embedded in the WorkOrder envelope — not the file. `kernel/core/contract.mjs` is the only reader/writer of the file form; everything downstream of that parse sees exactly this shape.",
       "x-tier": "SHARED",
       "x-location": "shapeup/<slug>/scopes/<scope-id>.md",
       "x-writer": "the loop's plan activity, scopes substep (SOLE writer — a hand-edit anywhere else is a defect)",
@@ -1621,7 +1621,7 @@
       }
     },
     "WiringMap": {
-      "description": "The reachability map — per UC, the chain from engine to a player-visible affordance (spine v1.3). Written DIRECTLY by the plan activity's wire substep before gate L1a.5 (precedent: ScopeContract is written directly by the scopes substep, bypassing the loop). Its purpose: no engine ships orphaned from the running application — the evaluator and the loop's build and launch check that against the built app. ON-DISK FORMAT IS MARKDOWN: frontmatter carries the scalars and [a, b] lists, a markdown table carries the one array-of-objects field, and prose carries the rationale a reviewer reads. THIS SCHEMA DESCRIBES THE PARSED OBJECT — the wire form embedded in the WorkOrder envelope — not the file. `kernel/lib/contract.mjs` is the only reader/writer of the file form; everything downstream of that parse sees exactly this shape.",
+      "description": "The reachability map — per UC, the chain from engine to a player-visible affordance (spine v1.3). Written DIRECTLY by the plan activity's wire substep before gate L1a.5 (precedent: ScopeContract is written directly by the scopes substep, bypassing the loop). Its purpose: no engine ships orphaned from the running application — the evaluator and the loop's build and launch check that against the built app. ON-DISK FORMAT IS MARKDOWN: frontmatter carries the scalars and [a, b] lists, a markdown table carries the one array-of-objects field, and prose carries the rationale a reviewer reads. THIS SCHEMA DESCRIBES THE PARSED OBJECT — the wire form embedded in the WorkOrder envelope — not the file. `kernel/core/contract.mjs` is the only reader/writer of the file form; everything downstream of that parse sees exactly this shape.",
       "x-tier": "SHARED",
       "x-location": "shapeup/<slug>/wiring-map.md",
       "x-writer": "the loop's plan activity, wire substep (SOLE writer, direct — like the scopes substep writes scopes/*.md)",
@@ -1656,7 +1656,7 @@
       }
     },
     "ProjectProfile": {
-      "description": "The archetype + entry-point declaration the wiring map and the build probes depend on (spine v1.3). The entry point is archetype-specific (main.js for a client-only game is not the seam for a web-service). SHARED — a declaration that must survive `rm -rf .shapeup/` + clone cannot live in the gitignored run-trace. Role-gating (skip SysRS/Auth/CI-CD) is explicitly OUT of scope — those roles are not workers; the profile is introduced only as the entry-point/archetype declaration. ON-DISK FORMAT IS MARKDOWN: frontmatter carries the scalars and [a, b] lists, a markdown table carries the one array-of-objects field, and prose carries the rationale a reviewer reads. THIS SCHEMA DESCRIBES THE PARSED OBJECT — the wire form embedded in the WorkOrder envelope — not the file. `kernel/lib/contract.mjs` is the only reader/writer of the file form; everything downstream of that parse sees exactly this shape.",
+      "description": "The archetype + entry-point declaration the wiring map and the build probes depend on (spine v1.3). The entry point is archetype-specific (main.js for a client-only game is not the seam for a web-service). SHARED — a declaration that must survive `rm -rf .shapeup/` + clone cannot live in the gitignored run-trace. Role-gating (skip SysRS/Auth/CI-CD) is explicitly OUT of scope — those roles are not workers; the profile is introduced only as the entry-point/archetype declaration. ON-DISK FORMAT IS MARKDOWN: frontmatter carries the scalars and [a, b] lists, a markdown table carries the one array-of-objects field, and prose carries the rationale a reviewer reads. THIS SCHEMA DESCRIBES THE PARSED OBJECT — the wire form embedded in the WorkOrder envelope — not the file. `kernel/core/contract.mjs` is the only reader/writer of the file form; everything downstream of that parse sees exactly this shape.",
       "x-tier": "SHARED",
       "x-location": "shapeup/<slug>/project-profile.md",
       "x-writer": "the loop, at the intake gate (not the loop, which stays pipeline-blind)",

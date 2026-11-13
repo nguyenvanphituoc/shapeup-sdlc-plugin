@@ -43,7 +43,8 @@ import { appendLedger } from "../core/ledger.mjs";
 import { environmentFingerprint } from "../core/env.mjs";
 import { runArgs } from "../core/argv.mjs";
 import { snapshot, restore, keptRef } from "../shapeup/ratchet.mjs";
-import { readContract, SCOPE_CONTRACT } from "../lib/contract.mjs";
+import { readContract } from "../core/contract.mjs";
+import { SCOPE_CONTRACT } from "../shapeup/contracts.mjs";
 import { runIdFromRoot, localRoot, SHARED, projectProfile } from "../lib/paths.mjs";
 
 /**
@@ -569,7 +570,7 @@ export const ARGV_SPEC = {
 export async function cli(rawArgv) {
   const args = runArgs(ARGV_SPEC, rawArgv);
   const contractPath = args._[0];
-  // Markdown first, legacy JSON second (lib/contract.mjs).
+  // Markdown first, legacy JSON second (core/contract.mjs).
   const found = readContract(contractPath, SCOPE_CONTRACT);
   if (!found) { console.error(`t0-verify: no scope contract at ${contractPath} (.md or .json)`); process.exit(2); }
   const contract = found.contract;
