@@ -32,7 +32,8 @@
 
 import { readFileSync, existsSync } from "node:fs";
 import { resolve, join, basename } from "node:path";
-import { globToRegExp, logPathology } from "./sandbox-guard.mjs";
+import { logPathology } from "./sandbox-guard.mjs";
+import { globToRegExp } from "../kernel/core/fence.mjs";
 import { isMain } from "../kernel/core/argv.mjs";
 import { LOCAL, safetyOverrides, metricsShard } from "../kernel/lib/paths.mjs";
 

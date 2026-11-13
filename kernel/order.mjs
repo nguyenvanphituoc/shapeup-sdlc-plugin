@@ -24,8 +24,9 @@
 import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { runArgs } from "./core/argv.mjs";
-import { activeOrder, activeScope, localRoot, insideRunTrace, gates as gatesPath, readRunId } from "./lib/paths.mjs";
+import { insideRunTrace, gates as gatesPath, readRunId, shapeupTrace } from "./shapeup/paths.mjs";
 import { validate, SCHEMAS_DIR } from "./verify/envelope.mjs";
+import * as core from "./core/order.mjs";
 
 /** The endings a run may record. */
 export const CLOSE_STATUSES = ["shipped", "escalated", "aborted"];
@@ -41,39 +42,10 @@ export const ARGV_SPEC = {
   cwd: { type: "path" },
 };
 
-/**
- * Stamp the order with the real time, write the active-order pointer, then read it back.
- *
- * THE STAMP IS THE KERNEL'S, NOT THE LOOP'S. The fence decides an order is answered when its result
- * is at least as new as the order's `compiled_at`, so a time the loop typed by hand and got wrong —
- * a few minutes in the future — keeps the order live after its worker has returned and stalls every
- * write the run makes. A real run did exactly that; the clock is read here instead.
- *
- * @param {string} cwd - Project root.
- * @param {string} slug - Feature slug.
- * @param {string} orderPath - Path to the order the pointer names.
- * @returns {{ok: boolean, reason?: string}} Whether the pointer reads back as written.
- */
-export function openOrder(cwd, slug, orderPath) {
-  let order;
-  try { order = JSON.parse(readFileSync(orderPath, "utf8")); }
-  catch (e) { return { ok: false, reason: `order is not readable JSON: ${e.message}` }; }
-  if (!order || typeof order !== "object") return { ok: false, reason: "order is not an object" };
-  // The same check the dispatch gate makes, made BEFORE the order is armed: an invalid order that was
-  // opened first is live with no way to be edited (the fence freezes it) and no way to be withdrawn.
-  const schema = JSON.parse(readFileSync(join(SCHEMAS_DIR, "work-order.schema.json"), "utf8"));
-  const { valid, errors } = validate(order, schema);
-  if (!valid) return { ok: false, reason: `order fails the order schema, so it was not opened: ${errors.slice(0, 5).join("; ")}` };
-  order.compiled_at = new Date().toISOString();
-  writeFileSync(orderPath, `${JSON.stringify(order, null, 2)}\n`);
-  const p = activeOrder(cwd);
-  mkdirSync(dirname(p), { recursive: true });
-  writeFileSync(p, `${JSON.stringify({ slug, order_path: orderPath }, null, 2)}\n`);
-  const back = JSON.parse(readFileSync(p, "utf8"));
-  return back.slug === slug && back.order_path === orderPath
-    ? { ok: true }
-    : { ok: false, reason: `pointer read back as ${JSON.stringify(back)}` };
-}
+/** Stamp the order with the real time, arm the fence's pointer, then read it back (see `core/order.mjs`). THE STAMP IS THE KERNEL'S, NOT THE LOOP'S: a time typed by hand and wrong keeps an order live after its worker returned and stalls every write the run makes. */
+export const openOrder = (cwd, slug, orderPath) => core.openOrder(shapeupTrace, cwd, slug, orderPath, {
+  validate: (order) => validate(order, JSON.parse(readFileSync(join(SCHEMAS_DIR, "work-order.schema.json"), "utf8"))),
+});
 
 /**
  * This run's Ship Sign-off row that says `ship`, or null.
@@ -99,25 +71,8 @@ export function shipSignOff(cwd, slug) {
   return found;
 }
 
-/**
- * Retire both pointers and record the ending.
- *
- * @param {string} cwd - Project root.
- * @param {string} slug - Feature slug.
- * @param {string} status - One of {@link CLOSE_STATUSES}.
- * @param {string} [cause] - Why the run ended.
- * @param {object} [extra] - Further fields of the record, e.g. the sign-off a `shipped` ending rests on.
- * @returns {{status: string, cause: (string|null), at: string}} The recorded close.
- */
-export function closeRun(cwd, slug, status, cause, extra = {}) {
-  const close = { status, cause: cause || null, at: new Date().toISOString(), ...extra };
-  const dir = localRoot(cwd, slug);
-  mkdirSync(dir, { recursive: true });
-  writeFileSync(join(dir, "close.json"), `${JSON.stringify(close, null, 2)}\n`);
-  rmSync(activeOrder(cwd), { force: true });
-  rmSync(activeScope(cwd), { force: true });
-  return close;
-}
+/** Retire both pointers and record the ending. */
+export const closeRun = (cwd, slug, status, cause, extra = {}) => core.closeRun(shapeupTrace, cwd, slug, status, cause, extra);
 
 /**
  * @param {string[]} rawArgv - `open` or `close`, then flags.

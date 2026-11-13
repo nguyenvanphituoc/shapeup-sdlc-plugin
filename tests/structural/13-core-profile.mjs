@@ -3,10 +3,11 @@
 // the T0 ratchet end to end. Everything it imports is under kernel/core/ — if the core needed one more
 // Shape Up fact to do this, the run below would fail, and the fact would belong in the profile.
 //
-// Not covered, because the core does not hold them: opening a run (writing its receipt and launch
-// record) and the write fence (the order verb and the guard hook) are still Shape Up's own modules.
+// Still Shape Up's own, because they carry its rules rather than a mechanism: the receipt writer and
+// preflight of opening a run, and the committed-tier check of the guard hook. The toy writes its
+// receipt by hand; arming the fence, judging a write and closing the run go through the core.
 import { join } from "node:path";
-import { readFileSync, readdirSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { readFileSync, mkdirSync, existsSync, realpathSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { scratch, put, json, slurp } from "../lib/fixture.mjs";
 import { TRACE, GATES, narrowToy, CONTRACT_SPEC } from "../lib/toy-profile.mjs";
@@ -15,6 +16,8 @@ import { appendLedger } from "../../kernel/core/ledger.mjs";
 import { validate } from "../../kernel/core/envelope.mjs";
 import { parseContract } from "../../kernel/core/contract.mjs";
 import { floorProblems } from "../../kernel/core/floor.mjs";
+import { judgeWrites } from "../../kernel/core/fence.mjs";
+import { openOrder, closeRun } from "../../kernel/core/order.mjs";
 
 export async function run(ctx) {
   const { ROOT, ok, fail, section } = ctx;
@@ -79,6 +82,19 @@ export async function run(ctx) {
     const trials = slurp(join(cwd, ".toy-local/feat/t0/trials.jsonl")).trim().split("\n").map((l) => JSON.parse(l));
     check(trials.length === 3 && trials.every((t) => t.run_id === runId), "three trial rows, each carrying the run key");
     check(sh("git", ["rev-parse", "--verify", "--quiet", "refs/toy/s1/kept"]).status === 0 && sh("git", ["rev-parse", "--verify", "--quiet", "refs/shapeup/s1/kept"]).status !== 0, "the shadow ref is in the toy's namespace and nothing in the other one");
+
+    section("core — the fence is armed, judges a write by the live contract, and is retired when the run closes");
+    const orderPath = put(cwd, ".toy-local/feat/orders/o1.json", { order_id: "feat/o1", substrate: { allowed: ["src/**"], frozen: ["src/frozen/**"] } });
+    const armed = openOrder(TRACE, cwd, "feat", orderPath, { validate: (o) => ({ valid: !!o.order_id, errors: [] }) });
+    check(armed.ok && existsSync(TRACE.activeOrder(cwd)) && json(orderPath).compiled_at, "opening an order arms the pointer under the toy's root and stamps the order");
+    check(!openOrder(TRACE, cwd, "feat", put(cwd, "bad.json", {}), { validate: (o) => ({ valid: !!o.order_id, errors: ["no id"] }) }).ok, "an order its validator refuses is not armed");
+    const contracts = [{ order_id: "feat/o1", allowed: ["src/**"], appendOnly: [], frozen: ["src/frozen/**"], own: [] }];
+    const judge = (rel) => judgeWrites({ paths: [join(cwd, rel)], realRoot: realpathSync(cwd), contracts, agents: new Map(), tool: "Write", writer: null, tracePrefix: ".toy-local/feat/" });
+    check(judge("src/ok.txt").violations.length === 0, "a write inside the live substrate is permitted");
+    check(judge("lib/out.txt").violations.length === 1, "a write outside it is a violation");
+    check(judge("src/frozen/x.txt").frozenHits === 1, "a frozen path inside an allowed glob is still refused");
+    const closed = closeRun(TRACE, cwd, "feat", "aborted", "toy ended");
+    check(closed.status === "aborted" && !existsSync(TRACE.activeOrder(cwd)) && !existsSync(TRACE.activeScope(cwd)) && json(join(cwd, ".toy-local/feat/close.json")).cause === "toy ended", "closing the run retires both pointers and records the ending");
 
     section("core — the contract parser, validator and floor take their data as arguments");
     check(parseContract("---\nid: s9\nwrites: [a, b]\n---\nprose\n", CONTRACT_SPEC).writes?.length === 2, "the contract parser reads frontmatter under a caller-supplied layout");
