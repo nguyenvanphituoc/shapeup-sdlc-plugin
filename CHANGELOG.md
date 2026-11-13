@@ -3,6 +3,10 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [5.0.3] — 2026-11-14 · Re-release of 5.0.2
+
+No code, hook, schema or document of the plugin changed since 5.0.2; only the version number did. It exists so a project can move to a release that was cut after the 5.0.2 run it was verified against.
+
 ## [5.0.2] — 2026-11-13 · Decisions after a run's close join the run; a sed script is not a secret path
 
 - **Fixed.** Closing a run never wrote the breadcrumb that lets the decisions taken after the close (the census, the ship phase, the export) join the run, so every hook row after the close carried `run_id: null` and could not be attributed to a run. The close now writes it in the same act that retires the run pointers, and such a row says the run is over (`run_closed`).
