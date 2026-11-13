@@ -42,10 +42,7 @@ export const WIRING_MAP = {
 /** `ProjectProfile` — archetype + entry point. All scalars; no tables. */
 export const PROJECT_PROFILE = { tables: {} };
 
-
-// ---------------------------------------------------------------------------
 // The scope ↔ spec join
-// ---------------------------------------------------------------------------
 
 /**
  * Normalise one use-case reference to a bare `UC-*` id.

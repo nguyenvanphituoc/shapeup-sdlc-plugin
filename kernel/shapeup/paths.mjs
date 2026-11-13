@@ -15,9 +15,7 @@
 import { join } from "node:path";
 import { runTrace } from "../core/runtrace.mjs";
 
-// ---------------------------------------------------------------------------
 // The two roots. Renaming a root is these two lines.
-// ---------------------------------------------------------------------------
 
 // Both roots are POSIX strings, deliberately. They are used two ways — fed to `join()` (which
 // normalises separators on Windows) and interpolated into SUBSTRATE GLOBS, which are matched
@@ -43,7 +41,6 @@ export const LOCAL = ".shapeup";
  */
 export const LEGACY = { shared: "docs/shapeup-sdlc", local: ".shapeup-sdlc" };
 
-
 // The run-trace builders for these two roots, from the core mechanism. `SHAPEUP_DECISIONS_PATH`
 // redirects the decision ledger: this project's own test suite executes the real hooks, and without a
 // redirect every `npm test` would append rows to the developer's live ledger, which would then be read
@@ -56,9 +53,7 @@ export const {
   RECEIPT_FILE, RUN_ARGS_FILE, RUN_ID_PATTERN, compactStamp, mintRunId, runIdFromReceipt, readReceipt, runIdFromRoot,
 } = shapeupTrace;
 
-// ---------------------------------------------------------------------------
 // SHARED — the deliverable
-// ---------------------------------------------------------------------------
 
 /** The committed spec tree — the evaluator's grading truth. */
 export const specDir = (cwd, slug) => join(sharedRoot(cwd, slug), "spec");
@@ -86,16 +81,8 @@ export const report = (cwd, slug) => join(sharedRoot(cwd, slug), "REPORT.md");
 export const knowledgeBaseDir = (cwd) => join(sharedDir(cwd), "knowledge-base");
 /** One reader's coaching file (a coachable worker, or the `plan` / `building` activity). */
 export const knowledgeBase = (cwd, skill) => join(knowledgeBaseDir(cwd), `${skill}.md`);
-// `.harness-version` and `.harness-migrations` were resolved here, committed by necessity as
-// The third exception to the tier rule. Their sole writer was the upgrade path's data-migration runner, which
-// has been removed; no code in the plugin has written either file since. The helpers went with
-// them rather than remaining as resolvable paths to files nothing produces — a path helper is a
-// claim that the file is part of the layout, and this one would have been false.
 
-
-// ---------------------------------------------------------------------------
 // LOCAL — Shape Up's run artifacts
-// ---------------------------------------------------------------------------
 
 /** The intake, verbatim, next to its digest in the receipt. */
 export const intake = (cwd, slug) => join(localRoot(cwd, slug), "intake.md");

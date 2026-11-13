@@ -35,7 +35,7 @@
 // Exit code: 0 = overall green, 1 = overall red (mirrors the oracle convention), 2 = bad argv.
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync } from "node:fs";
-import { join, dirname, basename, extname, resolve as resolvePath, relative } from "node:path";
+import { join, basename, extname, resolve as resolvePath, relative } from "node:path";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { digest } from "./digest.mjs";

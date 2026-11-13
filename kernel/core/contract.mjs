@@ -33,10 +33,9 @@
 //
 // Zero dependencies, zero network.
 
-import { readFileSync, existsSync, readdirSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 
-// ---------------------------------------------------------------------------
 // Per-type layout: which array-of-objects field lives under which heading.
 //
 // `signatures` names the columns that identify a table as THAT field's, and it exists because of
@@ -50,7 +49,6 @@ import { join } from "node:path";
 // `use_case` AND `engine` columns is the wiring table wherever it was put, so finding one under a
 // heading this spec does not claim is a PARSE FAILURE, not an empty field. Prose tables are
 // unaffected — a comparison table under "Why this slice" does not carry these columns.
-// ---------------------------------------------------------------------------
 
 /**
  * The key an unreadable-table diagnostic is attached under.
@@ -72,9 +70,7 @@ export const FRONTMATTER_COPY = "the frontmatter, where it is silently discarded
  */
 export const LEGACY_LAYOUT = "$legacy_layout";
 
-// ---------------------------------------------------------------------------
 // Scalars
-// ---------------------------------------------------------------------------
 
 /**
  * Remove ONE matching pair of surrounding quotes, and unescape what was inside them.
@@ -220,9 +216,7 @@ function splitList(body) {
   return out.filter(Boolean);
 }
 
-// ---------------------------------------------------------------------------
 // Frontmatter
-// ---------------------------------------------------------------------------
 
 /**
  * Split a document into its frontmatter map and the body after it.
@@ -324,9 +318,7 @@ export function splitFrontmatter(md) {
   return { meta, body: m[2] };
 }
 
-// ---------------------------------------------------------------------------
 // Tables
-// ---------------------------------------------------------------------------
 
 /**
  * Split one table row into cells, honouring `\|` as a literal pipe.
@@ -432,9 +424,7 @@ export function renderTable(rows, columns) {
   ].join("\n");
 }
 
-// ---------------------------------------------------------------------------
 // The contract API
-// ---------------------------------------------------------------------------
 
 /**
  * Parse a markdown contract into the object the envelope carries.

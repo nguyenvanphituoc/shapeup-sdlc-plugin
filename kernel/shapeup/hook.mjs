@@ -5,5 +5,4 @@ import { shapeupTrace } from "./paths.mjs";
 
 export const { readStdin, settle, HookDecision } = core;
 export const runHook = (name, fn) => core.runHook(name, fn, shapeupTrace);
-export const record = (row, cwd) => core.record(row, cwd, shapeupTrace);
-export const { projectRoot, decisionsPath } = shapeupTrace;
+export const { projectRoot } = shapeupTrace;

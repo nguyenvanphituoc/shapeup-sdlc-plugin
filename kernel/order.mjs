@@ -21,8 +21,8 @@
 // Exit 0 done · 1 refused (the order is unreadable, or a `shipped` close with no sign-off) · 2 malformed
 // input. `open` also stamps the order's `compiled_at` with the current time.
 
-import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { readFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { runArgs } from "./core/argv.mjs";
 import { insideRunTrace, gates as gatesPath, readRunId, shapeupTrace } from "./shapeup/paths.mjs";
 import { validate, SCHEMAS_DIR } from "./verify/envelope.mjs";

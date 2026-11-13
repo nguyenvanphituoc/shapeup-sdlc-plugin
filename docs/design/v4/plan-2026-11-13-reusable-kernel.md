@@ -149,7 +149,7 @@ Executed 2026-11-13 on `plan/reusable-kernel`, one commit per stage (S0 to S7, p
 
 **Gates.** `npm test`: 251 checks at the baseline, 285 now, 0 failures. `claude plugin validate . --strict` and the marketplace manifest pass; `npm run verify:cross-dir` green and `npm run demo` leaves `docs/assets/demo-gate.svg` unchanged at every stage. The S0 expected-violations list is `{}` after S6. G1 and G5 are held by the layer check; G3 by the golden file and the demo.
 
-**G4.** `kernel/` + `hooks/` `.mjs` lines: 5 827 at the baseline, 5 846 now, 19 over the ceiling. The plan said to report growth rather than hide it: it is the fence and order seams (parameter plumbing and two adapter bindings) added after the split first measured 5 813.
+**G4.** `kernel/` + `hooks/` `.mjs` lines: 5 827 at the baseline, 5 819 now (5 846 after the fence and order seams, before dropping unused imports, an unused hook export, a stale comment and banner-only comment lines). The runtime did not grow.
 
 ### Deviations from the plan, said plainly
 
