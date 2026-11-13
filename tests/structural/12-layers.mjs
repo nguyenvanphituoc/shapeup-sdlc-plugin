@@ -44,7 +44,8 @@ export function scan(ROOT) {
   for (const f of files) {
     const text = readFileSync(join(ROOT, f), "utf8");
     const layer = layerOf(f);
-    for (const m of text.matchAll(/(?:^|\n)\s*(?:import|export)\s[^;]*?from\s+["'](\.[^"']+)["']/g)) {
+    const specs = [...text.matchAll(/(?:^|\n)\s*(?:import|export)\s[^;]*?from\s+["'](\.[^"']+)["']/g), ...text.matchAll(/(?:^|\n)\s*import\s+["'](\.[^"']+)["']/g), ...text.matchAll(/import\(\s*["'](\.[^"']+)["']\s*\)/g)];
+    for (const m of specs) {
       const dst = relative(ROOT, resolve(dirname(join(ROOT, f)), m[1])).split("\\").join("/");
       if (!/^(kernel|hooks|bin)\//.test(dst)) continue;
       const upward = f.startsWith("kernel/") && dst.startsWith("hooks/"); // the kernel must not depend on the hooks
