@@ -28,7 +28,7 @@
 //
 // A CONSEQUENCE WORTH STATING: these files are now hand-editable, where they used to be
 // machine-written and schema-validated on every write. `spec-lint` re-validates every parsed
-// contract against `domain.schema.json`, so a hand-edit that breaks the shape fails loudly
+// contract against its schema, so a hand-edit that breaks the shape fails loudly
 // instead of silently widening a sandbox.
 //
 // Zero dependencies, zero network.

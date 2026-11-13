@@ -27,74 +27,22 @@
 // Usage:  node kernel/harness.mjs verify skills [--plugin-root <dir>] [--json] [--quiet]
 // Exit:   0 = every worker resolved · 1 = one or more missing (named on stderr)
 
-import { readFileSync, existsSync } from "node:fs";
-import { resolve, join, dirname } from "node:path";
+import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runArgs } from "../core/argv.mjs";
+import * as core from "../core/roster.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 /** The plugin root, resolved from where this file actually is (`kernel/verify/` → repo root). */
 export const PLUGIN_ROOT = resolve(HERE, "../..");
+/** Where the roster is declared: the `WorkerName` enum of the domain registry. */
+const ROSTER = { schemaFile: "kernel/schemas/domain.schema.json", def: "WorkerName" };
 
-/**
- * The complete worker roster, read from the schema that defines it.
- *
- * @param {string} [root=PLUGIN_ROOT] - Plugin root the schema is read from.
- * @returns {string[]} Every member of `WorkerName`, in schema order.
- * @throws {Error} When the schema is missing or does not carry the enum — a kernel that cannot find
- *   its own domain registry has a broken installation, which is the very thing being checked.
- */
-export function roster(root = PLUGIN_ROOT) {
-  const schemaPath = join(root, "kernel/schemas/domain.schema.json");
-  const schema = JSON.parse(readFileSync(schemaPath, "utf8"));
-  const names = schema?.$defs?.WorkerName?.enum;
-  if (!Array.isArray(names) || !names.length) {
-    throw new Error(`${schemaPath} carries no $defs/WorkerName enum — the roster cannot be derived`);
-  }
-  return names;
-}
-
-/**
- * The skills an agent definition preloads, read from its `skills:` frontmatter list.
- *
- * @param {string} path - The `agents/<worker>.md` file.
- * @returns {string[]} The listed skill names; [] when the file or the list is absent.
- */
-export function preloadedSkills(path) {
-  let text;
-  try { text = readFileSync(path, "utf8"); } catch { return []; }
-  const fm = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text)?.[1] ?? "";
-  const block = /^skills:[ \t]*\r?\n((?:[ \t]+-[ \t]*\S+[ \t]*\r?\n?)+)/m.exec(fm + "\n")?.[1] ?? "";
-  return [...block.matchAll(/-[ \t]*(\S+)/g)].map((m) => m[1]);
-}
-
-/**
- * Resolve every worker in the roster against a plugin root.
- *
- * A worker is present when its `SKILL.md` is readable AND its agent definition (`agents/<worker>.md`)
- * is readable and preloads that skill. The agent is what a dispatch names, the skill is its craft, and
- * either one missing is the closest on-disk fact to "this dispatch will fail".
- *
- * @param {string} [root=PLUGIN_ROOT] - Plugin root to check.
- * @returns {{root:string, version:(string|null), name:(string|null), workers:Array<{worker:string,
- *   path:string, present:boolean}>, missing:string[]}} The full picture, including the version, so a
- *   wrong-version run is legible in the trace instead of silently green.
- */
-export function resolveWorkers(root = PLUGIN_ROOT) {
-  let version = null, name = null;
-  try {
-    const manifest = JSON.parse(readFileSync(join(root, ".claude-plugin/plugin.json"), "utf8"));
-    version = manifest.version ?? null;
-    name = manifest.name ?? null;
-  } catch { /* an unreadable manifest is reported as null, never as a failure of its own */ }
-  const workers = roster(root).map((worker) => {
-    const path = join(root, "skills", worker, "SKILL.md");
-    const agent = join(root, "agents", `${worker}.md`);
-    const preloads = preloadedSkills(agent).includes(worker);
-    return { worker, path, agent, present: existsSync(path) && preloads, skill: existsSync(path), agent_preloads_skill: preloads };
-  });
-  return { root, version, name, workers, missing: workers.filter((w) => !w.present).map((w) => w.worker) };
-}
+export const preloadedSkills = core.preloadedSkills;
+/** The complete worker roster, read from the schema that defines it. */
+export const roster = (root = PLUGIN_ROOT) => core.roster(root, ROSTER);
+/** Resolve every worker in the roster against a plugin root. */
+export const resolveWorkers = (root = PLUGIN_ROOT) => core.resolveWorkers(root, ROSTER);
 
 // ---------------------------------------------------------------------------
 /** The typed argv contract (see `core/argv.mjs`). */

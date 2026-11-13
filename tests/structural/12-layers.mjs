@@ -12,13 +12,11 @@ import { join, dirname, resolve, relative } from "node:path";
 import { captureRefusals } from "../lib/refusals.mjs";
 
 // Modules whose mechanism belongs in kernel/core/ and have not moved there yet.
-const PENDING_CORE = [
-  "kernel/verify/t0.mjs",
-  "kernel/verify/envelope.mjs", "kernel/verify/skills.mjs",
-];
+const PENDING_CORE = [];
 const DOMAIN_LITERALS = {
   "shapeup-name": /shapeup/i,
   "refs-namespace": /refs\//,
+  "registry-schema": /domain\.schema/,
   "gate-id": /["'`](?:L0|L1a|L1a\.5|L1b|L2|L3|L4|QA|H|COACH-1)["'`]/,
 };
 
