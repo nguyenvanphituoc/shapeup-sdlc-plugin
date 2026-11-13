@@ -31,15 +31,13 @@
 // A run already open keeps its record: the refusal prints what is on disk and does not overwrite it.
 
 import { mkdirSync, writeFileSync, readFileSync, readdirSync, existsSync, rmSync } from "node:fs";
-import { join, dirname, resolve, relative, sep } from "node:path";
+import { join, resolve, relative, sep } from "node:path";
 import { createHash } from "node:crypto";
 import { appendGateLedger } from "../shapeup/gates.mjs";
 import { runArgs } from "../core/argv.mjs";
-import { mintRunId, insideRunTrace } from "../lib/paths.mjs";
+import { writeRun } from "../core/run.mjs";
 import { launchProblems, floorProblems } from "../shapeup/floor.mjs";
-import {
-  localRoot, activeScope, activeOrder, globLocal, globShared, ordersDir, resultsDir, runArgsPath,
-} from "../lib/paths.mjs";
+import { mintRunId, insideRunTrace, shapeupTrace, localRoot, activeOrder, globLocal, globShared, ordersDir, resultsDir, runArgsPath } from "../lib/paths.mjs";
 import { resolveWorkers } from "../verify/skills.mjs";
 
 export const RECEIPT_VERSION = 1;
@@ -341,15 +339,7 @@ export function cli(rawArgv) {
   const unlaunchable = launchProblems(launch);
   if (unlaunchable.length) fail(2, `✋ init-run: the launch record is not launchable — ${unlaunchable.join("; ")}`);
 
-  for (const d of ["", "orders", "results", "discovery"]) mkdirSync(join(runRoot, d), { recursive: true });
-  writeFileSync(join(runRoot, "intake.md"), intake.endsWith("\n") ? intake : intake + "\n", "utf8");
-  writeFileSync(receiptPath, JSON.stringify(receipt, null, 2) + "\n", "utf8");
-  // The launch record, in the same act as the receipt and from the same parsed argv.
-  writeFileSync(runArgsPath(cwd, slug), JSON.stringify(launch, null, 2) + "\n", "utf8");
-
-  const pointer = activeScope(cwd);
-  mkdirSync(dirname(pointer), { recursive: true });
-  writeFileSync(pointer, JSON.stringify({ slug, started_at: startedAt }, null, 2) + "\n", "utf8");
+  writeRun(shapeupTrace, cwd, slug, { receipt, launch, intake, startedAt, dirs: ["orders", "results", "discovery"] });
 
   // GATE L0 has a deterministic call site: the run's opening. The intake conversation is the L0
   // decision; opening the run records it, with the answer set the run was configured with. Best

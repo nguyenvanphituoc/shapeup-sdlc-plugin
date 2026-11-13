@@ -135,17 +135,9 @@ export function runFixtures(fixtures, cwd) {
   const results = (fixtures || []).map((cmd) => runCommand(cmd, cwd));
   // AN ABSENCE IS NOT A PASS, and this is the whole "measured, not claimed" invariant in one line.
   //
-  // `[].every(...)` is `true`, so a scope whose contract declared no fixtures — or whose fixtures
-  // failed to PARSE, which is how it actually happened — scored `pass: true` and the verdict came
-  // back `overall: "green"`. Measured directly:
-  //
-  //     runFixtures(undefined)  ->  pass=true, results=0
-  //     computeVerdict(…)       ->  {"overall":"green"}
-  //
-  // Nothing ran, and the scope was certified. That is not a weaker version of the guarantee, it is
-  // the inverse of it: the one layer the evaluator is required to cite, green on zero evidence. The
-  // same reasoning the decision ledger states one directory over — "an absence proves nothing and
-  // must not sharpen the message".
+  // `[].every(...)` is `true`, so a scope whose contract declared no fixtures — or whose fixtures failed to
+  // PARSE — scored `pass: true` and came back `overall: "green"`: nothing ran and the scope was certified,
+  // the one layer the evaluator must cite being green on zero evidence.
   //
   // `ran` is reported rather than folded into `pass` so the two facts stay distinguishable: a scope
   // with nothing to run is a contract that is not finished, which is different from a scope whose
@@ -168,14 +160,9 @@ export function runDbProbe(dbProbeCmd, cwd) {
 /**
  * Combine the fixtures and the DB probe into the overall T0 verdict.
  *
- * THE SEESAW ARM IS GONE (3.8.0), by a Betting Table decision rather than by neglect. It was
- * declared in the schema, the docs and this function, and nothing ever wrote the registry it read,
- * so it never ran once in any recorded run — while its absence held the hill's top phase shut:
- * FINISHED required `seesaw.ran && seesaw.pass`, and the 38 committed hill shards across the live
- * consumer's features contain no FINISHED at all. A cross-scope regression is still caught by the
- * round build gate, which builds and launches the whole feature once per round; what the arm would
- * have added is attribution and an earlier signal, at the price of re-running every finished
- * scope's fixtures on every attempt — minutes per attempt on an eighteen-scope feature.
+ * THERE IS NO CROSS-SCOPE ARM: it was declared but nothing ever wrote the registry it read, so it never ran
+ * while its absence held the top phase shut. A cross-scope regression is caught by the round build gate, which
+ * builds and launches the whole feature once per round.
  *
  * @param {{fixtures:{pass:boolean}, dbProbe:({pass:boolean}|null)}} parts - The two sub-results.
  * @returns {{fixtures_green:boolean, db_probe_green:boolean, overall:("green"|"red")}} Per-arm

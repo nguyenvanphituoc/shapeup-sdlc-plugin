@@ -3,9 +3,8 @@
 // the T0 ratchet end to end. Everything it imports is under kernel/core/ — if the core needed one more
 // Shape Up fact to do this, the run below would fail, and the fact would belong in the profile.
 //
-// Still Shape Up's own, because they carry its rules rather than a mechanism: the receipt writer and
-// preflight of opening a run, and the committed-tier check of the guard hook. The toy writes its
-// receipt by hand; arming the fence, judging a write and closing the run go through the core.
+// Still Shape Up's own, because they carry its rules rather than a mechanism: what its receipt holds and the
+// refusals before a run opens (roster, floor, launch record), and the committed-tier check of the guard hook.
 import { join } from "node:path";
 import { readFileSync, mkdirSync, existsSync, realpathSync } from "node:fs";
 import { spawnSync } from "node:child_process";
@@ -18,6 +17,7 @@ import { parseContract } from "../../kernel/core/contract.mjs";
 import { floorProblems } from "../../kernel/core/floor.mjs";
 import { judgeWrites } from "../../kernel/core/fence.mjs";
 import { openOrder, closeRun } from "../../kernel/core/order.mjs";
+import { writeRun } from "../../kernel/core/run.mjs";
 
 export async function run(ctx) {
   const { ROOT, ok, fail, section } = ctx;
@@ -38,8 +38,8 @@ export async function run(ctx) {
     mkdirSync(join(cwd, "toy"), { recursive: true });
     const receipt = TRACE.receipt(cwd, "feat");
     check(receipt.includes(".toy-local") && !receipt.includes("shapeup"), "the receipt lands under the toy's local root, not another workflow's");
-    put(cwd, ".toy-local/feat/receipt.json", { slug: "feat", started_at: startedAt, intake_sha256: "ab" });
-    put(cwd, ".toy-local/active-scope", { slug: "feat" });
+    const opened = writeRun(TRACE, cwd, "feat", { receipt: { slug: "feat", started_at: startedAt, intake_sha256: "ab" }, launch: { slug: "feat" }, intake: "toy intake", startedAt, dirs: ["orders"] });
+    check(opened.receiptPath === receipt && existsSync(receipt) && json(TRACE.runArgsPath(cwd, "feat")).slug === "feat" && json(TRACE.activeScope(cwd)).slug === "feat" && slurp(join(cwd, ".toy-local/feat/intake.md")) === "toy intake\n", "opening a run writes the intake, the receipt, the launch record and the run pointer under the toy's root");
     const runId = TRACE.readRunId(cwd, "feat");
     check(TRACE.RUN_ID_PATTERN.test(runId ?? ""), `the run key is minted from the receipt (${runId})`);
     check(TRACE.insideRunTrace(join(cwd, ".toy-local", "feat")) && !TRACE.insideRunTrace(join(cwd, ".shapeup")), "the run-trace test follows the toy's local root");
