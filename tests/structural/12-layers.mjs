@@ -13,7 +13,7 @@ import { captureRefusals } from "../lib/refusals.mjs";
 
 // Modules whose mechanism belongs in kernel/core/ and have not moved there yet.
 const PENDING_CORE = [
-  "kernel/gate.mjs", "kernel/verify/t0.mjs",
+  "kernel/verify/t0.mjs",
   "kernel/verify/envelope.mjs", "kernel/verify/skills.mjs",
 ];
 const DOMAIN_LITERALS = {

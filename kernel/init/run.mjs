@@ -33,7 +33,7 @@
 import { mkdirSync, writeFileSync, readFileSync, readdirSync, existsSync, rmSync } from "node:fs";
 import { join, dirname, resolve, relative, sep } from "node:path";
 import { createHash } from "node:crypto";
-import { appendGateLedger } from "../gate.mjs";
+import { appendGateLedger } from "../shapeup/gates.mjs";
 import { runArgs } from "../core/argv.mjs";
 import { mintRunId, insideRunTrace } from "../lib/paths.mjs";
 import { launchProblems, floorProblems } from "../shapeup/floor.mjs";
