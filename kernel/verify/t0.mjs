@@ -34,11 +34,12 @@
 //
 // Exit code: 0 = overall green, 1 = overall red (mirrors the oracle convention), 2 = bad argv.
 
-import { readFileSync, writeFileSync, appendFileSync, mkdirSync, existsSync, readdirSync, statSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync } from "node:fs";
 import { join, dirname, basename, extname, resolve as resolvePath, relative } from "node:path";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { digest } from "../probe/digest.mjs";
+import { appendLedger } from "../core/ledger.mjs";
 import { environmentFingerprint } from "./env.mjs";
 import { runArgs } from "../lib/argv.mjs";
 import { snapshot, restore, keptRef } from "./ratchet-tree.mjs";
@@ -358,13 +359,7 @@ export function readTrials(path) {
  * @returns {boolean} True when the row was written. Best-effort: a ledger that can break a build
  *   would get the ratchet disabled, which costs more than the row is worth.
  */
-export function appendTrial(path, row) {
-  try {
-    mkdirSync(dirname(path), { recursive: true });
-    appendFileSync(path, JSON.stringify(row) + "\n");
-    return true;
-  } catch { return false; }
-}
+export const appendTrial = appendLedger;
 
 /**
  * The next retry ordinal for a (round, attempt) pair, read from the verdicts directory.

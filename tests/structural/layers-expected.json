@@ -1,12 +1,11 @@
 {
-  "edge: hooks/lib/decision.mjs -> kernel/lib/paths.mjs": 2,
   "edge: kernel/gate.mjs -> kernel/lib/paths.mjs": 1,
-  "edge: kernel/verify/envelope.mjs -> hooks/lib/decision.mjs": 1,
+  "edge: kernel/verify/envelope.mjs -> kernel/shapeup/hook.mjs": 1,
   "edge: kernel/verify/t0.mjs -> kernel/lib/paths.mjs": 1,
-  "literal: hooks/lib/decision.mjs :: shapeup-name": 6,
   "literal: kernel/gate.mjs :: gate-id": 21,
   "literal: kernel/gate.mjs :: shapeup-name": 1,
   "literal: kernel/verify/env.mjs :: shapeup-name": 1,
+  "literal: kernel/verify/envelope.mjs :: shapeup-name": 1,
   "literal: kernel/verify/ratchet-tree.mjs :: refs-namespace": 2,
   "literal: kernel/verify/ratchet-tree.mjs :: shapeup-name": 3,
   "literal: kernel/verify/t0.mjs :: shapeup-name": 3

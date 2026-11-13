@@ -48,13 +48,13 @@ export const LEGACY = { shared: "docs/shapeup-sdlc", local: ".shapeup-sdlc" };
 // redirects the decision ledger: this project's own test suite executes the real hooks, and without a
 // redirect every `npm test` would append rows to the developer's live ledger, which would then be read
 // back as evaluations from a real run.
-const trace = runTrace({ shared: SHARED, local: LOCAL, decisionsEnv: "SHAPEUP_DECISIONS_PATH" });
+export const shapeupTrace = runTrace({ shared: SHARED, local: LOCAL, decisionsEnv: "SHAPEUP_DECISIONS_PATH" });
 export const {
   sharedDir, localDir, sharedRoot, localRoot, insideRunTrace, receipt, runArgsPath, ordersDir, resultsDir,
   dispatchReceipts, t0Dir, verdictsDir, trials, gates, activeScope, activeOrder, lastRun, decisions, metricsDir,
   metricsShard, relLocal, relShared, globLocal, globShared, readRunId, resolveRun, resolveRunId, projectRoot, decisionsPath,
   RECEIPT_FILE, RUN_ARGS_FILE, RUN_ID_PATTERN, compactStamp, mintRunId, runIdFromReceipt, readReceipt, runIdFromRoot,
-} = trace;
+} = shapeupTrace;
 
 // ---------------------------------------------------------------------------
 // SHARED — the deliverable

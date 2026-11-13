@@ -21,11 +21,12 @@
 // Retired in the release that made every run unattended, and accepted and ignored with one line:
 // `--init`, `--list`, `--verify`, `--preset`, `--file`, `--out`, `--auto-level`, `--tiny`, `--no-qa`.
 
-import { readFileSync, writeFileSync, appendFileSync, existsSync, mkdirSync, readdirSync } from "node:fs";
-import { join, dirname } from "node:path";
+import { readFileSync, writeFileSync, existsSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 import { runArgs } from "./lib/argv.mjs";
 import { gates as gatesPath, LOCAL, resultsDir, ordersDir, qaDir, tasksDir, hammerCensus, readRunId, harnessRun, insideRunTrace, runArgsPath, dispatchReceipts } from "./lib/paths.mjs";
 import { belowFloor } from "./lib/floor.mjs";
+import { appendLedger } from "./core/ledger.mjs";
 
 export const GATE_IDS = ["L0", "L1a", "L1a.5", "L1b", "L2", "L3", "QA", "H", "L4", "COACH-1"];
 
@@ -341,12 +342,7 @@ export function resolve(gate, decision, source, note) {
  * @returns {boolean} True when the row was written.
  */
 export function appendGateLedger(cwd, slug, row) {
-  try {
-    const p = gatesPath(cwd, slug);
-    mkdirSync(dirname(p), { recursive: true });
-    appendFileSync(p, JSON.stringify(row) + "\n");
-    return true;
-  } catch { return false; }
+  try { return appendLedger(gatesPath(cwd, slug), row); } catch { return false; }
 }
 
 /**

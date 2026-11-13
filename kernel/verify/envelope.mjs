@@ -25,7 +25,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { resolve, join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runArgs } from "../lib/argv.mjs";
-import { runHook, readStdin, settle } from "../../hooks/lib/decision.mjs";
+import { runHook, readStdin, settle } from "../shapeup/hook.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const SCHEMAS_DIR = resolve(HERE, "../schemas");
