@@ -92,6 +92,29 @@ const READER_CMDS = new Set([
   "cat", "head", "tail", "less", "more", "strings", "grep", "rg", "awk", "sed", "cut", "base64", "xxd", "od",
 ]);
 
+// Readers whose first operand is a pattern or a program, not a file: `sed 's/e.key/x/' f` names no secret.
+const PATTERN_FIRST = new Set(["grep", "rg", "awk", "sed"]);
+
+/**
+ * The file operands of a reader command. A pattern or script is never a path, so it is never judged as
+ * one: the first operand of grep, rg, awk and sed is skipped unless the pattern was given by a flag
+ * (`-e`, `--regexp`, `--expression`), whose argument is skipped instead. `-f <file>` names a file the
+ * command reads, so that argument stays an operand.
+ */
+function fileOperands(cmd, args) {
+  const out = [];
+  let patternGiven = false;
+  for (let i = 0; i < args.length; i++) {
+    const t = args[i];
+    if (/^(--regexp|--expression)$/.test(t) || /^-[a-zA-Z]*e$/.test(t)) { patternGiven = true; i++; continue; }
+    if (/^(--file)$/.test(t) || /^-[a-zA-Z]*f$/.test(t)) { patternGiven = true; if (args[i + 1] !== undefined) out.push(args[++i]); continue; }
+    if (t.startsWith("-")) continue;
+    if (PATTERN_FIRST.has(cmd) && !patternGiven) { patternGiven = true; continue; }
+    out.push(t);
+  }
+  return out;
+}
+
 function tokens(segment) {
   return segment.trim().split(/\s+/).filter(Boolean)
     .map((t) => t.replace(/^['"]|['"]$/g, ""));
@@ -201,7 +224,7 @@ function classifySegment(segment, overrides) {
 
   // secret-read: a reader command whose argument is a secret path
   if (READER_CMDS.has(cmd)) {
-    const secret = ts.slice(1).filter((t) => !t.startsWith("-")).find((t) => isSecretPath(t, overrides));
+    const secret = fileOperands(cmd, ts.slice(1)).find((t) => isSecretPath(t, overrides));
     if (secret) {
       return { category: "secret-read", reason: `\`${cmd} ${secret}\` reads a secret file. Secrets must not enter the conversation; if this is a false positive, add the path to ${LOCAL}/safety-overrides.json (allow_secret_paths).` };
     }

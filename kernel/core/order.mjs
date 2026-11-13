@@ -58,6 +58,9 @@ export function closeRun(trace, cwd, slug, status, cause, extra = {}) {
   const dir = trace.localRoot(cwd, slug);
   mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, "close.json"), `${JSON.stringify(close, null, 2)}\n`);
+  // The breadcrumb the decisions taken after this close (the census, the ship phase, the export) join through,
+  // written before the pointers it replaces are retired.
+  writeFileSync(trace.lastRun(cwd), `${JSON.stringify({ slug, run_id: trace.readRunId(cwd, slug), closed_at: close.at, closed_status: status }, null, 2)}\n`);
   rmSync(trace.activeOrder(cwd), { force: true });
   rmSync(trace.activeScope(cwd), { force: true });
   return close;

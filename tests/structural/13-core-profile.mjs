@@ -98,6 +98,7 @@ export async function run(ctx) {
     check(judge("src/frozen/x.txt").frozenHits === 1, "a frozen path inside an allowed glob is still refused");
     const closed = closeRun(TRACE, cwd, "feat", "aborted", "toy ended");
     check(closed.status === "aborted" && !existsSync(TRACE.activeOrder(cwd)) && !existsSync(TRACE.activeScope(cwd)) && json(join(cwd, ".toy-local/feat/close.json")).cause === "toy ended", "closing the run retires both pointers and records the ending");
+    check(json(TRACE.lastRun(cwd)).run_id === runId && TRACE.resolveRun(cwd).source === "closed", "the close leaves a breadcrumb, and a hook with no slug resolves the ended run through it");
 
     section("core — the contract parser, validator and floor take their data as arguments");
     check(parseContract("---\nid: s9\nwrites: [a, b]\n---\nprose\n", CONTRACT_SPEC).writes?.length === 2, "the contract parser reads frontmatter under a caller-supplied layout");

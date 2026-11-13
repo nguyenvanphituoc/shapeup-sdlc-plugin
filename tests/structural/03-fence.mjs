@@ -114,6 +114,12 @@ export async function run(ctx) {
       "order close records status, cause, time and the sign-off the shipped ending rests on");
     check(!existsSync(join(root, ".shapeup/active-order")) && !existsSync(join(root, ".shapeup/active-scope")),
       "order close retires both pointers");
+    const crumb = existsSync(join(root, ".shapeup/last-run")) ? json(join(root, ".shapeup/last-run")) : null;
+    check(crumb?.slug === SLUG && crumb.run_id === thisRun && crumb.closed_status === "shipped",
+      "order close leaves the last-run breadcrumb, naming the run it ended");
+    const after = fire(ROOT, GUARD, { tool_name: "Write", tool_input: { file_path: join(root, "src/after.js"), content: "x" }, cwd: root });
+    check(after.rows.at(-1)?.run_id === thisRun && after.rows.at(-1)?.run_closed === true,
+      "a decision taken after the close still keys to the run, and says the run is over");
     put(root, gates, "");
     check(kernel(ROOT, ["order", "close", "--slug", SLUG, "--status", "escalated", "--cause", "budget"], { cwd: root }).status === 0 && json(closeFile).status === "escalated",
       "an escalated close needs no sign-off: an honest ending is never refused");

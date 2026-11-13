@@ -47,6 +47,13 @@ export async function run(ctx) {
     }
     const secret = fire(ROOT, "hooks/safety-spine.mjs", { tool_name: "Read", tool_input: { file_path: join(root, ".env") }, cwd: root });
     check(denied(secret), "safety-spine denies a read of a .env file");
+    for (const [command, expected] of [
+      ["cat .env", "deny"], ["grep -i token .env", "deny"], ["sed -n p .env", "deny"], ["grep -f .env notes.txt", "deny"],
+      ["sed -i \"s/e.key === 'a'/x/\" src/shell.js", "allow"], ["grep 'e.key' src/shell.js", "allow"], ["sed -e 's/a.key/b/' src/a.js", "allow"],
+    ]) {
+      const r = fire(ROOT, "hooks/safety-spine.mjs", { tool_name: "Bash", tool_input: { command }, cwd: root });
+      check((denied(r) ? "deny" : "allow") === expected, `safety-spine ${expected}s \`${command}\`: a pattern or script is not a path, a file operand is`);
+    }
 
     section("ledger — the dispatch receipt names the agent the host says ran");
     put(root, `.shapeup/${SLUG}/orders/orient.json`, {

@@ -3,6 +3,11 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [5.0.2] — 2026-11-13 · Decisions after a run's close join the run; a sed script is not a secret path
+
+- **Fixed.** Closing a run never wrote the breadcrumb that lets the decisions taken after the close (the census, the ship phase, the export) join the run, so every hook row after the close carried `run_id: null` and could not be attributed to a run. The close now writes it in the same act that retires the run pointers, and such a row says the run is over (`run_closed`).
+- **Fixed.** The secret-read check judged the pattern or script of `grep`, `rg`, `awk` and `sed` as if it were a file, so `sed -i "s/e.key/…/" file` was refused as a read of a `.key` file. The first operand of those four is a pattern unless it was given by `-e`, and a file named by `-f` is still judged. A secret file operand is refused as before.
+
 ## [5.0.1] — 2026-11-13 · The kernel is split into a domain-free core and a Shape Up adapter
 
 Nothing a consumer sees changes: the entry point, the schema paths, the hook paths, the permission grant, the `shapeup/` and `.shapeup/` roots, every exit code and every ledger row are as in 5.0.0.
