@@ -62,6 +62,9 @@ export async function run(ctx) {
     check(narrowToy(resolveGate(GATES, "close", "ship", "t", null), ctx2).status === "ok", "with the evidence on disk the same answer crosses");
     check(appendLedger(join(cwd, ".toy-local/feat/gates.jsonl"), { gate: "close", decision: "ship" }) && slurp(join(cwd, ".toy-local/feat/gates.jsonl")).includes("ship"), "the crossing is appended to the gate ledger");
 
+    const dr = TRACE.dispatchReceipts(cwd, "feat");
+    check(appendLedger(dr, { run_id: runId, order_id: "feat/o1", skill_invoked: "toy-worker", usage: { model: "toy-1" } }) && dr.includes(".toy-local") && JSON.parse(slurp(dr).trim()).skill_invoked === "toy-worker", "a dispatch receipt is appended under the toy's own run trace, one row per dispatch");
+
     section("core — the T0 ratchet keeps a strictly better attempt and rolls a worse one back");
     put(cwd, "src/a.txt", "seed\n");
     put(cwd, ".gitignore", ".toy-local/\n");
