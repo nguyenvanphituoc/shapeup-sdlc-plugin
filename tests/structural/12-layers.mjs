@@ -15,7 +15,7 @@ import { captureRefusals } from "../lib/refusals.mjs";
 const PENDING_CORE = [
   "kernel/lib/argv.mjs", "kernel/probe/digest.mjs", "kernel/verify/env.mjs", "kernel/verify/ratchet-tree.mjs",
   "kernel/lib/floor.mjs", "kernel/lib/contract.mjs", "kernel/gate.mjs", "kernel/verify/t0.mjs",
-  "kernel/verify/envelope.mjs", "kernel/verify/skills.mjs", "kernel/lib/paths.mjs", "hooks/lib/decision.mjs",
+  "kernel/verify/envelope.mjs", "kernel/verify/skills.mjs", "hooks/lib/decision.mjs",
 ];
 const DOMAIN_LITERALS = {
   "shapeup-name": /shapeup/i,
