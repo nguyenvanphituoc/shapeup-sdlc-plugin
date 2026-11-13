@@ -8,7 +8,7 @@
 | **Answer** | Two layers inside `kernel/`: `kernel/core/` (domain-free mechanism) and `kernel/shapeup/` (the data Shape Up hands the core: root names, gate table, evidence rules, contract specs, schema dir). The adapter is **plain data plus a few functions**, never a plugin or registry mechanism. Every path a consumer or a shipped file names stays where it is; the old modules become re-export facades until the last stage |
 | **Gate on every stage** | `npm test` green; `claude plugin validate . --strict` clean; `npm run verify:cross-dir` green (every stage touches `kernel/lib/paths.mjs` or `hooks/`) |
 | **Rule** | One stage per commit. S1–S7 are additive or move-with-facade. The only removal is S8 |
-| **Status** | **Proposed.** Not executed. Two questions for the PO are in section 8 |
+| **Status** | **Executed S0–S8 on branch `plan/reusable-kernel`, 2026-11-13**, with Q1 = (a) and Q2 = no rename. Deviations and one unrun check are in section 9 |
 
 Words used here. **Core**: `kernel/core/`, imports only `node:` builtins and other core modules. **Adapter**: `kernel/shapeup/`, the Shape Up data the core is called with. **Profile**: the one object the adapter exports and the core receives. **Facade**: an existing module reduced to re-exports, kept so no caller changes in the same stage.
 
@@ -133,4 +133,33 @@ Rollback: revert stage commits in reverse order; every stage before S8 leaves th
 
 ## 9. Execution report
 
-Not executed.
+Executed 2026-11-13 on `plan/reusable-kernel`, one commit per stage (S0 to S7, plus a docs commit for S8). PO answers: Q1 = (a), Q2 = no rename. Nothing pushed.
+
+| Stage | Result |
+|---|---|
+| S0 | `tests/structural/12-layers.mjs` (import edges, domain literals, define-and-re-export) with a shrinking expected list, and `tests/golden/refusals.json` (31 captured gate, fence, order and envelope outputs, normalised for run ids, timestamps, scratch dirs). Stable over repeated runs |
+| S1 | `kernel/core/runtrace.mjs` (`runTrace`, including `projectRoot`, run key, decision path) and `kernel/shapeup/paths.mjs`; `kernel/lib/paths.mjs` is a one-line facade. All 61 original exports still resolve |
+| S2 | `kernel/core/hook.mjs` and `kernel/core/ledger.mjs`; `kernel/shapeup/hook.mjs` binds the trace; `hooks/lib/decision.mjs` is a facade. The `verify envelope` to `hooks/` edge is gone. Gate and T0 ledger appends use the shared ledger |
+| S3 | `argv`, `digest`, `env` moved unchanged; `ratchet` and `floor` take their namespace, label, denylist and roles as parameters, values in `kernel/shapeup/{ratchet,floor}.mjs` |
+| S4 | `kernel/core/contract.mjs` (parser) and `kernel/shapeup/contracts.mjs` (three layouts and the scope-to-use-case join) |
+| S5 | `kernel/core/gate.mjs` (`resolveGate`, `narrow`) and `kernel/shapeup/gates.mjs` (table, four evidence rules as `emptyBoard`, `censusRule`, `qaRule`, `modelRule`, the ledger path, `gateNote`). `kernel/gate.mjs` keeps the CLI. Golden strings byte-identical |
+| S6 | `core/t0.mjs`, `core/envelope.mjs`, `core/roster.mjs`; the old `verify/*` paths are adapters that bind them (they are router targets) |
+| S7 | `tests/structural/13-core-profile.mjs` with a toy profile; 23 checks. Mutation-checked: importing the adapter into the core, or hard-coding the ref namespace, turns the suite red |
+| S8 | See below |
+
+**Gates.** `npm test`: 251 checks at the baseline, 279 now, 0 failures. `claude plugin validate . --strict` and the marketplace manifest pass; `npm run verify:cross-dir` green and `npm run demo` leaves `docs/assets/demo-gate.svg` unchanged at every stage. The S0 expected-violations list is `{}` after S6. G1 and G5 are held by the layer check; G3 by the golden file and the demo.
+
+**G4.** `kernel/` + `hooks/` `.mjs` lines: 5 827 at the baseline, 5 813 now. The runtime did not grow.
+
+### Deviations from the plan, said plainly
+
+1. **G2 is narrower than written.** The toy profile opens no run and fences no write, because the core holds neither: opening a run (`kernel/init/run.mjs`) and the write fence (`kernel/order.mjs`, `hooks/sandbox-guard.mjs`) remain Shape Up modules. What the toy does run through the core alone: the run key and trace under its own roots, a hook decision keyed to the run, a gate resolved and narrowed, a T0 ratchet keeping and reverting under its own ref namespace, plus the contract parser, validator and floor. Making the fence and run-open core is a further stage and was not attempted.
+2. **No `kernel/shapeup/profile.mjs`.** Each adapter module binds its piece directly, so nothing would consume an assembled object; adding one would be the registry the plan said not to build.
+3. **Moves without facades.** `argv`, `digest`, `env`, `ratchet`, `floor` and `contract` moved with their importers rewritten (including the four shipped oracles and a few comments) instead of leaving a facade each. Each stage is still one commit and reverts alone. S8 therefore deleted nothing: the only facades left, `kernel/lib/paths.mjs` and `hooks/lib/decision.mjs`, are imported by consumers and stay.
+4. **S0's edge list was honest rather than empty-by-construction.** Moving the path resolver made the not-yet-moved modules import a Shape Up facade, so S1 to S5 recorded those as edges; each left the list when its module moved.
+5. **The nested real session was not run.** `claude -p --plugin-dir <repo> --permission-mode acceptEdits` returned an account billing error, so no decision row from a real nested session was observed. `verify:cross-dir` (hook fired from a `git archive` copy at another path against a scratch project) stands in and passes at every stage; it is the weaker evidence. Run the nested session before a release.
+6. **S9 (vendoring script for another repository)** is optional under Q1 = (a) and was not built.
+
+### Audit (`harness-maintenance-audit`)
+
+Fixed: the README layout block (new `kernel/core/` and `kernel/shapeup/`, thirteen test modules, the hook runtime), `SECURITY.md` claim 6 (named the old module as the exit path), two core comments naming Shape Up gates. Checked: version parity (5.0.0 both), `AGENTS.md` harness block names no `.mjs` path, no `docs/`, `tests/` or `tools/` citation in the new kernel files (the one `docs/shapeup-sdlc` hit is the legacy root name, pre-existing). Code defects found and not fixed: none new.
