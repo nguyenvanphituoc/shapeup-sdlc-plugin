@@ -314,22 +314,25 @@ claude --plugin-dir .                # load this working copy without installing
 skills/<name>/SKILL.md # the 7 harness skills (+ references/ and resources/)
 agents/<worker>.md    # the 4 workers as plugin subagents: each preloads its skill; a dispatch names the agent
 kernel/harness.mjs    # ONE entry point for every deterministic step; the whole permission grant
-kernel/{verify,init}/ #   its subcommands: the T0 witness, the envelope check, the roster check, init run
+kernel/{verify,init}/ #   its subcommands (the T0 witness, the envelope check, the roster check, init run), each binding the core to Shape Up
 kernel/{gate,order}.mjs #   the gate resolver, and the verb that arms and retires the fence
-kernel/lib/           # argv (the typed CLI boundary), paths (+ the run key), contract (shape)
+kernel/core/          # the mechanism, free of any workflow: run trace + run key, hook runtime, ledger, gate resolver,
+                      #   T0 + ratchet, contract parser, envelope check, roster, argv (the typed CLI boundary), model floor
+kernel/shapeup/       # the data this plugin hands the core: root names, gate table + evidence rules, contract layouts, ratchet names, floor
+kernel/lib/paths.mjs  # the path resolver every hook and `bin/init.mjs` import (a facade over kernel/shapeup/paths.mjs)
 kernel/schemas/       # the envelope port: WorkOrder, WorkResult, domain registry
 commands/*.md         # the 2 slash commands (/ship and /retro); every other step is a skill, typed by its name
 hooks/                # hooks.json + the three walls: safety-spine, sandbox-guard (the substrate fence and the
                       #   committed-tier write check) — PreToolUse, beside the kernel's `verify envelope`
                       #   + dispatch-receipt (PostToolUse, denies nothing, attests which worker ran and what the host measured)
-                      #   + lib/decision.mjs (every hook records allow / deny / error)
+                      #   + lib/decision.mjs (the hook runtime: every hook records allow / deny / error)
 oracles/              # the evaluation-contract oracle registry (test · snapshot · http · process)
 bin/init.mjs          # `npx shapeup-sdlc init` — the permission grant, the AGENTS.md harness block, the ignore rules
 scripts/install-harness.sh, migrate.sh   # stable public entrypoints (fresh install / update)
 scripts/shapeup-sdlc/lib/                # shell libs both entrypoints source
 tools/                # repo-only: demo/
                       #   demo/record-demo.mjs (regenerates docs/assets/demo-gate.svg)
-tests/structural.mjs, tests/structural/*.mjs   # Tier 0 — eleven modules, zero LLM calls
+tests/structural.mjs, tests/structural/*.mjs   # Tier 0 — thirteen modules, zero LLM calls
 docs/install.md, upgrading.md, glossary.md
 docs/design/          # the design document (pipeline, gates, circuit breaker, ERD)
 docs/visualize/       # the before-and-after view of the v4 loop

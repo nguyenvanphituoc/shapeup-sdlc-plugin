@@ -6,7 +6,7 @@
 // structurally invalid. No agent can fabricate this file's contents
 // because it is produced by actually running the commands.
 //
-// Zero dependencies, zero network — same discipline as oracles/* and the GATE L2 block.
+// Zero dependencies, zero network — same discipline as the oracles and the gate resolver.
 //
 // THE PAWL (v1.5). This script also owns the ratchet's comparison and its history. The attempt
 // loop used to be a BUDGETED RETRY LOOP wearing a ratchet's shape: `computeVerdict` returned four

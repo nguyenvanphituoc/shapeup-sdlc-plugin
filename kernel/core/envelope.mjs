@@ -225,7 +225,7 @@ export async function cli(rawArgv, profile) {
       process.exit(1);
     }
   } else {
-    // Hook mode (PreToolUse). Deny contract identical to the GATE L2 block, and — since v1.5 — the same
+    // Hook mode (PreToolUse). Deny contract identical to the write fence, and — since v1.5 — the same
     // receipt: `allow` carries evidence, so "validated the order and permitted it" is no longer
     // byte-identical to "this hook never ran" (the hook runtime).
     await runHook("validate-envelope", async () => {

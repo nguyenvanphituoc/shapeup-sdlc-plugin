@@ -56,7 +56,7 @@ test against machines you don't own.
 5. **No hook can block a session from ending.** A session that narrates a run instead of opening one
    is not stopped by the runtime; `building` opens its run as its first act and the receipt it writes is
    what every later guard reads.
-6. **Every hook decision is recorded.** `hooks/lib/decision.mjs` is the only exit path a hook
+6. **Every hook decision is recorded.** The hook runtime (`kernel/core/hook.mjs`, reached through `hooks/lib/decision.mjs`) is the only exit path a hook
    has, so allow, deny, block and error each leave a row in `.shapeup/decisions.jsonl`. An
    inert hook and a permitting hook are therefore distinguishable — which matters, because
    "exit 0, no output" is what both used to look like. A permitted Bash call's row names the
