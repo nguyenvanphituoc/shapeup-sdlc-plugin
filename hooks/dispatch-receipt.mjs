@@ -191,6 +191,9 @@ export function receiptRow(order, skillInvoked, payload) {
     run_id: order.run_id ?? null,
     worker_declared: order.worker ?? null,
     skill_invoked: skillInvoked,
+    // Where the claim comes from: the host's own report of which agent ran. A worker's self-report carries
+    // `worker-reported` instead (`attest`).
+    attestation: "host",
     // Corroboration, not the wall — see the header. `success` is absent on hosts that do not
     // report one, and an absent field must not read as a successful dispatch.
     dispatch_ok: payload?.tool_response?.success === true || payload?.tool_response?.status === "completed"

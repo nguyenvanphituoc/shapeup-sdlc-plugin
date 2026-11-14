@@ -41,6 +41,7 @@ export async function run(ctx) {
     check(agents.join(",") === readdirSync(join(ROOT, "agents")).map((f) => f.replace(/\.md$/, ".toml")).sort().join(","), "one TOML definition per worker is written");
     const exec = readFileSync(join(home, ".codex/agents/task-executor.toml"), "utf8");
     check(/^name = "task-executor"/m.test(exec) && /developer_instructions = '''/.test(exec) && /load the skill \$task-executor/.test(exec) && !/^tools\s*=/m.test(exec), "a worker's TOML names its skill in the instructions and carries no tool list");
+    check(exec.includes(`${rt}/kernel/harness.mjs" attest skill task-executor --order`), "a worker's TOML tells it to attest its skill through the installed kernel");
     const skills = readdirSync(join(home, ".agents/skills"));
     check(["building", "orient", "task-executor", "ship", "retro"].every((s) => skills.includes(s)), "the skills, and the commands as skills, are installed under .agents/skills");
     check(!readFileSync(join(home, ".agents/skills/ship/SKILL.md"), "utf8").includes("$ARGUMENTS") && /^name: ship$/m.test(readFileSync(join(home, ".agents/skills/ship/SKILL.md"), "utf8")), "the ship skill has its arguments reworded and no placeholder left");

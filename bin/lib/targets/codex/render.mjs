@@ -43,10 +43,12 @@ export function splitFrontmatter(text) {
  * @param {string} md - The agent file as shipped.
  * @returns {{name: string, toml: string}} The agent name and its TOML text.
  */
-export function agentToml(md) {
+export function agentToml(md, kernel) {
   const { meta, body } = splitFrontmatter(md);
   const skills = (meta.skills ?? "").split(",").filter(Boolean);
-  const load = skills.length ? `Before anything else, load the skill ${skills.map((s) => "$" + s).join(", ")} and follow it.\n\n` : "";
+  // Nothing here tells the host to preload the skill, so the worker loads it and says so on the record.
+  const attest = kernel && skills.length ? ` Then run \`node "${kernel}" attest skill ${skills[0]} --order <the order path you were given>\` once, before any other work.` : "";
+  const load = skills.length ? `Before anything else, load the skill ${skills.map((s) => "$" + s).join(", ")} and follow it.${attest}\n\n` : "";
   const lit = (s) => (s.includes("'''") ? JSON.stringify(s) : `'''\n${s}\n'''`);
   const q = (s) => JSON.stringify(String(s));
   return {

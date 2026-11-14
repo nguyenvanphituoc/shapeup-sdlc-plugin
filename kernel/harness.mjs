@@ -26,6 +26,8 @@
 //   gate                               An answer file with a source, not a vibe.
 //   init     run                       Opens a run, or refuses it (exit 3). Writes the receipt and
 //                                      the launch record, and refuses a model below the floor.
+//   attest   skill                     A worker reports which skill it loaded, labelled as its own word
+//                                      (a host that cannot preload a skill gives no stronger evidence).
 //   order    open · close              Arms and retires the write fence's pointer, and records how a
 //                                      run ended.
 //
@@ -52,6 +54,7 @@ export const ROUTES = {
   gate: "./gate.mjs",
   init: { run: "./init/run.mjs" },
   order: "./order.mjs",
+  attest: { skill: "./attest.mjs" },
 };
 
 /** Every `<verb> <action>` pair, for the usage text and the unknown-verb rejection. */

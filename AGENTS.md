@@ -31,7 +31,7 @@ The five things above are described for Claude Code, where every one is wired. O
 | The receipt, the gate resolver, the T0 witness | yes | yes — they are commands, not hooks |
 | The write fence and the tier-direction rule | yes | yes, from the patch text; payload shapes not yet measured |
 | The safety spine on shell commands | yes | yes; reads of secret files are not guarded |
-| The dispatch receipts | yes | **no** — a dispatch is not attested; read the worker's own report |
+| The dispatch receipts | yes | **no** — the host does not attest a dispatch; a worker states which skill it loaded, and that row is labelled as the worker's own word |
 | A dispatch without a valid WorkOrder is refused | yes | **no** — the loop validates the order itself |
 | A worker limited to a short tool list | yes | **no** |
 

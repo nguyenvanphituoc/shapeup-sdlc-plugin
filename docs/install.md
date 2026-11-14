@@ -113,6 +113,39 @@ write fence off. Approve the hooks in Codex before a run, then confirm `.shapeup
 the first write. Pass flags to `$ship` on its first line (`$ship --no-qa <pitch>`); Codex documents no argument
 syntax for skills.
 
+### Unattended runs on Codex (not measured)
+
+Claude Code's grant is two rules in the project's settings. Codex has no equivalent this plugin writes for you.
+Two documented routes, neither run end to end yet:
+
+- `codex exec --sandbox workspace-write` with approvals off. Nothing is opened up, but a sub-agent that needs a
+  *new* approval fails back to its parent instead of waiting, so a run can stall on the first command outside the
+  sandbox. Try this first.
+- A command-prefix rule allowing `node <runtime>/kernel/harness.mjs`. That works, but Codex documents such a rule as
+  running the command **outside the sandbox**, so it widens what the kernel can touch. Choose it knowingly.
+
+The dispatch of a worker is not checked for a valid WorkOrder by a hook on Codex (no hook is wired at spawn): the
+loop validates each order itself before dispatching, and a worker reports which skill it loaded with `attest`.
+
+## Other model providers (not measured)
+
+A run's roles take `--exec-model`, `--eval-model` and `--qa-model`. A model outside the Claude family must be ranked
+by the floor (`deepseek-v4-pro`, the `gpt-5` family) or named with `--accept-unranked-models` at launch; a cheap tier
+(`mini`, `nano`, `lite`, `small`, `flash`-style names you rank yourself) is refused whatever the family.
+
+DeepSeek publishes an Anthropic-compatible endpoint (`https://api.deepseek.com/anthropic`) and an OpenAI Responses
+endpoint, read from its public documentation on 2026-11-14 and not yet exercised by this plugin. Claude Code's own
+documentation states that routing it to a non-Claude model is unsupported. Through that endpoint, a model argument
+must start with `claude` (DeepSeek maps those names onto its own models), so pass Claude aliases to `Agent` and the
+launch record, not DeepSeek ids; what the dispatch receipt then reports as the model that ran is unknown until
+a run is observed. Two further caveats from the same page: a forced `tool_choice` fails while thinking is on, and
+beta request fields may be rejected unless `CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS=1`. No gate or evaluator
+schema-conformance rate has been measured on any DeepSeek model; treat the channel as a trial.
+
+**Your code and pitch go to a third party.** DeepSeek's privacy policy states data is stored and processed in
+mainland China and its API terms follow Chinese law; whether API data is used for training is not stated. That is a
+decision for your organisation (and its legal team), not for this plugin.
+
 ## Local scaffolding
 
 Instead of installing the plugin globally, you can scaffold the harness directly into a

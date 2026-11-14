@@ -2,7 +2,7 @@
 // documented shapes, not recordings (see the README beside them): this pins what the adapter does with
 // them, and says nothing about what a live Codex session sends.
 import { join } from "node:path";
-import { readFileSync, mkdtempSync, mkdirSync, rmSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdtempSync, mkdirSync, rmSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
 import { parsePatch, normalizePayload } from "../../kernel/core/host.mjs";
@@ -20,6 +20,18 @@ export async function run(ctx) {
   const n = normalizePayload(fx("shell-rm.json"), "codex");
   check(n.tool_name === "Bash" && n.tool_input.command === "rm -rf /", "a Codex shell call becomes a Bash call, an argv `bash -lc <script>` judged as the script");
   check(normalizePayload({ tool_name: "Write", tool_input: {} }, "claude").tool_name === "Write", "a Claude payload is returned untouched");
+
+  section("attestation — a worker's own report is labelled as such");
+  const att = mkdtempSync(join(tmpdir(), "struct-attest-"));
+  try {
+    mkdirSync(join(att, ".shapeup/w/orders"), { recursive: true });
+    writeFileSync(join(att, ".shapeup/w/orders/o.json"), JSON.stringify({ order_id: "w/o", run_id: "r1", worker: "task-executor" }));
+    const a = spawnSync("node", [join(ROOT, "kernel/harness.mjs"), "attest", "skill", "task-executor", "--order", ".shapeup/w/orders/o.json", "--cwd", att], { encoding: "utf8" });
+    const rows = existsSync(join(att, ".shapeup/w/receipts/dispatch.jsonl")) ? readFileSync(join(att, ".shapeup/w/receipts/dispatch.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l)) : [];
+    check(a.status === 0 && rows.length === 1 && rows[0].attestation === "worker-reported" && rows[0].attested_by === "worker" && rows[0].skill_invoked === "task-executor" && rows[0].usage === null,
+      "attest records one row naming the skill, labelled worker-reported, claiming no host measurement");
+    check(spawnSync("node", [join(ROOT, "kernel/harness.mjs"), "attest", "skill", "x", "--order", "nope.json", "--cwd", att], { encoding: "utf8" }).status === 2, "an unreadable order is a usage error, not a row");
+  } finally { rmSync(att, { recursive: true, force: true }); }
 
   section("codex adapter — the hooks, end to end");
   const proj = mkdtempSync(join(tmpdir(), "struct-codex-"));

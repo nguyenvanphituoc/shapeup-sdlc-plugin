@@ -9,7 +9,7 @@ const files = (rt) => readdirSync(join(rt, "agents")).filter((f) => f.endsWith("
 export function writeAgents(home, rt) {
   mkdirSync(agentsDir(home), { recursive: true });
   for (const f of files(rt)) {
-    const { name, toml } = agentToml(readFileSync(join(rt, "agents", f), "utf8"));
+    const { name, toml } = agentToml(readFileSync(join(rt, "agents", f), "utf8"), join(rt, "kernel", "harness.mjs"));
     writeFileSync(join(agentsDir(home), `${name}.toml`), toml);
   }
 }
