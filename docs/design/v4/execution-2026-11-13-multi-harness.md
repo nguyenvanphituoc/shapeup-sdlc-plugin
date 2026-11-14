@@ -48,7 +48,7 @@ Chưa làm: S2–S10, và toàn bộ phần cần Codex (S0 đo, S3, S5–S7, S9
 
 ## Tổng kết (2026-11-14, sau khi PO bỏ qua kiểm tra Codex)
 
-Commit `a841766` (code, test, tài liệu) và `8e93142` (5.1.0). `npm test` 355 checks, 0 failures; `npm run demo`, `npm run verify:cross-dir` (cả `--host codex`), `claude plugin validate` cho cả hai manifest đều xanh.
+Commit `a841766`, `8e93142` (5.1.0) và hai commit sau. `npm test` 359 checks, 0 failures; `npm run demo`, `npm run verify:cross-dir` (cả `--host codex`), `claude plugin validate` cho cả hai manifest đều xanh.
 
 | Stage | Trạng thái | Ghi chú |
 |---|---|---|
@@ -56,14 +56,16 @@ Commit `a841766` (code, test, tài liệu) và `8e93142` (5.1.0). `npm test` 355
 | S1 | xong | `kernel/core/host.mjs`; phát lại 7 payload qua `70e1818`, không phải toàn bộ |
 | S2 | xong, theo phương án mặc định | `init --target codex` kết xuất hai file có `${CLAUDE_PLUGIN_ROOT}` với đường dẫn runtime tuyệt đối, kèm dấu version; `--check` bắt lệch version. Không kiểm M9 |
 | S3a, S3b | xong, chưa đo | Bộ đọc `apply_patch` (nhiều file, xóa, đổi tên) và lệnh shell (`bash -lc <script>`) |
-| S3c, S3d | **chưa làm** | Receipt và attestation trên Codex, cổng envelope ở thời điểm spawn: cần M4/M5/M6. Chưa wired; `SECURITY.md` và `AGENTS.md` nói rõ |
+| S3c | một phần | `harness attest skill` ghi dòng `attestation:"worker-reported"`; receipt của hook mang `attestation:"host"`; TOML của worker bảo worker tự attest. **Không đổi cổng Ship Sign-off** (quyết định số 6 mặc định). Receipt từ `SubagentStop`, token và thời lượng: chưa làm, cần M4/M12 |
+| S3d | chưa áp dụng được | Không có hook tại thời điểm spawn trên Codex (M4 chưa đo); `AGENTS.md` ghi "loop tự validate order", không hứa hook-denied |
 | S4 | xong, theo đề xuất số 2 | Id ngoài họ Claude phải có trong bảng (`deepseek-v4-pro`, `gpt-5` không mini) hoặc `--accept-unranked-models`; launch record có `host` và `acceptUnrankedModels`. Bảng tier là quyết định tạm, PO chưa duyệt |
-| S5 | **chưa làm** | Cấu hình chạy không người trên Codex cần M10 và quyết định số 3 và 8 |
+| S5 | chỉ tài liệu | `docs/install.md` mô tả hai đường (workspace-write và prefix rule chạy ngoài sandbox); installer không ghi cấu hình cấp quyền; không có lượt `codex exec` thật |
 | S6a | xong | `bin/lib/steps/`, `bin/lib/targets/`; cây file giống từng byte với `70e1818` (lần cài thứ hai cũng giống; khối `AGENTS.md` chuyển lên đầu ở lần cài thứ hai, như bản cũ vẫn làm) |
 | S6 | xong, theo phương án A | Runtime ở `~/.shapeup-sdlc/<version>/`, cấu hình mức người dùng, `--home` để đổi chỗ. Không kiểm M11 (tin cậy hook) nên chỉ in cảnh báo |
 | S7 | xong | `ship` và `retro` thành skill; cờ đi qua dòng đầu (M8 chưa đo). Lượt `codex exec` thật chưa chạy |
 | S8 | xong | Bảng "Enforcement by host" trong `AGENTS.md`, `SECURITY.md`, `README.md`, `docs/install.md`; audit chạy, không có drift mới |
-| S9, S9b | **chưa làm** | Cần khóa DeepSeek và quyết định số 9. Chỉ có bảng tier và cờ ở S4; README nói chưa có run nào đo được |
+| S9 | chỉ tài liệu | Mục "Other model providers" trong `docs/install.md`, nguồn là tài liệu DeepSeek đọc 2026-11-14, kèm cảnh báo dữ liệu. M14 và run thật: chưa làm (cần khóa) |
+| S9b | **chưa làm** | DeepSeek qua Codex: cần khóa và Codex thật |
 | S10 | xong phần có thể | Version 5.1.0 ở cả hai file, CHANGELOG, `verify-cross-dir --host codex`. Test phát lại fixture Codex nằm trong `16-codex-adapter.mjs` |
 
 Quyết định PO được dùng mặc định theo đề xuất: số 2 (từ chối id chưa xếp hạng), số 4 (một khối có bảng), số 6 (không đổi cổng; chưa có nhãn attestation vì S3c chưa làm), số 7 (phương án A).
