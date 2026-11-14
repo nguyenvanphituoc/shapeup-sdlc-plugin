@@ -3,6 +3,14 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [5.1.0] — 2026-11-14 · An experimental Codex CLI target, and a model floor that ranks other families
+
+- **Added.** `npx shapeup-sdlc init --target codex` (and `--target both`): the runtime is copied to a versioned directory under the home, the two guard hooks are merged into the user's Codex hooks file, the workers become Codex agent definitions, and the skills — with `ship` and `retro` rewritten as skills — go under the user's skills folder. Nothing machine-specific is written into the project. `--dry-run` and `--check` are new on every target, and `--home` redirects the per-user files.
+- **Experimental.** Codex's hook payloads are taken from OpenAI's documentation and have not been measured against a live session. Wired on Codex: the write fence, the tier-direction rule and the safety spine. Not wired: the dispatch receipts, the order-validation hook and the read guard. `SECURITY.md` and `AGENTS.md` say so.
+- **Added.** Every hook takes `--host claude|codex`; the plugin's own hook manifest now passes `--host claude`, and a hook with no flag is a Claude hook as before. A payload naming the other harness's tool leaves a `host-mismatch` row instead of passing in silence.
+- **Changed.** The model floor ranks families. A Claude id behaves as before; any other id must be ranked (`deepseek-v4-pro`, `gpt-5` family) or named with `--accept-unranked-models`, and a cheap tier is refused whatever the family. The launch record carries `host`, and the default model follows it.
+- **Changed.** The installer is a list of steps that plan before they write (no change to what a Claude install produces).
+
 ## [5.0.3] — 2026-11-14 · Re-release of 5.0.2
 
 No code, hook, schema or document of the plugin changed since 5.0.2; only the version number did. It exists so a project can move to a release that was cut after the 5.0.2 run it was verified against.
