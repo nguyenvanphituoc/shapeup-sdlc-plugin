@@ -24,17 +24,23 @@ export function belowFloor(m, patterns) {
  * The roles whose model sits below the floor, as sentences naming the role.
  *
  * @param {object} models - The role -> model matrix.
- * @param {{patterns:RegExp[], roles:string[], skip?:string[], label?:string}} floor - The denylist, the roles it
- *   applies to, the roles skipped on this launch, and what the floor is called in the sentence.
+ * @param {{patterns:RegExp[], roles:string[], skip?:string[], label?:string, exempt?:RegExp, known?:RegExp[], acceptUnranked?:boolean}} floor -
+ *   The denylist, the roles it applies to, the roles skipped on this launch, and what the floor is called in the
+ *   sentence. With `known`, an id matching neither `exempt` (the family the denylist covers) nor a `known`
+ *   pattern is refused unless `acceptUnranked`.
  * @returns {string[]} One sentence per offending role; empty when the matrix clears the floor.
  */
-export function floorProblems(models, { patterns, roles, skip = [], label = "the model floor" }) {
+export function floorProblems(models, { patterns, roles, skip = [], label = "the model floor", exempt, known, acceptUnranked = false }) {
   const out = [];
   for (const role of roles) {
     if (skip.includes(role)) continue;
-    if (belowFloor(models?.[role], patterns)) {
-      const m = String(models?.[role] ?? "").trim();
+    const m = String(models?.[role] ?? "").trim();
+    if (belowFloor(m, patterns)) {
       out.push(`models.${role} ${m ? `"${m}" ` : ""}is below ${label}`);
+    } else if (known && !acceptUnranked && !exempt.test(m) && !known.some((re) => re.test(m))) {
+      // An id outside the family the denylist was written for tells the denylist nothing: passing it
+      // would be no check at all, so it must be ranked here or accepted on the record.
+      out.push(`models.${role} "${m}" is not a ranked model for ${label}`);
     }
   }
   return out;

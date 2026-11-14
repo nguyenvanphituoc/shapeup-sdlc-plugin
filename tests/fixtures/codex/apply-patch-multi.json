@@ -1,0 +1,7 @@
+{
+  "hook_event_name": "PreToolUse",
+  "tool_name": "apply_patch",
+  "tool_input": {
+    "command": "*** Begin Patch\n*** Update File: src/a.js\n@@\n-old\n+new\n*** Add File: shapeup/feat/ok.md\n+clean line\n*** Delete File: src/b.js\n*** Update File: src/c.js\n*** Move to: shapeup/feat/moved.md\n@@\n-x\n+y\n*** End Patch"
+  }
+}

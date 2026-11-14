@@ -23,6 +23,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import { resolve, join, dirname } from "node:path";
 import { runArgs } from "./argv.mjs";
+import { hostFrom, withoutHost, hostMismatch, denyPayload } from "./host.mjs";
 
 /**
  * Validate a value against the JSON-Schema subset the envelope schemas use (type, required,
@@ -207,7 +208,9 @@ export const ARGV_SPEC = {
  * @returns {(Promise<void>|void)} Settles when the subcommand has written its output; most paths
  *   call `process.exit()` with the subcommand's documented code rather than returning.
  */
-export async function cli(rawArgv, profile) {
+export async function cli(rawArgvIn, profile) {
+  const host = hostFrom(rawArgvIn);
+  const rawArgv = withoutHost(rawArgvIn);
   const { schemasDir, orderSchema, hook: { runHook, readStdin, settle }, messages } = profile;
   if (rawArgv.length) {
     // CLI mode
@@ -243,6 +246,8 @@ export async function cli(rawArgv, profile) {
       try { p = JSON.parse(raw || "{}"); }
       catch (e) { settle({ verdict: "error", event: "PreToolUse", reason: `unparseable payload: ${e.message}` }); }
       if (p.tool_name !== "Skill" && p.tool_name !== "Agent") {
+        const mm = hostMismatch(p, host);
+        if (mm) defer(mm, "host-mismatch");
         defer(`${p.tool_name ?? "no tool_name"} is not a dispatch tool — out of scope`);
       }
       const haystack = [p.tool_input?.skill_args, p.tool_input?.args, p.tool_input?.prompt]
@@ -259,13 +264,7 @@ export async function cli(rawArgv, profile) {
        */
       const deny = (reason, rule) => settle({
         verdict: "deny", event: "PreToolUse", tool: p.tool_name, cwd: p.cwd, subject: orderPath, rule, reason,
-        payload: {
-          hookSpecificOutput: {
-            hookEventName: "PreToolUse",
-            permissionDecision: "deny",
-            permissionDecisionReason: reason,
-          },
-        },
+        payload: denyPayload("PreToolUse", reason, host),
       });
       if (!existsSync(orderPath)) {
         deny(messages.missing(orderPath), "order-missing");

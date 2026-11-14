@@ -18,7 +18,8 @@
 // session on a marketplace install) — that one needs a real consumer, a real feature, and real
 // wall-clock time, and stays a manual exercise. This one needs neither and takes under a second.
 //
-// Usage: npm run verify:cross-dir
+// Usage: npm run verify:cross-dir [-- --host codex]
+// With `--host codex` the payload is a Codex `apply_patch` call and the hook is spawned with `--host codex`.
 
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync } from "node:fs";
 import { execFileSync, execSync } from "node:child_process";
@@ -26,6 +27,9 @@ import { tmpdir } from "node:os";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
+const hostFlag = process.argv.indexOf("--host");
+const HOST = hostFlag > 0 ? process.argv[hostFlag + 1] : "claude";
+if (!["claude", "codex"].includes(HOST)) { console.error(`unknown --host ${HOST}`); process.exit(2); }
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const box = mkdtempSync(join(tmpdir(), "shapeup-crossdir-"));
 const pluginCopy = join(box, "plugin-copy");
@@ -72,8 +76,10 @@ writeFileSync(join(consumer, ".shapeup", SLUG, "orders", "build-1.json"), JSON.s
  * @returns {string} The hook's verbatim stdout, trimmed.
  */
 function runHook(rel) {
-  const payload = JSON.stringify({ tool_name: "Write", tool_input: { file_path: join(consumer, rel) }, cwd: consumer });
-  return execFileSync("node", [hookCopy], {
+  const payload = JSON.stringify(HOST === "codex"
+    ? { tool_name: "apply_patch", tool_input: { command: `*** Begin Patch\n*** Add File: ${join(consumer, rel)}\n+x\n*** End Patch` }, cwd: consumer }
+    : { tool_name: "Write", tool_input: { file_path: join(consumer, rel) }, cwd: consumer });
+  return execFileSync("node", [hookCopy, "--host", HOST], {
     input: payload, encoding: "utf8", env: { ...process.env, SHAPEUP_DECISIONS_PATH: decisionsPath },
   }).trim();
 }
@@ -106,6 +112,6 @@ if (rows[0].verdict !== "deny" || rows[1].verdict !== "allow") {
 }
 
 rmSync(box, { recursive: true, force: true });
-console.log("✅ verify:cross-dir — hooks/sandbox-guard.mjs, run from a copy at a different absolute path,");
+console.log(`✅ verify:cross-dir (--host ${HOST}) — hooks/sandbox-guard.mjs, run from a copy at a different absolute path,`);
 console.log("   against a consumer project it has never seen, still denies outside its substrate and");
 console.log("   permits inside it. Both decisions reached the redirected ledger.");

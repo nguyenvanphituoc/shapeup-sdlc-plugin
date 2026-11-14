@@ -75,6 +75,7 @@ import { resolve, dirname } from "node:path";
 import { isMain } from "../kernel/core/argv.mjs";
 import { dispatchReceipts } from "../kernel/lib/paths.mjs";
 import { runHook, readStdin, settle, projectRoot } from "./lib/decision.mjs";
+import { hostFrom, hostMismatch } from "../kernel/core/host.mjs";
 
 /**
  * The `--order` matcher, character-for-character the one the PreToolUse order gate uses
@@ -255,6 +256,8 @@ export async function main() {
     catch (e) { settle({ verdict: "error", event: "PostToolUse", reason: `unparseable payload: ${e.message}` }); }
 
     if (p.tool_name !== "Skill" && p.tool_name !== "Agent") {
+      const mm = hostMismatch(p, hostFrom(process.argv.slice(2)));
+      if (mm) defer(mm, "host-mismatch");
       defer(`${p.tool_name ?? "no tool_name"} is not a dispatch tool — out of scope`, "not-a-dispatch");
     }
     const cited = orderPathFrom(p.tool_input);

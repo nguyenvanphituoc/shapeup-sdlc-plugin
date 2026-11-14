@@ -21,6 +21,24 @@ Everything else in the workflow below — sequencing the phases, applying a work
 - **Your scope cut decides your concurrency.** Two scopes that both declare a write to one path never build at the same time: an edit is read-modify-write and concurrent writers silently drop each other's work. The fence enforces each scope's substrate; reading the contracts for overlap before releasing scopes together is the loop's job.
 - The build+eval loop breaks only two ways: the evaluation passes → QA → Ship; or the outer `round_budget` is exhausted. A scope exhausting its per-scope `attempt_budget` queues a Cut-List Review proposal and never blocks the round; budget trips route to the Cut-List Review, so what is green ships and the run is never killed from outside.
 
+### Enforcement by host
+
+The five things above are described for Claude Code, where every one is wired. On the Codex CLI
+(`npx shapeup-sdlc init --target codex`, experimental) the table is what holds:
+
+| Held by the runtime | Claude Code | Codex CLI |
+|---|---|---|
+| The receipt, the gate resolver, the T0 witness | yes | yes — they are commands, not hooks |
+| The write fence and the tier-direction rule | yes | yes, from the patch text; payload shapes not yet measured |
+| The safety spine on shell commands | yes | yes; reads of secret files are not guarded |
+| The dispatch receipts | yes | **no** — a dispatch is not attested; read the worker's own report |
+| A dispatch without a valid WorkOrder is refused | yes | **no** — the loop validates the order itself |
+| A worker limited to a short tool list | yes | **no** |
+
+A host that does not load a hook skips it without an error, so on either host a first write that leaves no row in
+the decision ledger means the fence is off. A model outside the Claude family must be ranked by the model floor or
+named at launch with `--accept-unranked-models`.
+
 ### Workflow at a Glance
 
 ```mermaid

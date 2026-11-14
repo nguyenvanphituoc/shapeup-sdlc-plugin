@@ -30,6 +30,10 @@ const MODULES = [
   "11-skill-anatomy.mjs",
   "12-layers.mjs",
   "13-core-profile.mjs",
+  "14-host-seam.mjs",
+  "15-init-steps.mjs",
+  "16-codex-adapter.mjs",
+  "17-codex-install.mjs",
 ];
 
 // The floor: a refactor that silently deletes checks must fail loudly rather than read green.

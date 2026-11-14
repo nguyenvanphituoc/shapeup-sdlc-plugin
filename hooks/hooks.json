@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/safety-spine.mjs\"",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/safety-spine.mjs\" --host claude",
             "timeout": 10
           }
         ]
@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs\" verify envelope",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/kernel/harness.mjs\" verify envelope --host claude",
             "timeout": 10
           }
         ]
@@ -26,7 +26,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/sandbox-guard.mjs\"",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/sandbox-guard.mjs\" --host claude",
             "timeout": 10
           }
         ]
@@ -38,7 +38,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/dispatch-receipt.mjs\"",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/dispatch-receipt.mjs\" --host claude",
             "timeout": 10
           }
         ]

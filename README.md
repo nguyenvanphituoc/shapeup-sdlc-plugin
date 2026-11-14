@@ -106,12 +106,17 @@ installer, and troubleshooting are in
 
 ## Agent support
 
-The harness targets **Claude Code only**. The reason is the row that never travelled when we
-compiled to other CLIs: hooks. The 7 skills, 2 slash commands and the kernel are
-portable prose and plain Node — but hook-enforced gates (envelope validation, the substrate
-fence, the safety spine, dispatch receipts) are a per-CLI mechanism, and without them every gate degrades from
-**enforced** to **instructed** — the same honor system every other framework runs on
-everywhere. If the deny hooks are why you're here, that means Claude Code.
+**Claude Code is the supported harness.** Hooks are the row that never travelled when we compiled to other
+CLIs: the 7 skills, 2 slash commands and the kernel are portable prose and plain Node, but hook-enforced gates
+(envelope validation, the substrate fence, the safety spine, dispatch receipts) are a per-CLI mechanism, and
+without them a gate degrades from **enforced** to **instructed**.
+
+**Codex CLI is available as `npx shapeup-sdlc init --target codex`, and it is experimental.** Its hook payloads
+are read from OpenAI's documentation, not yet measured against a live session. What carries over and what does
+not is spelled out in the table in `AGENTS.md` and in [SECURITY.md](SECURITY.md): the write fence and the
+safety spine are wired; the dispatch receipt, the order-validation hook and the read guard are not. A model other
+than Claude (for example DeepSeek through Claude Code's Anthropic-compatible endpoint) must be ranked in the model
+floor or named with `--accept-unranked-models` at launch; no such run has been measured yet.
 
 ## Glossary
 
@@ -317,7 +322,8 @@ kernel/harness.mjs    # ONE entry point for every deterministic step; the whole 
 kernel/{verify,init}/ #   its subcommands (the T0 witness, the envelope check, the roster check, init run), each binding the core to Shape Up
 kernel/{gate,order}.mjs #   the gate resolver, and the verb that arms and retires the fence
 kernel/core/          # the mechanism, free of any workflow: run trace + run key, hook runtime, ledger, gate resolver,
-                      #   T0 + ratchet, contract parser, envelope check, roster, argv (the typed CLI boundary), model floor
+                      #   T0 + ratchet, contract parser, envelope check, roster, argv (the typed CLI boundary), model floor,
+                      #   host seam (which harness's payload a hook is reading, and the deny it answers with)
 kernel/shapeup/       # the data this plugin hands the core: root names, gate table + evidence rules, contract layouts, ratchet names, floor
 kernel/lib/paths.mjs  # the path resolver every hook and `bin/init.mjs` import (a facade over kernel/shapeup/paths.mjs)
 kernel/schemas/       # the envelope port: WorkOrder, WorkResult, domain registry
@@ -327,7 +333,8 @@ hooks/                # hooks.json + the three walls: safety-spine, sandbox-guar
                       #   + dispatch-receipt (PostToolUse, denies nothing, attests which worker ran and what the host measured)
                       #   + lib/decision.mjs (the hook runtime: every hook records allow / deny / error)
 oracles/              # the evaluation-contract oracle registry (test · snapshot · http · process)
-bin/init.mjs          # `npx shapeup-sdlc init` — the permission grant, the AGENTS.md harness block, the ignore rules
+bin/init.mjs          # `npx shapeup-sdlc init` — a list of steps that plan before they write: the AGENTS.md harness block, the ignore rules,
+                      #   and per target (`--target claude|codex|both`) the grant and plugin wiring, or the Codex runtime, hooks, agents and skills
 scripts/install-harness.sh, migrate.sh   # stable public entrypoints (fresh install / update)
 scripts/shapeup-sdlc/lib/                # shell libs both entrypoints source
 tools/                # repo-only: demo/

@@ -38,6 +38,7 @@ import { isMain } from "../kernel/core/argv.mjs";
 import { LOCAL, safetyOverrides, metricsShard } from "../kernel/lib/paths.mjs";
 
 import { runHook, readStdin, settle, projectRoot } from "./lib/decision.mjs";
+import { hostFrom, hostMismatch, denyPayload, normalizePayload } from "../kernel/core/host.mjs";
 
 // --- overrides ---------------------------------------------------------------
 
@@ -272,6 +273,7 @@ function extractPaths(toolInput) {
 async function main() {
   await runHook("safety-spine", async () => {
   const raw = await readStdin();
+  const host = hostFrom(process.argv.slice(2));
   let p;
   /** Fail-open, with the reason on the record (hooks/lib/decision.mjs). */
   const defer = (reason, rule, subject = null) => settle({
@@ -281,6 +283,9 @@ async function main() {
   try { p = JSON.parse(raw || "{}"); }
   catch (e) { settle({ verdict: "error", event: "PreToolUse", reason: `unparseable payload: ${e.message}` }); }
 
+  const mm = hostMismatch(p, host);
+  if (mm) defer(mm, "host-mismatch");
+  p = normalizePayload(p, host);
   if (!HOOK_TOOLS.has(p.tool_name)) defer(`${p.tool_name ?? "no tool_name"} is not a guarded tool — out of scope`);
 
   // The envelope and the telemetry shard live at the project root; the shell may be anywhere below
@@ -303,13 +308,7 @@ async function main() {
     settle({
       verdict: "deny", event: "PreToolUse", tool: p.tool_name, cwd: root, rule: category,
       subject: detail?.path ?? detail?.command ?? null, reason,
-      payload: {
-        hookSpecificOutput: {
-          hookEventName: "PreToolUse",
-          permissionDecision: "deny",
-          permissionDecisionReason: `Safety spine (${category}) — ${reason}`,
-        },
-      },
+      payload: denyPayload("PreToolUse", `Safety spine (${category}) — ${reason}`, host),
     });
   };
 

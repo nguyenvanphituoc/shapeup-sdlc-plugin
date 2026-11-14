@@ -50,7 +50,7 @@ export async function run(ctx) {
   for (const g of Object.values(manifest.hooks).flat()) {
     for (const h of g.hooks) {
       const m = h.command.match(/\$\{CLAUDE_PLUGIN_ROOT\}\/(\S+?\.mjs)"?\s*(.*)$/);
-      if (m) labels.add(m[2].trim() || m[1].split("/").pop());   // a kernel verb is named by its verb, a hook by its file
+      if (m) labels.add(m[2].replace(/--host\s+\S+/, "").trim() || m[1].split("/").pop());   // a kernel verb is named by its verb, a hook by its file
     }
   }
   for (const label of labels) {

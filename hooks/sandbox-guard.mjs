@@ -71,6 +71,7 @@ import { realPathOf, judgeWrites } from "../kernel/core/fence.mjs";
 import { LOCAL, SHARED, activeOrder, ordersDir, resultsDir, metricsShard, dispatchReceipts } from "../kernel/lib/paths.mjs";
 import { runHook, readStdin, settle, projectRoot } from "./lib/decision.mjs";
 import { SCANNED, tierLeaks } from "./lib/tier.mjs";
+import { hostFrom, hostMismatch, denyPayload, normalizePayload } from "../kernel/core/host.mjs";
 
 function readJSON(p) {
   try { return JSON.parse(readFileSync(p, "utf8")); } catch { return null; }
@@ -279,6 +280,7 @@ export function committedTierLeaks(toolInput, cwd, root) {
 async function main() {
   await runHook("sandbox-guard", async () => {
   const raw = await readStdin();
+  const host = hostFrom(process.argv.slice(2));
   let p;
   /** Fail-open, with the reason on the record (hooks/lib/decision.mjs). */
   const defer = (reason, rule) => settle({
@@ -287,6 +289,9 @@ async function main() {
   try { p = JSON.parse(raw || "{}"); }
   catch (e) { settle({ verdict: "error", event: "PreToolUse", reason: `unparseable payload: ${e.message}` }); }
 
+  const mm = hostMismatch(p, host);
+  if (mm) defer(mm, "host-mismatch");
+  p = normalizePayload(p, host);
   if (!["Edit", "Write", "MultiEdit"].includes(p.tool_name)) {
     defer(`${p.tool_name ?? "no tool_name"} is not a write tool — out of scope`);
   }
@@ -308,19 +313,13 @@ async function main() {
       verdict: "deny", event: "PreToolUse", tool: p.tool_name, subject: tier.rel, cwd: root,
       rule: "tier-direction",
       reason: `${tier.blocked.length} tier-direction leak(s) refused at the write boundary: ${tier.blocked.join("; ")}`,
-      payload: {
-        hookSpecificOutput: {
-          hookEventName: "PreToolUse",
-          permissionDecision: "deny",
-          permissionDecisionReason:
-            "Tier guard (TIER-DIRECTION) — this write would put a reference into the committed tier that " +
-            "cannot survive the trip to another machine:\n" +
-            `${tier.blocked.join("\n")}\n` +
-            "Refused here, while the writer still knows what it meant to say. " +
-            "Rephrase the line now: cite the committed artifact, the use case or the scope_id, or describe " +
-            "the tier without naming a path.",
-        },
-      },
+      payload: denyPayload("PreToolUse",
+        "Tier guard (TIER-DIRECTION) — this write would put a reference into the committed tier that " +
+        "cannot survive the trip to another machine:\n" +
+        `${tier.blocked.join("\n")}\n` +
+        "Refused here, while the writer still knows what it meant to say. " +
+        "Rephrase the line now: cite the committed artifact, the use case or the scope_id, or describe " +
+        "the tier without naming a path.", host),
     };
   }
 
@@ -414,16 +413,10 @@ async function main() {
     // which is how a frozen declaration can stop being enforced without a single row moving.
     rule: frozenHits === violations.length ? "frozen" : notOwn ? "not-own-dispatch" : "outside-substrate",
     reason: `${violations.length} write(s) rejected by substrate boundaries: ${blockReasons.join("; ")}`,
-    payload: {
-      hookSpecificOutput: {
-        hookEventName: "PreToolUse",
-        permissionDecision: "deny",
-        permissionDecisionReason:
-          `Write fence — ${notOwn ? "these paths belong to another live dispatch" : "no live order's substrate covers these writes"}:\n` +
-          `${blockReasons.join("\n")}\n` +
-          hint,
-      },
-    },
+    payload: denyPayload("PreToolUse",
+      `Write fence — ${notOwn ? "these paths belong to another live dispatch" : "no live order's substrate covers these writes"}:\n` +
+      `${blockReasons.join("\n")}\n` +
+      hint, host),
   };
   });
 }

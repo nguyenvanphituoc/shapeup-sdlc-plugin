@@ -45,6 +45,11 @@ export const RECEIPT_VERSION = 1;
 /** The model a role runs on when neither a flag nor its environment knob names one. */
 export const DEFAULT_MODEL = "sonnet";
 
+/** The default model per host: a Claude alias means nothing to a harness that does not serve Claude. */
+export const DEFAULT_MODEL_BY_HOST = { claude: "sonnet", codex: "gpt-5" };
+
+export const HOST_NAMES = Object.keys(DEFAULT_MODEL_BY_HOST);
+
 /** Slugify a free-text feature name into a filesystem-safe run id. */
 export function slugify(text) {
   return String(text || "")
@@ -112,6 +117,7 @@ function pruned(o) {
  * @returns {{exec: string, eval?: string, qa: string}} The matrix.
  */
 export function resolveModels(a, env = process.env) {
+  const DEFAULT_MODEL = DEFAULT_MODEL_BY_HOST[a.host] ?? "sonnet";
   const pick = (flag, knob) => (flag ?? env[knob] ?? "").trim() || undefined;
   const exec = pick(a.execModel, "SHAPEUP_EXEC_MODEL") ?? DEFAULT_MODEL;
   const evalModel = a.noEval ? pick(a.evalModel, "SHAPEUP_EVAL_MODEL") : (pick(a.evalModel, "SHAPEUP_EVAL_MODEL") ?? DEFAULT_MODEL);
@@ -128,14 +134,14 @@ export function resolveModels(a, env = process.env) {
  */
 export function buildLaunchRecord({
   slug, runId, models, maxRounds, attemptBudget, pluginRoot, startedAt,
-  noEval, noQa, maxParallelScopes,
+  noEval, noQa, maxParallelScopes, host, acceptUnrankedModels,
 }) {
   return pruned({
     slug, runId,
     models, budgets: { maxRounds, attemptBudget },
     pluginRoot, startedAt,
     noEval: noEval || undefined, noQa: noQa || undefined,
-    maxParallelScopes,
+    maxParallelScopes, host, acceptUnrankedModels: acceptUnrankedModels || undefined,
   });
 }
 
@@ -183,7 +189,7 @@ export const ARGV_SPEC = {
          "[--slug <slug>] " +
          "[--max-rounds N] [--attempts N] [--spec-folder <dir>] " +
          "[--exec-model <m>] [--eval-model <m>] [--qa-model <m>] [--no-eval] [--no-qa] " +
-         "[--parallel-scopes N] [--cwd <dir>] [--plugin-root <dir>] [--force]",
+         "[--host claude|codex] [--accept-unranked-models] [--parallel-scopes N] [--cwd <dir>] [--plugin-root <dir>] [--force]",
   _: { arity: 0, max: 0, name: "(no positional operands)" },
   cwd: { type: "path" },
   "intake-text": { type: "str" },
@@ -201,6 +207,8 @@ export const ARGV_SPEC = {
   "no-eval": { type: "flag" },
   "no-qa": { type: "flag" },
   "parallel-scopes": { type: "int", min: 1 },
+  host: { type: "str" },
+  "accept-unranked-models": { type: "flag" },
   // Which copy of the plugin this run is opened against. Nameable because a machine can carry several
   // installs, and because the roster refusal is otherwise unreachable for a test.
   "plugin-root": { type: "path" },
@@ -226,8 +234,9 @@ export function cli(rawArgv) {
   }
 
   // THE MODEL FLOOR, before anything is written and before the already-open refusal.
+  if (args.host !== undefined && !HOST_NAMES.includes(args.host)) fail(2, `✋ init-run: --host must be one of ${HOST_NAMES.join(", ")}, not "${args.host}".`);
   const models = resolveModels(args);
-  const belowFloor = floorProblems(models, { noEval: Boolean(args.noEval) });
+  const belowFloor = floorProblems(models, { noEval: Boolean(args.noEval), acceptUnranked: Boolean(args.acceptUnrankedModels) });
   if (belowFloor.length) {
     fail(2, [
       `✋ init-run: ${belowFloor.join("; ")}.`,
@@ -335,6 +344,7 @@ export function cli(rawArgv) {
     maxRounds: config.max_rounds, attemptBudget: config.attempt_budget,
     pluginRoot: plugin.root, startedAt,
     noEval: args.noEval, noQa: args.noQa, maxParallelScopes: args.parallelScopes ?? undefined,
+    host: args.host ?? "claude", acceptUnrankedModels: Boolean(args.acceptUnrankedModels),
   });
   const unlaunchable = launchProblems(launch);
   if (unlaunchable.length) fail(2, `✋ init-run: the launch record is not launchable — ${unlaunchable.join("; ")}`);

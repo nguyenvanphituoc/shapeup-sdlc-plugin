@@ -12,11 +12,17 @@ export const FLOOR = {
   label: "the model floor (sonnet or above)",
 };
 
+// The family the denylist above was written for: its unknown ids still pass. Any id outside it must be
+// ranked in KNOWN or accepted by name at launch, since the denylist cannot judge a family it has not seen.
+export const CLAUDE_FAMILY = /^(?:claude[\w.\-\[\]]*|sonnet|opus|haiku|fable|inherit)$/i;
+export const KNOWN = [/^deepseek-v4-pro/i, /^gpt-5(?!.*mini)/i];
+
 /** Whether a model id names a tier below the floor. */
 export const belowFloor = (m) => below(m, FLOOR.patterns);
 
 /** The roles whose model sits below the floor, as sentences; `eval` is skipped under `noEval`. */
-export const floorProblems = (models, { noEval = false } = {}) => problems(models, { ...FLOOR, skip: noEval ? ["eval"] : [] });
+export const floorProblems = (models, { noEval = false, acceptUnranked = false } = {}) =>
+  problems(models, { ...FLOOR, skip: noEval ? ["eval"] : [], exempt: CLAUDE_FAMILY, known: KNOWN, acceptUnranked });
 
 /**
  * Everything wrong with a launch record, as sentences. Empty means launchable.
@@ -32,6 +38,6 @@ export function launchProblems(a) {
   if (a?.budgets && !(a.budgets.maxRounds && a.budgets.attemptBudget)) {
     out.push("budgets must carry maxRounds and attemptBudget");
   }
-  if (a?.models) out.push(...floorProblems(a.models, { noEval: Boolean(a.noEval) }));
+  if (a?.models) out.push(...floorProblems(a.models, { noEval: Boolean(a.noEval), acceptUnranked: Boolean(a.acceptUnrankedModels) }));
   return out;
 }

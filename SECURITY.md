@@ -78,6 +78,20 @@ sitting, and reading them is the recommended review.
 | [`sandbox-guard.mjs`](hooks/sandbox-guard.mjs) | PreToolUse (`Edit\|Write\|MultiEdit`) | The target path, resolved through the filesystem before it is compared — symlinks followed, the unborn tail re-attached to its real ancestor, case folded where the filesystem folds case — so a spelling variant of a frozen file is the frozen file; the `substrate` block of every LIVE order — written, with no result at least as new as the order's own `compiled_at`, and, for a run-level phase dispatch, not yet superseded by a later phase's order | Yes — any write no live order permits: inside any `frozen`, outside every `allowed`/`shared`, or a `Write` to an `append_only` path. `frozen` is checked FIRST, so it also outranks the run-trace carve-out. An order's own paths (its result first) are writable only by the sub-agent its dispatch receipt names, so one live leg cannot write another's result; a write with no sub-agent id, or an order with no receipt, keeps the path-only rule. Independently of any order, a write into `shapeup/<slug>/` whose content names a `.shapeup/` path or a `TASK-NNN` board id: the tier-direction rule, refused at the moment of writing with the offending token quoted back | The substrate fence is a no-op unless an order is live, which a finished run no longer is: the pointer names the run, never a dispatch. The active feature's own `.shapeup/<slug>/` run trace is writable EXCEPT where a live order freezes a path inside it. Appends denials to the local pathology log. The tier check is a no-op outside `shapeup/<slug>/`, on file forms the lint does not scan, and on `shapeup/knowledge-base/` (instructions to a worker, not references); it never inspects a file it is not being asked to write |
 | [`dispatch-receipt.mjs`](hooks/dispatch-receipt.mjs) | PostToolUse (`Skill\|Agent`) | The `--order` file named in the dispatch; the tool result's own report of which skill ran | **No — it has no deny path at all.** It records that the shipped skill ran, so the loop counts an attempt only against a dispatch that produced it | Never writes an attestation for a result that does not name a resolved skill; never fails the call it observes (every write is inside `try`/`catch`) |
 
+## Codex CLI
+
+`init --target codex` installs the write fence (`sandbox-guard`) and the safety spine for Codex. They read an
+`apply_patch` call's patch text and the shell tool's command, and answer with the same deny decision. Three things
+differ from Claude Code, and none is hidden by the installer:
+
+- **Not measured.** The payload shapes come from OpenAI's documentation and open-source CLI. No recorded session
+  backs them yet. OpenAI itself calls hooks "a useful guardrail, not a complete enforcement boundary".
+- **Fails open, and may do so silently.** A hook that is not trusted, or that crashes or times out, lets the tool call
+  through. A payload naming the wrong harness's tool leaves a `host-mismatch` row rather than nothing, but an
+  unloaded hook leaves no row at all: a missing row on the first write is the signal.
+- **Not wired on Codex:** the dispatch receipt (so "the shipped skill produced this" is not attested), the
+  order-validation hook, and the read guard. A worker's tool list cannot be restricted either.
+
 ## Data handling
 
 - **Nothing leaves the machine.** Run state lives in the gitignored `.shapeup/`; telemetry

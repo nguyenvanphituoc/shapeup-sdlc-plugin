@@ -95,6 +95,24 @@ commit this to the project's `.claude/settings.json`:
 }
 ```
 
+## Codex CLI (experimental)
+
+```bash
+npx shapeup-sdlc init --target codex -y
+npx shapeup-sdlc init --target codex --check   # reports what is missing or stale
+npx shapeup-sdlc init --target codex --dry-run # writes nothing
+```
+
+The runtime is copied to `~/.shapeup-sdlc/<version>/`, the two guard hooks are merged into
+`~/.codex/hooks.json`, the workers become `~/.codex/agents/*.toml`, and the skills (with `ship` and `retro`
+rewritten as skills) go under `~/.agents/skills/`. Your project receives only the harness block in `AGENTS.md`
+and the ignore rules — no path of your machine is written into it. Pass `--home <dir>` to install somewhere else.
+
+Codex loads hooks only from a trusted layer, and skips an unreviewed hook **without an error**, which leaves the
+write fence off. Approve the hooks in Codex before a run, then confirm `.shapeup/decisions.jsonl` gains a row on
+the first write. Pass flags to `$ship` on its first line (`$ship --no-qa <pitch>`); Codex documents no argument
+syntax for skills.
+
 ## Local scaffolding
 
 Instead of installing the plugin globally, you can scaffold the harness directly into a

@@ -1,0 +1,7 @@
+{
+  "hook_event_name": "PreToolUse",
+  "tool_name": "apply_patch",
+  "tool_input": {
+    "command": "*** Begin Patch\n*** Add File: shapeup/feat/notes.md\n+see .shapeup/feat/board.json\n+and TASK-007\n*** End Patch"
+  }
+}
