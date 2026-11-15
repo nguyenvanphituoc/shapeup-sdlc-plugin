@@ -22,7 +22,8 @@
 // `--init`, `--list`, `--verify`, `--preset`, `--file`, `--out`, `--auto-level`, `--tiny`, `--no-qa`.
 
 import { runArgs } from "./core/argv.mjs";
-import { LOCAL, readRunId, insideRunTrace } from "./shapeup/paths.mjs";
+import { readFileSync } from "node:fs";
+import { LOCAL, readRunId, insideRunTrace, runArgsPath } from "./shapeup/paths.mjs";
 import * as gates from "./shapeup/gates.mjs";
 
 // The gate table and the evidence helpers, under the path the router and the tests import them from.
@@ -57,6 +58,11 @@ export const ARGV_SPEC = {
   preset: { type: "str" }, file: { type: "str" }, out: { type: "str" },
   "auto-level": { type: "str" }, tiny: { type: "flag" }, "no-qa": { type: "flag" },
 };
+
+/** The load set of the loop's rules recorded in the launch record, or null. */
+function kbLoadSet(cwd, slug) {
+  try { return JSON.parse(readFileSync(runArgsPath(cwd, slug), "utf8"))?.kb?.load_set ?? null; } catch { return null; }
+}
 
 function out(obj, code = 0) {
   console.log(JSON.stringify(obj, null, 2));
@@ -108,6 +114,8 @@ export function cli(rawArgv) {
       gate: r.gate, status: r.status, decision: r.decision ?? null,
       source: r.source ?? found.source, note: gateNote(r, verdict),
       round: args.round ?? null,
+      // The loop's rules the run opened with, so a gate's row says which rules stood behind its answer.
+      ...(kbLoadSet(cwd, args.slug) ? { kb_load_set: kbLoadSet(cwd, args.slug) } : {}),
       ...(verdict ? { verdict } : {}),
       // What ran, per role, beside what was asked — the machine-readable half of the note above.
       ...(r.models ? { models: { asked: r.models.asked, ran: r.models.ran, unreported: r.models.unreported, unattested: r.models.unattested, mismatch: r.models.mismatch } } : {}),

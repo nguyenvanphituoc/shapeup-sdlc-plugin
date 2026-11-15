@@ -249,6 +249,7 @@
       "trial_history",
       "verify",
       "kb_rules_path",
+      "kb_load_set",
       "constraints",
       "bugs"
     ],
@@ -271,7 +272,8 @@
       "stack",
       "spec_folder",
       "feature",
-      "kb_rules_path"
+      "kb_rules_path",
+      "kb_load_set"
     ],
     "qa-edge-hunter": [
       "feature",
@@ -281,14 +283,16 @@
       "launch_cmd",
       "build_gate",
       "ledger",
-      "kb_rules_path"
+      "kb_rules_path",
+      "kb_load_set"
     ],
     "building": [
       "feature",
       "spec_folder",
       "step",
       "mode",
-      "kb_rules_paths"
+      "kb_rules_paths",
+      "kb_load_set"
     ]
   },
   "x-result-by-worker": {
@@ -1741,6 +1745,11 @@
           "maxItems": 8,
           "description": "task-executor: the paper's inspect() — this scope's recent trials, CROSSING the round boundary (this round and the one before it), each with its score, kept/reverted status and top-3 digest. Absent when no trials.jsonl exists, which is the non-regression path. Token-bounded at 8 rows (~600 tokens) against an attempt_budget of 5 — cheaper than one re-proposed failed change."
         },
+        "kb_load_set": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Coachable workers, the plan step: the revisions of the rules the kernel chose for this order, written by `order open` (never by the loop or a worker) beside the compiled file `kb_rules_path` names. The dispatch receipt copies it, so which rules a dispatch had is a row. An empty list means the table was consulted and nothing applied."
+        },
         "kb_rules_path": {
           "type": "string",
           "description": "Coachable workers (task-executor, qa-edge-hunter, orient): shapeup/knowledge-base/<skill>.md — steering, never spec and never a gate; conflict → the AC, the contract or the gate wins, noted in deviations. The judge and the census are not coachable."
@@ -1898,6 +1907,11 @@
         "startedAt"
       ],
       "properties": {
+        "kb": {
+          "type": "object",
+          "description": "OPTIONAL — the loop's own rules, compiled when the run opened: `path` is the compiled file the gate agent reads (a general section, then one per gate), `load_set` the revisions it holds. Absent when the project has no rule table for the loop. Written by `init run`, never by the loop.",
+          "properties": { "path": { "type": "string" }, "load_set": { "type": "array", "items": { "type": "string" } } }
+        },
         "slug": {
           "type": "string",
           "description": "The feature slug this run builds — the aggregate root every path is keyed off."

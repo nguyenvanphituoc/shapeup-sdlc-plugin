@@ -13,7 +13,7 @@ import { join, relative, dirname } from "node:path";
 import { parseRule, normalizeText, revOf, idOf, slugOf, canonicalWhen, whenMatches, specificity, tokensOf, sha } from "../core/rules.mjs";
 import { SCHEMAS_DIR } from "../verify/envelope.mjs";
 import { GATE_IDS } from "./gates.mjs";
-import { knowledgeBaseDir, knowledgeRulesDir, kbCompiledDir } from "./paths.mjs";
+import { knowledgeBaseDir, knowledgeRulesDir, kbCompiledDir, projectProfile } from "./paths.mjs";
 import { checkNames } from "./checks.mjs";
 
 /** reader → its short code and the file names a consumer may still have it under. */
@@ -203,4 +203,74 @@ export function compile(cwd, reader, choice) {
   const p = join(kbCompiledDir(cwd), name);
   if (!existsSync(p)) { mkdirSync(dirname(p), { recursive: true }); writeFileSync(p, choice.text); }
   return p;
+}
+
+/** The reader an order's worker reads as, or null when the worker reads no rules (the judge). */
+export function readerOf(order) {
+  if (order?.worker === "building") return order.payload?.step ? "plan" : null;
+  return READERS[order?.worker] && order.worker !== "plan" && order.worker !== "building" ? order.worker : null;
+}
+
+/** The archetype the project profile declares, or null — read as a fact, never required. */
+export function archetypeOf(cwd, slug) {
+  try { return /^archetype:\s*["']?([a-z-]+)/m.exec(readFileSync(projectProfile(cwd, slug), "utf8"))?.[1] ?? null; } catch { return null; }
+}
+
+/**
+ * The facts an order exposes to a rule's `when`. Only what the order or the project already states: a key
+ * the order cannot supply is absent, and a rule conditioned on it does not load.
+ */
+export function factsOf(cwd, slug, order, extra = {}) {
+  const f = {};
+  if (order.operation) f.operation = [order.operation];
+  if (order.payload?.step) f.step = [order.payload.step];
+  const a = archetypeOf(cwd, slug); if (a) f.archetype = [a];
+  for (const [k, v] of Object.entries(extra)) if (v?.length) f[k] = [...(f[k] ?? []), ...v];
+  return f;
+}
+
+/**
+ * Choose the rules an order loads and point the order at them. Called by `order open`, before the order is
+ * validated and armed, so what the worker is told to read is what the receipt will say it had.
+ *
+ * With no rule table for the reader the order is left as it was — the legacy file is read, and one line says so.
+ * @param {string} cwd - Project root.
+ * @param {string} slug - Feature slug.
+ * @param {object} order - The parsed order; mutated.
+ * @param {{budget?: number, signals?: string[]}} [opt] - Budget and the order's signals.
+ * @returns {{reader: (string|null), applied: boolean, load_set: string[], checks: object[]}} What was done.
+ */
+export function applyToOrder(cwd, slug, order, opt = {}) {
+  const reader = readerOf(order);
+  if (!reader) return { reader: null, applied: false, load_set: [], checks: [] };
+  if (!hasTable(cwd, reader)) {
+    // Said only when there is a legacy file to be read: a project with no knowledge base has nothing to announce.
+    if (READERS[reader].legacy.some((n) => existsSync(join(knowledgeBaseDir(cwd), `${n}.md`)))) console.error(`kb: no rule table for ${reader} — its legacy file is read as before`);
+    return { reader, applied: false, load_set: [], checks: [] };
+  }
+  const choice = selectRules({ cwd, reader, facts: factsOf(cwd, slug, order, { signal: opt.signals }), budget: opt.budget ?? DEFAULT_BUDGET });
+  order.payload = order.payload ?? {};
+  const plural = reader === "plan";
+  delete order.payload.kb_rules_path; delete order.payload.kb_rules_paths;
+  if (choice.entries.length || choice.asks.length) {
+    const rel = relative(cwd, compile(cwd, reader, choice)).split("\\").join("/");
+    if (plural) order.payload.kb_rules_paths = [rel]; else order.payload.kb_rules_path = rel;
+  }
+  order.payload.kb_load_set = choice.load_set;
+  return { reader, applied: true, load_set: choice.load_set, checks: choice.checks };
+}
+
+/**
+ * The loop's own rules, compiled once per run: a general section, then one section per gate a rule is
+ * conditioned on. `building` is never dispatched, so it has no order to carry a load set; the launch
+ * record carries it instead, and the gate agent reads the section of the gate it is answering.
+ */
+export function compileBuilding(cwd) {
+  if (!hasTable(cwd, "building")) return null;
+  const rules = loadRules(cwd).filter((r) => !r.errors.length && r.readers.includes("building") && !["retired", "expired"].includes(r.meta.status));
+  const sections = [["general", rules.filter((r) => !r.meta.when?.gate)], ...GATE_IDS.map((g) => [g, rules.filter((r) => whenMatches(r.meta.when ?? {}, { gate: [g] }) && r.meta.when?.gate)])];
+  const load_set = [...new Set(rules.map((r) => r.rev))].sort();
+  const body = sections.filter(([, rs]) => rs.length).map(([name, rs]) => `## ${name}\n\n${rs.sort((a, b) => a.meta.id.localeCompare(b.meta.id)).map((r) => `- **${r.meta.id}** — ${r.body.replace(/\n+/g, " ")}`).join("\n")}\n`);
+  const text = [`<!-- load_set: ${load_set.join(",")} -->`, "# Rules for the loop and its gates", "", ...body].join("\n");
+  return { load_set, text, path: relative(cwd, compile(cwd, "building", { load_set, text })).split("\\").join("/") };
 }
