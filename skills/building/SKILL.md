@@ -20,7 +20,7 @@ again instead of remembering them.
 
 Every kernel command below is run exactly as written, on ONE line (a grant matches a single-line
 command; a `\`-continued one comes back "requires approval"). If a kernel command comes back "requires
-approval", stop and say so — the scripts need a one-time grant (`npx shapeup-sdlc init`); never route
+approval", stop and say so — the scripts need a one-time grant (`/shapeup-sdlc-plugin:init`, or `npx shapeup-sdlc init`); never route
 around it or hand-build the feature.
 
 ## Rules

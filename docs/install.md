@@ -44,14 +44,28 @@ Pin to a released version:
 > **Unattended, it is fatal.** There is nobody to approve, and the run cannot take its first step:
 > the session stalls into approval denial after approval denial until the agent gives up on the
 > harness and builds the feature by hand. Before any headless run, get the grant by
-> either running the scaffolding installer —
+> running the plugin's own init command once, in an interactive session opened in the project —
+>
+> ```
+> /shapeup-sdlc-plugin:init
+> ```
+>
+> — which runs the installer that came with the plugin (so it is always the same version) and writes
+> the grant, the harness block and the ignore rules, but does **not** register the plugin again at
+> project scope: you installed it already, and a second, project-scope copy would sit beside the first.
+> Pass `--dry-run` to see the plan or `--check` to see what is missing; neither writes. Then start a new
+> session, which is when Claude Code reads the `@AGENTS.md` import it added.
+>
+> For a team that wants the plugin to arrive with the repository, or for a machine with no
+> interactive session at all, run the scaffolding installer instead, which registers the plugin at
+> project scope as well —
 >
 > ```bash
 > npx shapeup-sdlc init -d . -y
 > ```
 >
-> — or copying the `permissions.allow` block out of `.claude/settings.local.example.json` into your
-> own settings. Both cover the kernel's one entry point (`kernel/harness.mjs`); the installer additionally
+> — or copy the `permissions.allow` block out of `.claude/settings.local.example.json` into your
+> own settings. Each covers the kernel's one entry point (`kernel/harness.mjs`); the installers additionally
 > writes the double-quoted spelling of the prefix, which is the form the skills' own invocation
 > lines use.
 

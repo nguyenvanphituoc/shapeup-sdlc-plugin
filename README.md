@@ -90,6 +90,10 @@ quickstart.
 > npx shapeup-sdlc init -d . -y
 > ```
 >
+> Installed the plugin from the marketplace already? Run `/shapeup-sdlc-plugin:init` once in each project
+> instead, in an interactive session: it writes the same grant from the plugin's own copy of the installer
+> and does not register the plugin a second time at project scope.
+>
 >
 > The loop runs in your own session, in the foreground, so print mode's background-task ceiling does
 > not apply to it. A killed session loses nothing: `/ship` again over the open run reads the artifacts on
@@ -107,7 +111,7 @@ installer, and troubleshooting are in
 ## Agent support
 
 **Claude Code is the supported harness.** Hooks are the row that never travelled when we compiled to other
-CLIs: the 7 skills, 2 slash commands and the kernel are portable prose and plain Node, but hook-enforced gates
+CLIs: the 7 skills, 3 slash commands and the kernel are portable prose and plain Node, but hook-enforced gates
 (envelope validation, the substrate fence, the safety spine, dispatch receipts) are a per-CLI mechanism, and
 without them a gate degrades from **enforced** to **instructed**.
 
@@ -181,7 +185,7 @@ populated; every arm is skipped when its artifact is absent, so older specs are 
 ### Commands
 
 `/ship` runs the whole lifecycle, and with a sub-command one activity of it. `/retro` files feedback and seeds the
-knowledge base. Every other step is a skill, typed by its own name, so the pipeline is still learnable from
+knowledge base. `/init` sets a project up for a plugin you already installed. Every other step is a skill, typed by its own name, so the pipeline is still learnable from
 `/`-completion alone. Names are written short here; the real name of each carries the
 `shapeup-sdlc-plugin:` prefix, which `/`-completion fills in for you and a script must spell out.
 
@@ -192,6 +196,7 @@ knowledge base. Every other step is a skill, typed by its own name, so the pipel
 | `/ship stop` | Cut-List Review | Must-have census, baseline comparison, cut list + ship verdict. |
 | `/ship intake` | Intake & Config | The language gate alone: a non-English pitch becomes a faithful English copy plus a glossary. |
 | `/retro` | after Ship Sign-off | File ship-gate feedback into the per-reader knowledge base; `--scan` and `--research <stack>` seed it. |
+| `/init` | before the first run | Set up a project for an already-installed plugin: the kernel grant, the harness block, the ignore rules. Does not register the plugin again; `--dry-run` and `--check` write nothing. Type it in full, `/shapeup-sdlc-plugin:init`: the bare `/init` is Claude Code's own command, which rewrites `CLAUDE.md`. |
 | `/shapeup` | Shaping | The skill. Shape a raw idea into a pitch: boundaries → breadboard → spike → `pitch.md`. |
 | `/orient` | Orient | The skill. Builder-led recon; spikes the riskiest area, writes no production code. |
 | `/task-executor` | Build | The skill. Implement one task's acceptance criteria exactly. |
@@ -327,7 +332,7 @@ kernel/core/          # the mechanism, free of any workflow: run trace + run key
 kernel/shapeup/       # the data this plugin hands the core: root names, gate table + evidence rules, contract layouts, ratchet names, floor
 kernel/lib/paths.mjs  # the path resolver every hook and `bin/init.mjs` import (a facade over kernel/shapeup/paths.mjs)
 kernel/schemas/       # the envelope port: WorkOrder, WorkResult, domain registry
-commands/*.md         # the 2 slash commands (/ship and /retro); every other step is a skill, typed by its name
+commands/*.md         # the 3 slash commands (/ship, /retro and /init); every other step is a skill, typed by its name
 hooks/                # hooks.json + the three walls: safety-spine, sandbox-guard (the substrate fence and the
                       #   committed-tier write check) — PreToolUse, beside the kernel's `verify envelope`
                       #   + dispatch-receipt (PostToolUse, denies nothing, attests which worker ran and what the host measured)
@@ -335,6 +340,8 @@ hooks/                # hooks.json + the three walls: safety-spine, sandbox-guar
 oracles/              # the evaluation-contract oracle registry (test · snapshot · http · process)
 bin/init.mjs          # `npx shapeup-sdlc init` — a list of steps that plan before they write: the AGENTS.md harness block, the ignore rules,
                       #   and per target (`--target claude|codex|both`) the grant and plugin wiring, or the Codex runtime, hooks, agents and skills
+bin/init-plugin.mjs   # what `/init` runs from the installed plugin: the same steps, without registering the plugin at project scope
+bin/lib/run-init.mjs  #   the installer both entry points share
 scripts/install-harness.sh, migrate.sh   # stable public entrypoints (fresh install / update)
 scripts/shapeup-sdlc/lib/                # shell libs both entrypoints source
 tools/                # repo-only: demo/

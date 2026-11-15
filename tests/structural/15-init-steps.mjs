@@ -56,6 +56,38 @@ export async function run(ctx) {
     check(init(["--target", "nope", "-y"]).status === 1, "an unknown target is refused");
   } finally { t.done(); }
 
+  // The plugin's own init command exists for one difference: it must not register the plugin again.
+  // A fake `claude` on PATH records every call, so the test sees the registration attempt itself, not
+  // only its trace in the settings file — and the npx entry point, run against the same fake, proves
+  // the fake is reached at all.
+  section("init — the plugin's own command does not register the plugin");
+  const bin = mkdtempSync(join(tmpdir(), "struct-fake-claude-"));
+  const marker = join(bin, "called");
+  writeFileSync(join(bin, "claude"), `#!/bin/sh\necho "$@" >> "${marker}"\nexit 0\n`, { mode: 0o755 });
+  const fakeEnv = { ...process.env, PATH: `${bin}:/usr/bin:/bin` };
+  const p = scratch("init-plugin"), n = scratch("init-npx");
+  try {
+    const go = (entry, d) => spawnSync(process.execPath, [join(ROOT, entry), "-d", d, "-y"], { cwd: d, encoding: "utf8", env: fakeEnv });
+    const viaPlugin = go("bin/init-plugin.mjs", p.dir);
+    const settings = JSON.parse(readFileSync(join(p.dir, ".claude/settings.json"), "utf8"));
+    const grant = ['Bash(node "*/kernel/harness.mjs" *)', 'Bash(node "*/kernel/harness.mjs")'];
+    check(viaPlugin.status === 0 && !existsSync(marker) && !settings.enabledPlugins && !settings.extraKnownMarketplaces
+      && grant.every((r) => settings.permissions.allow.includes(r)),
+      "bin/init-plugin.mjs writes the grant, calls no claude CLI and writes no plugin registration");
+    const plain = spawnSync(process.execPath, [join(ROOT, "bin/init-plugin.mjs"), "--check"], { cwd: p.dir, encoding: "utf8", env: fakeEnv });
+    check(plain.status === 0 && /ok {3}claude-grant/.test(plain.stdout), "…and its --check reports the project clean");
+    go("bin/init.mjs", n.dir);
+    check(existsSync(marker) && /plugin install --scope project/.test(readFileSync(marker, "utf8")),
+      "bin/init.mjs, against the same fake, does register the plugin at project scope");
+  } finally { p.done(); n.done(); rmSync(bin, { recursive: true, force: true }); }
+
+  // The command and the script it runs are two files; the command's line and its allowed-tools rule
+  // must both name the script, or the command either runs nothing or asks for approval every time.
+  const cmd = readFileSync(join(ROOT, "commands/init.md"), "utf8");
+  const allowed = cmd.match(/^allowed-tools:\s*(.+)$/m)?.[1] ?? "";
+  check(existsSync(join(ROOT, "bin/init-plugin.mjs")) && cmd.includes('node "${CLAUDE_PLUGIN_ROOT}/bin/init-plugin.mjs"') && allowed.includes('"*/bin/init-plugin.mjs"'),
+    "commands/init.md runs bin/init-plugin.mjs and its allowed-tools rule names the same script");
+
   section(`init — the installed tree matches ${BEFORE}, byte for byte`);
   const old = mkdtempSync(join(tmpdir(), "struct-init-old-"));
   const tar = spawnSync("sh", ["-c", `git -C "${ROOT}" archive ${BEFORE} | tar -x -C "${old}"`]);
