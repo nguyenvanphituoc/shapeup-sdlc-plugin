@@ -137,5 +137,36 @@ export async function run(ctx) {
     r = gate("L4", "ci");
     check(r.status === 0 && r.out?.models?.mismatch?.length === 0, "receipts of another run are ignored");
 
+    section("gate — Retro Ownership files only what the kernel's own ledgers show happened");
+    const P = await import(join(ROOT, "kernel/lib/paths.mjs"));
+    const L = await import(join(ROOT, "kernel/shapeup/learning.mjs"));
+    const coach = (answer) => gate("COACH-1", "ci", ["--answer", answer, "--by", "agent:gate-agent", "--note", "retro"]);
+    r = coach("skip");
+    check(r.status === 0 && r.out?.decision === "skip", "skip is still an answer, with or without candidates");
+    r = coach("file");
+    check(r.status === 0 && r.out?.decision === "skip" && r.out?.narrowed_from === "file" && rows().at(-1)?.decision === "skip", "file with no candidate file is narrowed to skip, and the ledger row says skip");
+    const metricsRow = JSON.stringify({ schema_version: 1, at: "2026-11-16T00:00:00Z", kind: "pathology", pathology: "PA3", slug: "w", blocked_paths: ["x"] });
+    put(cwd, join(".shapeup", "metrics", `${process.env.HOSTNAME || "local"}.jsonl`), `${metricsRow}\n`);
+    const trialRow = JSON.stringify({ schema_version: 1, trial: 1, round: 1, attempt: 1, scope_id: "a", status: "reverted", baseline_trial: null, score: { fixtures_passed: 1, fixtures_total: 5, db_probe: null } });
+    put(cwd, ".shapeup/w/t0/trials.jsonl", `${trialRow}\n`);
+    const cand = (c) => put(cwd, ".shapeup/w/learning/candidates.json", { schema_version: 1, candidates: [c] });
+    const base = { id: "C1", reader: "task-executor", class: "pathology.PA3", body: "Stay inside the substrate.", citations: [{ ledger: "metrics", run_id: null, row_digest: L.rowDigest(metricsRow) }] };
+    cand(base);
+    r = coach("file");
+    check(r.status === 0 && r.out?.decision === "file" && r.out?.candidates?.[0] === "C1" && rows().at(-1)?.decision === "file", "a candidate citing a real metrics row of a class that cost an attempt is filed");
+    cand({ ...base, citations: [{ ledger: "metrics", run_id: null, row_digest: L.rowDigest(metricsRow.replace("PA3", "PA9")) }] });
+    r = coach("file");
+    check(r.out?.decision === "skip" && r.out?.narrowed_from === "file", "a citation whose digest matches no ledger row is dropped, and with it the candidate (an edited row matches nothing)");
+    cand({ ...base, citations: [{ ledger: "decision-log", row_digest: "0000" }] });
+    r = coach("file");
+    check(r.out?.decision === "skip", "a citation to anything but a kernel ledger (a decision log, a pitch) never makes a candidate");
+    cand({ ...base, reader: "spec-evaluator" });
+    check(coach("file").out?.decision === "skip", "a candidate addressed to the judge is dropped: the judge is not coachable");
+    cand({ ...base, class: "made.up" });
+    check(coach("file").out?.decision === "skip", "a class outside the vocabulary is dropped");
+    put(cwd, ".shapeup/w/t0/trials.jsonl", `${JSON.stringify({ ...JSON.parse(trialRow), status: "kept" })}\n`);
+    cand(base);
+    check(coach("file").out?.decision === "skip", "a class that happened once and cost no attempt does not clear the threshold");
+
   } finally { s.done(); }
 }

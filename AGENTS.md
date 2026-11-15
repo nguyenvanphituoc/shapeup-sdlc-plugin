@@ -86,7 +86,7 @@ plain name; the last column is the machine id the same gate carries in `decision
 | QA Edge Hunt | Exploratory findings outside what the evaluation already probed — never a verdict | gate agent | `QA` |
 | Cut-List Review | The stop census and its baseline comparison — what ships, what's cut | gate agent | `H` |
 | Ship Sign-off | Final go/no-go, gated on the Cut-List Review's census | gate agent | `L4` |
-| Retro Ownership | Which skill owns each retro rule, before it's written to the knowledge base | gate agent | `COACH-1` |
+| Retro Ownership | Whether the run taught anything worth filing, and which skill owns each lesson, before it's written to the knowledge base | gate agent | `COACH-1` |
 
 **Note on Round Close:** a board with literally zero tasks can never auto-proceed here — the resolver forces
 a refusal no matter what is answered ("board 100%" of nothing proves nothing). A board

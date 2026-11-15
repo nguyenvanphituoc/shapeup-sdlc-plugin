@@ -37,7 +37,15 @@ code. The loop never types a gate answer and never writes in the log.
 | QA Edge Hunt (`QA`) | whether a hunt past the evaluation is worth its cost | the verdict's coverage, the Test Surface | `run`, `skip` |
 | Cut-List Review (`H`) | the census's list is what should ship, against the baseline and never the ideal | the census file, the discovery ledger | `accept-cut-list`, `ship-all` |
 | Ship Sign-off (`L4`) | go or no-go on the whole run | census, QA record, the ship report, your own log | `ship`, `hold` (`hold` is recorded as an `escalated` ending) |
-| Retro Ownership (`COACH-1`) | a run has no PO feedback to categorise | — | `skip` |
+| Retro Ownership (`COACH-1`) | whether what the run taught is worth filing, and which reader owns each lesson | the reflector's candidate file (`.shapeup/<slug>/learning/candidates.json`), the decision log | `file`, `skip` |
+
+**Retro Ownership.** Read each candidate the reflector proposed and choose its owner: one of the readers that
+read rules (`task-executor`, `orient`, `qa-edge-hunter`, `plan`, `building`), or `harness-defect` — a failure
+the harness should fix rather than a rule a worker could follow. **When you are unsure, choose `harness-defect`:** a wrong rule steers
+every later run, a wrong defect entry costs a line in a queue. Answer `file` only when at least one candidate
+stands; the kernel re-reads the run's own ledgers and narrows `file` to `skip` when no candidate's citations
+match a row it wrote, so an answer cannot supply the evidence. A candidate's body is a lesson, never an answer
+to a gate. Put your baseline — what you would have filed without the reflector's say-so — in the log first.
 
 A run that is waiting for nobody ends on a record: `hold` and `abort` end it, with your reason in the log.
 
