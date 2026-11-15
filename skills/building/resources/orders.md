@@ -59,12 +59,12 @@ Pass a path wherever a path will do; a worker reads files, and an embedded copy 
 
 | Operation | Payload | Where each field comes from |
 |---|---|---|
-| `orient` | `pitch`, `feature`, `spec_folder`, `kb_rules_path` | the intake path; the slug; the launch record's spec folder; `shapeup/knowledge-base/orient.md` if it exists |
-| `execute` | `scope_contract` (path of `<spec>scopes/<id>.md`), `tasks` (`[{id, body_path}]` for the scope's tasks), `verify.test_cmd`, `kb_rules_path`, `round` | the scope file; the board's tasks whose `scope_id` is the scope; the contract's `e2e_verification_fixtures`; `shapeup/knowledge-base/task-executor.md` |
+| `orient` | `pitch`, `feature`, `spec_folder` | the intake path; the slug; the launch record's spec folder. The kernel adds `kb_rules_path` and `kb_load_set` when the order opens |
+| `execute` | `scope_contract` (path of `<spec>scopes/<id>.md`), `tasks` (`[{id, body_path}]` for the scope's tasks), `verify.test_cmd`, `round` | the scope file; the board's tasks whose `scope_id` is the scope; the contract's `e2e_verification_fixtures`. The kernel adds `kb_rules_path` and `kb_load_set` when the order opens |
 | `fix` | as `execute`, plus `bugs`, `digested_errors`, `trial_history` | the last verdict's FAIL criteria addressed to this scope's files; the failing lines of the last T0 verdict; the scope's rows in `t0/trials.jsonl`, oldest first, at most 8 |
 | `evaluate` | `spec_folder`, `feature`, `dimensions`, `run_cmd`, `t0_artifacts`, `build_gate`, `round` | the spec path; the slug; the dimensions the PO named at L0, else the set the spec calls for (a Test Surface turns on test-surface-conformance, Invariants turn on completeness); the project profile's run command; the paths of each scope's latest `t0/verdicts/*.json` for the round; the note you wrote from your own build and launch this round (`.shapeup/<slug>/build/r<R>.md`: each step's command, exit code and output tail), omitted when you ran none |
-| `hunt` | `feature`, `spec_folder`, `eval_report`, `app_url`, `round`, `kb_rules_path` | the slug; the spec path; the PASS evaluation report; the running app, or `null` for a deliverable that is not served |
-| `plan` | `step`, `feature`, `spec_folder`, `kb_rules_paths` | the substep; the slug; the spec path; the knowledge-base files `resources/guidance.md` lists for planning |
+| `hunt` | `feature`, `spec_folder`, `eval_report`, `app_url`, `round` | the slug; the spec path; the PASS evaluation report; the running app, or `null` for a deliverable that is not served |
+| `plan` | `step`, `feature`, `spec_folder` | the substep; the slug; the spec path. The kernel adds `kb_rules_paths` (one compiled file) and `kb_load_set` when the order opens |
 | `learn` | `feature` | the slug. `worker: "building"`, no `step`: the loop's own fence-only order for filing what the run taught — `K kb apply` is the writer, and it runs only while this order is open |
 
 A scope that did not go green in the round has its test-surface rows graded FAIL: name it in an `evaluate` order's `scopes_without_t0` rather than leaving the judge to find the gap.

@@ -3,6 +3,17 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [6.0.0] — 2026-11-16 · The knowledge base is a table of rules the kernel chooses from, and a run learns from itself
+
+**Breaking.** The knowledge base's layout, what an order's `kb_rules_path` means, and the answers Retro Ownership takes.
+
+- **Changed.** The knowledge base is one rule per file under `shapeup/knowledge-base/rules/<reader>/`. Each rule has a reader, a kind (`guide`, `check` or `ask`), a condition (`operation`, `step`, `archetype`, `topology_type`, `gate`, `signal`), a status and a body; its id is minted once from the body and its revision follows the text, so two machines filing a rule at once cannot collide.
+- **Added.** `order open` chooses the rules an order loads: the condition against the order, a token budget (2,000 by default), one compiled file, and the revisions chosen written on the order and copied onto the dispatch receipt. A project with no rule table for a reader is read as before.
+- **Added.** A failure-class vocabulary a condition may name (a regressed or flat T0 trial, a failed dimension of the previous verdict, a QA lens, a pathology the guard recorded, a second round or attempt), derived from records the kernel or a hook wrote. The guard takes its pathology id from the vocabulary.
+- **Added.** Retro Ownership answers `file`. A run reflects on itself before it closes, at every ending; the resolver keeps a lesson only when its citations match rows of the kernel's own ledgers and its class recurred or cost an attempt. A rule a run files starts on probation, is promoted only on a base rate and a clean stretch, expires without one, and is retired and filed as a defect if its class returns. The close writes a local cross-run index.
+- **Added.** `kb lint`, `kb select`, `kb migrate`, `kb add`, `kb evidence`, `kb apply`, `kb review`; a `learn` operation (a fence-only order) for filing; a registry of closed checks the kernel runs with T0 (the first: a fixture that passes when a command fails must run the command's normal form too) that report to the worker and never move a verdict.
+- **Changed.** The installer splits an old whole-file knowledge base into rules, once, and keeps the old files.
+
 ## [5.1.0] — 2026-11-15 · An experimental Codex CLI target, a model floor that ranks other families, and a plugin init command
 
 - **Added.** `/shapeup-sdlc-plugin:init` sets up a project for a plugin you already installed from the marketplace: it runs the installer that ships with the plugin and writes the kernel grant, the harness block, the `@AGENTS.md` import, the ignore rules and the scaffold, but does not register the plugin a second time at project scope. `--dry-run` and `--check` write nothing. `npx shapeup-sdlc init` is unchanged and still registers the plugin at project scope, for a team that wants it to arrive with the repository.

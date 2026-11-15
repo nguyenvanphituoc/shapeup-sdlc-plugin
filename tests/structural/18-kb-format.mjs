@@ -3,6 +3,7 @@
 import { join } from "node:path";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { createHash } from "node:crypto";
+import { spawnSync } from "node:child_process";
 import { scratch, put, kernel, existsSync } from "../lib/fixture.mjs";
 
 const tree = (dir) => {
@@ -96,6 +97,20 @@ export async function run(ctx) {
       } finally { crowded.done(); }
     }
   } finally { s.done(); }
+
+  section("kb format — the installer splits a 5.x knowledge base, once, and keeps the old files");
+  {
+    const t = scratch("kbinit", { git: true });
+    try {
+      put(t.dir, "shapeup/knowledge-base/task-executor.md", "- **KB-TE-001** — A legacy rule kept from 5.x.\n");
+      const init = () => spawnSync(process.execPath, [join(ROOT, "bin/init.mjs"), "-d", t.dir, "-y"], { cwd: t.dir, encoding: "utf8", env: { ...process.env, PATH: "/usr/bin:/bin" } });
+      const a = init(); const once = tree(join(t.dir, "shapeup/knowledge-base/rules"));
+      const b = init();
+      check(a.status === 0 && once.length > 0 && /1 rule file/.test(a.stdout), "init writes one rule file for the old rule");
+      check(b.status === 0 && tree(join(t.dir, "shapeup/knowledge-base/rules")) === once && /0 rule file/.test(b.stdout), "init run twice does not duplicate a rule");
+      check(readFileSync(join(t.dir, "shapeup/knowledge-base/task-executor.md"), "utf8").includes("KB-TE-001"), "the old file is untouched");
+    } finally { t.done(); }
+  }
 
   section("kb format — this repository's own rule table is clean");
   const own = kernel(ROOT, ["kb", "lint", "--cwd", ROOT], { cwd: ROOT });

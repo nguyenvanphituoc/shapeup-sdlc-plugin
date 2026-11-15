@@ -24,6 +24,7 @@ import { createInterface } from "node:readline";
 import { apply } from "./steps/fsx.mjs";
 import { agentsMdStep } from "./steps/agents-md.mjs";
 import { gitignoreStep } from "./steps/gitignore.mjs";
+import { kbStep } from "./steps/kb.mjs";
 import { scaffoldStep } from "./steps/scaffold.mjs";
 import { TARGETS, TARGET_NAMES } from "./targets/index.mjs";
 import { claudeInstalled } from "./targets/claude/index.mjs";
@@ -89,7 +90,7 @@ To register it for the whole team, run \`npx shapeup-sdlc init\` instead.`}`;
   // The order is the order the installer has always worked in: the harness block, the target's own
   // steps, then the ignore rules and the scaffold.
   const wanted = targetName === "both" ? [targets.claude, targets.codex] : [chosen];
-  const steps = [agentsMdStep, ...wanted.flatMap((t) => t.steps()), gitignoreStep, scaffoldStep];
+  const steps = [agentsMdStep, ...wanted.flatMap((t) => t.steps()), gitignoreStep, scaffoldStep, kbStep];
 
   if (check) {
     let bad = 0;

@@ -29,7 +29,7 @@ export const SHARED_DIR = "_shared";
 export const KINDS = ["guide", "check", "ask"];
 export const STATUSES = ["active", "probation", "retired", "expired"];
 /** The default token budget for one order's compiled file. */
-export const DEFAULT_BUDGET = 1500;
+export const DEFAULT_BUDGET = 2000;
 /** A body longer than this reads as an essay, and an essay is not loaded twice. */
 export const MAX_BODY_WORDS = 140;
 
