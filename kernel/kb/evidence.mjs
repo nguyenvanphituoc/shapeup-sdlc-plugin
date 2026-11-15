@@ -36,6 +36,6 @@ export function cli(rawArgv) {
     out.push({ ledger: "trials", row_digest: rowDigest(l), run_id: r.run_id ?? null, class: klass, summary: `scope ${r.scope_id} round ${r.round} attempt ${r.attempt}: ${r.status}${r.delta ? ` (${r.delta})` : ""}` });
   });
   for (const l of rowsOf(LEDGERS.gates(cwd, slug))) { const r = J(l); if (r?.decision === "loop") out.push({ ledger: "gates", row_digest: rowDigest(l), run_id: r.run_id ?? null, class: "round.ge2", summary: `${r.gate} answered loop (round ${r.round ?? "?"})` }); }
-  console.log(JSON.stringify({ ok: true, classes: runClasses(cwd, slug), attempts_cost: attemptsCost(cwd, slug), earlier_runs: readIndex(cwd).filter((r) => r.slug === slug || true).length, rows: out }, null, 2));
+  console.log(JSON.stringify({ ok: true, classes: runClasses(cwd, slug), attempts_cost: attemptsCost(cwd, slug), earlier_runs: readIndex(cwd).filter((r) => r.slug !== slug).length, rows: out }, null, 2));
   process.exit(0);
 }

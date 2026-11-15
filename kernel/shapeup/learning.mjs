@@ -46,6 +46,8 @@ export function citationHolds(cwd, slug, c) {
     if (!row) continue;
     if (c.ledger === "metrics" && row.slug !== slug) continue;
     if (row.run_id && c.run_id && row.run_id !== c.run_id) continue;
+    // A receipt the host did not attest is the worker's own word — it can never be the reason for a rule.
+    if (c.ledger === "receipts" && row.attestation !== "host") continue;
     return true;
   }
   return false;

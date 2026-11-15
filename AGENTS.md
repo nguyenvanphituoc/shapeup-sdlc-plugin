@@ -32,6 +32,7 @@ The five things above are described for Claude Code, where every one is wired. O
 | The write fence and the tier-direction rule | yes | yes, from the patch text; payload shapes not yet measured |
 | The safety spine on shell commands | yes | yes; reads of secret files are not guarded |
 | The dispatch receipts | yes | **no** — the host does not attest a dispatch; a worker states which skill it loaded, and that row is labelled as the worker's own word |
+| A lesson cited from a dispatch receipt | yes | **no** — a receipt there is the worker's own word, so it can never nominate a lesson |
 | The rule selector (the kernel chooses the rules an order loads) | yes | yes — it is a command run when the order opens; the receipt that records the set is the worker's own word on Codex |
 | A dispatch without a valid WorkOrder is refused | yes | **no** — the loop validates the order itself |
 | A worker limited to a short tool list | yes | **no** |

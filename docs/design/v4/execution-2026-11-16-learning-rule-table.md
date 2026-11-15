@@ -45,3 +45,11 @@ Script nằm trong scratchpad của phiên, không commit. Mỗi dòng ghi lện
 - Q6 (token gate agent) chưa đo, cùng lý do.
 - Ba quyết định PO (§6) dùng giá trị đề xuất: ngân sách 2.000 (theo Q2, không phải 1.500), N = 3, M = 10, ngưỡng chốt 2 như plan, `_shared/` **chưa làm** (lint chấp nhận thư mục `_shared` cho rule nhiều reader, bộ chọn chỉ nạp được rule có đúng một reader dưới `<reader>/` và rule `_shared` có reader trong danh sách), fallback 5.x giữ hết dòng 6.x. Mục 6 của plan (HD cho PA3 ngay) chưa làm: PA3 giờ tự thành candidate khi lớp lỗi lặp lại.
 - Xung đột `status` giữa máy (§5): chưa có `kb migrate --resolve-status`; thứ tự ưu tiên `retired` > `expired` > `active` > `probation` chưa mã hoá.
+- Hai giới hạn đã biết của chốt 1: (a) một citation chỉ được kiểm là *tồn tại* trong ledger của kernel, không kiểm là *liên quan* tới lớp lỗi của candidate — lớp lỗi được xác nhận riêng bằng `runClasses`; (b) kết quả đánh giá (`evaluate-r*.json`, "verdict FAIL" của chốt 1) chưa là ledger được trích, nên lesson `eval.fail.*` và `qa.lens.*` hiện chỉ trích được một dòng metrics/trial/gate khác. Receipt không do host chứng thực (Codex) bị từ chối làm nguồn.
+- Dự án kiểm: đã `git init` và một commit `seed` trong `proj-shapeup-sdlc-plugin-testing` (trước đó không phải repo); trạng thái tổng hợp của `verify:learning` đã được dọn.
+
+## Chạy lại khi quyền gọi model có lại
+
+```bash
+cd ../proj-shapeup-sdlc-plugin-testing && claude -p "/shapeup-sdlc-plugin:ship shapeup/hello/pitch.md --max-rounds 2" --plugin-dir ../proj-shapeup-sdlc-plugin --permission-mode acceptEdits --model sonnet --max-budget-usd 25
+```

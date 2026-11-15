@@ -38,6 +38,9 @@ export async function run(ctx) {
       check(L.verifyCandidates(t.cwd, SLUG).kept.length === 0, "a citation of a row edited by hand matches nothing");
       t.cand({ ...t.good, citations: [{ ledger: "pitch", row_digest: "abc" }] });
       check(L.verifyCandidates(t.cwd, SLUG).dropped[0]?.reason.includes("no citation"), "a candidate whose only source is the pitch is dropped before the gate");
+      const rcpt = (att) => JSON.stringify({ order_id: "w/x", run_id: null, skill_invoked: "task-executor", attestation: att });
+      put(t.cwd, ".shapeup/w/receipts/dispatch.jsonl", `${rcpt("host")}\n${rcpt("worker-reported")}\n`);
+      check(L.citationHolds(t.cwd, SLUG, { ledger: "receipts", run_id: null, row_digest: L.rowDigest(rcpt("host")) }) && !L.citationHolds(t.cwd, SLUG, { ledger: "receipts", run_id: null, row_digest: L.rowDigest(rcpt("worker-reported")) }), "a host-attested receipt can be cited; a worker-reported one (Codex) cannot nominate a lesson");
       const ev = t.k(["kb", "evidence", "--slug", SLUG]);
       check(ev.status === 0 && ev.out?.rows?.some((r) => r.ledger === "metrics" && r.row_digest === L.rowDigest(t.metricsRow) && r.class === "pathology.PA3"), "kb evidence lists the metrics row with the digest to cite it by");
     } finally { t.s.done(); }
