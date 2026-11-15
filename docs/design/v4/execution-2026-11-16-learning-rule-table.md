@@ -25,3 +25,23 @@ Script nằm trong scratchpad của phiên, không commit. Mỗi dòng ghi lện
 - Q1: đọc theo chữ ("có khoá ngoài reader") là 100%, đọc theo ý ("khoá phân biệt được order") là 54,5% < 80%. Chọn cách đọc nghiêm hơn. Hệ quả theo bảng quyết định: L1 làm đủ; L2 chỉ *bắt buộc* bộ chọn tối thiểu (reader + operation) — nhưng bộ chọn đầy đủ (thêm `step`, `archetype`, `gate`, `signal`) đã được làm vì L3 cần `signal` và chi phí thêm không đáng kể. Phần dư không phải là rủi ro: khoá không có trên order thì rule điều kiện theo nó không nạp.
 - Q2: trung vị 1.043 ≤ 1.500, nên Go; p95 2.035 nên ngân sách mặc định đặt **2.000** (đề xuất của Q2 theo plan), không phải 1.500.
 - Q4: fence chặn → không phải viết lại L5. Q5: không đổi resolver.
+
+## L1–L8 — kết quả
+
+| Stage | Commit | Cổng | Kết quả |
+|---|---|---|---|
+| L1 định dạng, hash, lint, migrate | `feat(kernel): add the rule table format…` | `npm test` xanh, 12-layers xanh, migrate hai lần cùng cây | 3 rule `task-executor` thành 3 file; mỗi luật lint có fixture đỏ và xanh |
+| L2 bộ chọn trong `order open` | `…choose the rules an order loads…` | receipt mang `kb_load_set`, hai lần chạy cùng `load_set`, `verify:cross-dir` xanh | `git diff --stat skills/*/SKILL.md` rỗng ở L2. Chỉ mục `.shapeup/_kb/index-*.json` **không làm** (chỉ là bộ nhớ đệm; lint và bộ chọn đọc cây trực tiếp, chưa thấy cần) |
+| L3 `KbSignal` | `…failure-class vocabulary…` | mọi giá trị có nơi phát, test duyệt mã nguồn | 18 giá trị; guard lấy `PA3` từ enum |
+| L4 `file` ở Retro Ownership | `…Retro Ownership file…` | test gate cũ không đổi kết quả | resolver đọc lại ledger và tính lại digest; ngưỡng chốt 2 do kernel tính |
+| L5 reflector, order `learn` | `…reflect on every ending…` | fence chặn ngoài substrate; chỉ mục ghi bởi `order close` | thêm `kb evidence`, `kb apply`, `kb add`; golden `envelope/retired-operation` đổi đúng một chỗ (danh sách operation thêm `learn`) |
+| L6 probation | `…promote, expire or retire…` | chuỗi không base rate không bao giờ thăng hạng | thêm trường `targets` (lớp lỗi rule nhắm tới) tách khỏi `when`: một rule điều kiện theo chính lớp lỗi chỉ nạp khi lớp lỗi đang có, nên không thể đo "lớp lỗi vắng" |
+| L7 registry | `…closed-check registry…` | check không đổi gate/verdict | KB-TE-002 thành `check`, guide cũ `retired` |
+| L8 tài liệu, 6.0.0 | `…document the rule table and release 6.0.0` | `npm test` 514 checks 0 failure; `claude plugin validate --strict` cả hai manifest; demo chạy lại không lệch | audit: không path nội bộ trong tập ship, không mã gate ngoài bảng, version khớp |
+
+## Cái chưa làm được, nói thẳng
+
+- **Không có phiên lồng thật với model.** `claude -p` từ trong phiên này trả `403 oauth_not_allowed_for_organization` (cả với câu lệnh `say ok`), nên các điều kiện "một phiên lồng thật" của L2, "hai run thật" của L5 và "ba run thật" của L6 **chưa được kiểm bằng model**. Thay bằng `npm run verify:learning` (`tools/verify-learning-loop.mjs`): tự đóng vai loop, chạy các verb kernel và hook thật trong một thư mục dự án thật (đã chạy trên `proj-shapeup-sdlc-plugin-testing`), hai kết thúc `shipped` và `escalated`. Nó chứng minh các bản ghi kernel và hook ghi là các bản ghi mà việc ghi rule đọc, và rule sinh ra ở run 1 được nạp ở run 2 rồi bị retire khi lớp lỗi quay lại. Nó **không** chứng minh một model làm theo `reflect.md`. Việc đó cần chạy `/ship` thật khi quyền gọi model có lại.
+- Q6 (token gate agent) chưa đo, cùng lý do.
+- Ba quyết định PO (§6) dùng giá trị đề xuất: ngân sách 2.000 (theo Q2, không phải 1.500), N = 3, M = 10, ngưỡng chốt 2 như plan, `_shared/` **chưa làm** (lint chấp nhận thư mục `_shared` cho rule nhiều reader, bộ chọn chỉ nạp được rule có đúng một reader dưới `<reader>/` và rule `_shared` có reader trong danh sách), fallback 5.x giữ hết dòng 6.x. Mục 6 của plan (HD cho PA3 ngay) chưa làm: PA3 giờ tự thành candidate khi lớp lỗi lặp lại.
+- Xung đột `status` giữa máy (§5): chưa có `kb migrate --resolve-status`; thứ tự ưu tiên `retired` > `expired` > `active` > `probation` chưa mã hoá.

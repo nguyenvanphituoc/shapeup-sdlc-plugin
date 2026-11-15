@@ -23,11 +23,12 @@ export async function run(ctx) {
     put(cwd, `.shapeup/${SLUG}/t0/trials.jsonl`, [trial(1, "kept", 4, null), trial(2, "reverted", 2, 1)].map((r) => JSON.stringify(r)).join("\n") + "\n");
     const mk = (id, operation) => put(cwd, `.shapeup/${SLUG}/orders/${id}.json`, {
       schema_version: 1, order_id: `${SLUG}/${id}`, worker: "task-executor", mode: "orchestrated", operation,
-      payload: { scope_contract: "shapeup/w/scopes/sc-a.md" }, substrate: { allowed: ["src/**"], frozen: [], own: [] },
+      payload: { scope_contract: { scope_id: "sc-a" } }, substrate: { allowed: ["src/**"], frozen: [], own: [] },
     });
     const open = (p) => kernel(ROOT, ["order", "open", "--slug", SLUG, "--order", p, "--cwd", cwd], { cwd });
     const text = (p) => readFileSync(join(cwd, json(p).payload.kb_rules_path), "utf8");
-    const fix = mk("r2-a1", "fix"); open(fix);
+    const fix = mk("r2-a1", "fix");
+    check(open(fix).status === 0, "the fix order is a valid order and opens");
     check(/te-aaaaaaaa/.test(text(fix)), "a fix order after a regressed trial loads the rule conditioned on t0.regressed");
     const ex = mk("r1-a1", "execute"); open(ex);
     check(!/te-aaaaaaaa/.test(text(ex)) && /te-bbbbbbbb/.test(text(ex)), "the same rule does not load in an execute order of round 1");

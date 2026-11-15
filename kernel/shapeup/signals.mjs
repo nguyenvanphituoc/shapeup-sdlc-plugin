@@ -38,7 +38,8 @@ export function signalsFor(cwd, slug, order) {
   // A first build has no history to be classified by: failure classes are read only for a fix or a later round.
   if (order?.operation !== "fix" && round < 2) return [...out].sort();
 
-  const scope = order?.payload?.scope_contract ? basename(String(order.payload.scope_contract), ".md") : null;
+  const sc = order?.payload?.scope_contract;
+  const scope = (typeof sc === "string" ? basename(sc, ".md") : sc?.scope_id) || null;
   const t = rows(trialsPath(cwd, slug)).filter((r) => !scope || r.scope_id === scope);
   const last = t.at(-1);
   if (last && last.status !== "kept") {

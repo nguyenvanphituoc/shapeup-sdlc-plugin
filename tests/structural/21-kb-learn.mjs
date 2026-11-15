@@ -60,6 +60,8 @@ export async function run(ctx) {
       const added = r.out?.applied?.[0];
       check(r.status === 0 && added?.op === "ADD" && existsSync(join(t.cwd, added.file)) && /status: probation/.test(readFileSync(join(t.cwd, added.file), "utf8")), "a verified candidate becomes a rule file on probation");
       check(t.k(["kb", "lint"]).status === 0, "and the table is clean");
+      const again = t.k(["kb", "apply", "--slug", SLUG, "--delta", delta([{ op: "ADD", from_candidate: "C1" }])]);
+      check(again.status === 0 && /already filed as probation/.test(again.out?.applied?.[0]?.skipped ?? ""), "the same lesson filed again is not a second rule");
       t.cand([t.good, { id: "C2", reader: "harness-defect", class: "pathology.PA3", body: "The guard denies a write the order's own result path needs.", citations: t.good.citations }]);
       r = t.k(["kb", "apply", "--slug", SLUG, "--delta", delta([{ op: "DEFECT", from_candidate: "C2" }])]);
       check(r.status === 0 && /\*\*HD-001\*\*/.test(readFileSync(join(t.cwd, "shapeup/knowledge-base/harness-defects.md"), "utf8")), "a harness-defect candidate is filed to the defect register with an HD id");

@@ -43,6 +43,9 @@ export function applyDelta({ cwd, slug, delta, date }) {
       const body = normalizeText(op.body ?? c.body ?? "");
       if (!body) { problems.push(`ADD: candidate ${c.id} has no body`); continue; }
       const reader = c.reader; const id = idOf(READERS[reader].code, body);
+      // The same lesson filed again is not a new rule — and must not reset a promoted or retired one to probation.
+      const have = find(id);
+      if (have) { applied.push({ op: "ADD", id, skipped: `already filed as ${have.meta.status}`, candidate: c.id }); continue; }
       const p = join(knowledgeRulesDir(cwd), reader, `${id}.${slugOf(body)}.md`);
       touch(p); mkdirSync(dirname(p), { recursive: true });
       writeFileSync(p, renderRule({ id, reader, kind: op.kind ?? "guide", when: op.when ?? c.when ?? {}, targets: c.class, status: "probation" }, body));
