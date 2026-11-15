@@ -3,7 +3,10 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
-## [5.1.0] — 2026-11-14 · An experimental Codex CLI target, and a model floor that ranks other families
+## [5.1.0] — 2026-11-15 · An experimental Codex CLI target, a model floor that ranks other families, and a plugin init command
+
+- **Added.** `/shapeup-sdlc-plugin:init` sets up a project for a plugin you already installed from the marketplace: it runs the installer that ships with the plugin and writes the kernel grant, the harness block, the `@AGENTS.md` import, the ignore rules and the scaffold, but does not register the plugin a second time at project scope. `--dry-run` and `--check` write nothing. `npx shapeup-sdlc init` is unchanged and still registers the plugin at project scope, for a team that wants it to arrive with the repository.
+- **Added.** On Codex, where the host does not attest a dispatch, a worker states which skill it loaded, and the dispatch receipt carries that row labelled as the worker's own word (`attestation: "worker-reported"`). Nothing a gate reads changes.
 
 - **Added.** `npx shapeup-sdlc init --target codex` (and `--target both`): the runtime is copied to a versioned directory under the home, the two guard hooks are merged into the user's Codex hooks file, the workers become Codex agent definitions, and the skills — with `ship` and `retro` rewritten as skills — go under the user's skills folder. Nothing machine-specific is written into the project. `--dry-run` and `--check` are new on every target, and `--home` redirects the per-user files.
 - **Experimental.** Codex's hook payloads are taken from OpenAI's documentation and have not been measured against a live session. Wired on Codex: the write fence, the tier-direction rule and the safety spine. Not wired: the dispatch receipts, the order-validation hook and the read guard. `SECURITY.md` and `AGENTS.md` say so.
