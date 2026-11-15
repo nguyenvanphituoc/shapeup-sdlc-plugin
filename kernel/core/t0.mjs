@@ -560,6 +560,10 @@ export async function cli(rawArgv, profile) {
     check_files: checkFiles(fixtures.results.map((r) => r.cmd), cwd),
     named_results: namedResults(fixtures.results),
   };
+  // Closed checks the workflow's rules ask for. They report on what the scope declared and never move the verdict or
+  // the score; a profile that has none, or whose checks throw, leaves the run exactly as it was.
+  let ruleChecks = [];
+  try { ruleChecks = profile.ruleChecks ? profile.ruleChecks({ cwd, slug: slugFromPath(contractPath), fixtures: unitFixtures ?? [] }) : []; } catch { ruleChecks = []; }
 
   // ---- the ratchet ---------------------------------------------------------------------
   // `current` is the incumbent: the score of the most recent trial whose TREE is the one on disk
@@ -604,6 +608,7 @@ export async function cli(rawArgv, profile) {
     ...(Object.keys(checks.check_files).length ? { check_files: checks.check_files } : {}),
     ...(Object.keys(checks.named_results).length ? { named_results: checks.named_results } : {}),
     ...(revised.length ? { revised_checks: revised } : {}),
+    ...(ruleChecks.length ? { rule_checks: ruleChecks } : {}),
   });
 
   // The tree operation. `--no-ratchet` leaves the working tree exactly as the attempt left it —
@@ -659,6 +664,7 @@ export async function cli(rawArgv, profile) {
     path, sha256: hash, trial, overall: verdict.overall,
     score: s, status, baseline_trial: row.baseline_trial, delta: row.delta,
     tree_ref: row.tree_ref ?? keptRef(unitId),
+    ...(ruleChecks.length ? { rule_checks: ruleChecks } : {}),
   }, null, 2));
   process.exit(verdict.overall === "green" ? 0 : 1);
 }

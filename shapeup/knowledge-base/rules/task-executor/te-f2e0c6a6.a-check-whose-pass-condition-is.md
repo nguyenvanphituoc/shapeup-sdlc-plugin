@@ -3,7 +3,7 @@ id: te-f2e0c6a6
 reader: task-executor
 kind: guide
 when: {}
-status: active
+status: retired
 aliases: ["KB-TE-002"]
 ---
 

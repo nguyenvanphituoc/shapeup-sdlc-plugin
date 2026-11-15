@@ -39,6 +39,7 @@ const MODULES = [
   "20-kb-signal.mjs",
   "21-kb-learn.mjs",
   "22-kb-probation.mjs",
+  "23-kb-checks.mjs",
 ];
 
 // The floor: a refactor that silently deletes checks must fail loudly rather than read green.

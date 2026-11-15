@@ -14,7 +14,7 @@ import { parseRule, normalizeText, revOf, idOf, slugOf, canonicalWhen, whenMatch
 import { SCHEMAS_DIR } from "../verify/envelope.mjs";
 import { GATE_IDS } from "./gates.mjs";
 import { knowledgeBaseDir, knowledgeRulesDir, kbCompiledDir, projectProfile } from "./paths.mjs";
-import { checkNames } from "./checks.mjs";
+import { checkNames, paramProblems } from "./checks.mjs";
 import { signalsFor } from "./signals.mjs";
 
 /** reader → its short code and the file names a consumer may still have it under. */
@@ -119,7 +119,7 @@ export function lintRules(cwd) {
     }
     if (m.id && r.rel.split("/").pop().split(".")[0] !== m.id) add(r, "filename", `the file name starts with the id: ${m.id}.<slug>.md`);
     if (r.rev) { if (byRev.has(r.rev)) add(r, "rev-duplicate", `says the same thing as ${byRev.get(r.rev)} (same reader, kind, when and body)`); byRev.set(r.rev, r.rel); }
-    if (m.status === "active") { const sig = `${r.readers.join(",")}|${canonicalWhen(when)}`; sigCount.set(sig, (sigCount.get(sig) ?? 0) + 1); if (sigCount.get(sig) === 4) add(r, "crowded", "more than 3 active rules share one reader and one `when` — merge them or narrow one"); }
+    if (m.status === "active" && (m.kind ?? "guide") !== "check") { const sig = `${r.readers.join(",")}|${canonicalWhen(when)}`; sigCount.set(sig, (sigCount.get(sig) ?? 0) + 1); if (sigCount.get(sig) === 4) add(r, "crowded", "more than 3 active rules share one reader and one `when` — merge them or narrow one"); }
     const words = r.body.split(/\s+/).filter(Boolean).length;
     if (words > MAX_BODY_WORDS) add(r, "long", `${words} words; keep a rule to about ${MAX_BODY_WORDS} or split it`);
     if (/\.shapeup\//.test(r.body) || /\bTASK-\d+/.test(r.body)) add(r, "tier", "a rule is committed: it cannot name a run-trace path or a board id, which resolve only where they were written");
@@ -128,6 +128,8 @@ export function lintRules(cwd) {
     if (IMPERATIVE_GATE.test(r.body)) add(r, "gate-answer", "a rule never tells a gate what to answer; it may add a question or a check to a gate");
     if (m.kind === "check") { if (!m.check || !checks.has(m.check)) add(r, "check-name", `check "${m.check ?? ""}" is not in the registry (${[...checks].join(", ") || "empty"}); a new check arrives only with a release`); }
     else if (m.check) add(r, "check-name", "only a rule of kind check names a check");
+    if (m.kind === "check" && m.check && checks.has(m.check)) for (const e of paramProblems(m.check, m.params)) add(r, "check-params", e);
+    if (m.kind === "check" && r.body.split(/\s+/).filter(Boolean).length > 30) add(r, "check-body", "a check carries no code and needs no essay: its body is a short note on why it exists");
     if (m.targets && !(keys.signal ?? []).includes(m.targets)) add(r, "targets", `targets "${m.targets}" is not a failure class of the vocabulary — nothing could show the rule worked`);
     for (const o of m.overrides ?? []) if (o === m.id) add(r, "overrides", "a rule cannot override itself");
   }
@@ -193,7 +195,8 @@ export function selectRules({ cwd, reader, facts, budget = DEFAULT_BUDGET }) {
     used += t; entries.push({ id: r.meta.id, rev: r.rev, line });
   }
   const load_set = [...entries.map((e) => e.rev), ...asks.map((r) => r.rev), ...checks.map((c) => c.rev)].sort();
-  const head = [`<!-- load_set: ${load_set.join(",")} -->`];
+  // A check that finds nothing adds nothing: the compiled file names only the rules that are text in it.
+  const head = [`<!-- load_set: ${[...entries.map((e) => e.rev), ...asks.map((r) => r.rev)].sort().join(",")} -->`];
   if (over.length) head.push(`<!-- over_budget (not loaded): ${over.map((o) => `${o.id} "${o.title}"`).join("; ")} -->`);
   const askText = asks.length ? ["", "## Questions to put to the gate", ...asks.map((r) => `- **${r.meta.id}** — ${r.body.replace(/\n+/g, " ")}`)] : [];
   const text = [...head, `# Rules for ${reader}`, "", ...entries.map((e) => e.line), ...askText, ""].join("\n");
