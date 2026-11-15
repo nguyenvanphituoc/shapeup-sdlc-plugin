@@ -55,6 +55,7 @@ export function whenKeys() {
 /** Render a rule file. Field order is fixed so the same rule is the same bytes. */
 export function renderRule(meta, body) {
   const lines = ["---", `id: ${meta.id}`, `reader: ${meta.reader}`, `kind: ${meta.kind ?? "guide"}`, `when: ${canonicalWhen(meta.when ?? {})}`, `status: ${meta.status ?? "active"}`];
+  if (meta.targets) lines.push(`targets: ${meta.targets}`);
   if (meta.check) lines.push(`check: ${meta.check}`);
   if (meta.params) lines.push(`params: ${JSON.stringify(meta.params)}`);
   if (meta.overrides?.length) lines.push(`overrides: ${JSON.stringify(meta.overrides)}`);
@@ -127,6 +128,7 @@ export function lintRules(cwd) {
     if (IMPERATIVE_GATE.test(r.body)) add(r, "gate-answer", "a rule never tells a gate what to answer; it may add a question or a check to a gate");
     if (m.kind === "check") { if (!m.check || !checks.has(m.check)) add(r, "check-name", `check "${m.check ?? ""}" is not in the registry (${[...checks].join(", ") || "empty"}); a new check arrives only with a release`); }
     else if (m.check) add(r, "check-name", "only a rule of kind check names a check");
+    if (m.targets && !(keys.signal ?? []).includes(m.targets)) add(r, "targets", `targets "${m.targets}" is not a failure class of the vocabulary — nothing could show the rule worked`);
     for (const o of m.overrides ?? []) if (o === m.id) add(r, "overrides", "a rule cannot override itself");
   }
   return out;

@@ -28,7 +28,7 @@
 //                                      the launch record, and refuses a model below the floor.
 //   attest   skill                     A worker reports which skill it loaded, labelled as its own word
 //                                      (a host that cannot preload a skill gives no stronger evidence).
-//   kb       lint · migrate · select · evidence · apply · add   The rule table: one file per rule, refused when malformed, chosen by
+//   kb       lint · migrate · select · evidence · apply · add · review   The rule table: one file per rule, refused when malformed, chosen by
 //                                      the kernel per order. A rule steers craft and never decides a gate.
 //   order    open · close              Arms and retires the write fence's pointer, and records how a
 //                                      run ended.
@@ -57,7 +57,7 @@ export const ROUTES = {
   init: { run: "./init/run.mjs" },
   order: "./order.mjs",
   attest: { skill: "./attest.mjs" },
-  kb: { lint: "./kb/lint.mjs", migrate: "./kb/migrate.mjs", select: "./kb/select.mjs", evidence: "./kb/evidence.mjs", apply: "./kb/apply.mjs", add: "./kb/add.mjs" },
+  kb: { lint: "./kb/lint.mjs", migrate: "./kb/migrate.mjs", select: "./kb/select.mjs", evidence: "./kb/evidence.mjs", apply: "./kb/apply.mjs", add: "./kb/add.mjs", review: "./kb/review.mjs" },
 };
 
 /** Every `<verb> <action>` pair, for the usage text and the unknown-verb rejection. */

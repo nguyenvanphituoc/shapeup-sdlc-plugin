@@ -29,6 +29,7 @@ import { validate, SCHEMAS_DIR } from "./verify/envelope.mjs";
 import * as core from "./core/order.mjs";
 import { applyToOrder } from "./shapeup/kb.mjs";
 import { writeIndexRow } from "./shapeup/learn.mjs";
+import { recordEffect } from "./shapeup/probation.mjs";
 
 /** The endings a run may record. */
 export const CLOSE_STATUSES = ["shipped", "escalated", "aborted"];
@@ -95,6 +96,7 @@ export function shipSignOff(cwd, slug) {
 export const closeRun = (cwd, slug, status, cause, extra = {}) => {
   // The cross-run index row is the kernel's, written from the run's own ledgers at the ending, on every ending —
   // the loop and the reflector never write the counts a lesson must clear.
+  recordEffect(cwd, slug);
   writeIndexRow(cwd, slug, status);
   return core.closeRun(shapeupTrace, cwd, slug, status, cause, extra);
 };

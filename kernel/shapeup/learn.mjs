@@ -10,6 +10,7 @@ import { join, relative, dirname } from "node:path";
 import { parseRule, idOf, slugOf, normalizeText } from "../core/rules.mjs";
 import { READERS, loadRules, lintRules, renderRule } from "./kb.mjs";
 import { verifyCandidates, DEFECT, runClasses, attemptsCost } from "./learning.mjs";
+import { review } from "./probation.mjs";
 import { knowledgeRulesDir, knowledgeBaseDir, learningIndex, readRunId } from "./paths.mjs";
 
 const DEFECTS = (cwd) => join(knowledgeBaseDir(cwd), "harness-defects.md");
@@ -44,7 +45,7 @@ export function applyDelta({ cwd, slug, delta, date }) {
       const reader = c.reader; const id = idOf(READERS[reader].code, body);
       const p = join(knowledgeRulesDir(cwd), reader, `${id}.${slugOf(body)}.md`);
       touch(p); mkdirSync(dirname(p), { recursive: true });
-      writeFileSync(p, renderRule({ id, reader, kind: op.kind ?? "guide", when: op.when ?? c.when ?? (c.class ? { signal: [c.class] } : {}), status: "probation" }, body));
+      writeFileSync(p, renderRule({ id, reader, kind: op.kind ?? "guide", when: op.when ?? c.when ?? {}, targets: c.class, status: "probation" }, body));
       applied.push({ op: "ADD", id, file: relative(cwd, p), candidate: c.id });
     } else if (op.op === "EDIT" || op.op === "RETIRE" || op.op === "MERGE") {
       const ids = op.op === "MERGE" ? (op.ids ?? []) : [op.id];
@@ -100,4 +101,31 @@ export function writeIndexRow(cwd, slug, status) {
     appendFileSync(p, `${JSON.stringify(indexRow(cwd, slug, status))}\n`);
     return true;
   } catch { return false; }
+}
+
+/**
+ * Apply the status changes a review found: promote, expire or retire — a change of the file's `status` and nothing
+ * else. A retirement because the class came back is also a defect: the rule did not hold, which is a fact about the
+ * harness or the rule, and it goes to the register with an id.
+ * @returns {{ok: boolean, applied: object[], problems: string[]}} The changes made.
+ */
+export function applyReview({ cwd, slug, date }) {
+  const day = date ?? new Date().toISOString().slice(0, 10);
+  const applied = [];
+  for (const d of review(cwd, slug)) {
+    if (!d.to) continue;
+    const r = loadRules(cwd).find((x) => x.meta.id === d.id && !x.errors.length);
+    if (!r) continue;
+    writeFileSync(r.file, renderRule({ ...r.meta, status: d.to }, r.body));
+    const row = { op: d.to === "active" ? "PROMOTE" : d.to === "expired" ? "EXPIRE" : "RETIRE", id: d.id, why: d.why };
+    if (d.to === "retired") {
+      const p = DEFECTS(cwd); const text = existsSync(p) ? readFileSync(p, "utf8") : "# Harness Defect Register\n\n> Read by no worker.\n\n## Defects\n\n";
+      const id = nextDefectId(text); mkdirSync(dirname(p), { recursive: true });
+      writeFileSync(p, `${text.replace(/\s*$/, "\n")}\n- **${id}** — Rule ${d.id} did not hold: ${d.why}. Class: ${d.targets}. · from \`${slug}\` (${day})\n`);
+      row.defect = id;
+    }
+    applied.push(row);
+  }
+  const bad = lintRules(cwd);
+  return { ok: bad.length === 0, applied, problems: bad.map((l) => `lint: ${l.file} [${l.rule}] ${l.message}`) };
 }
