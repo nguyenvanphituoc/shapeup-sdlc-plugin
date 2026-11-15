@@ -2,10 +2,10 @@
 
 | Contract | |
 |---|---|
-| Phase | `15` |
+| Phase | `sub-command` |
 | Order | `none` |
 | Gate | `COACH-1` |
-| Done when | every rule the PO assigned is merged into its `shapeup/knowledge-base/<reader>.md`, and the report of step 4 is printed |
+| Done when | every rule the PO assigned is filed as a rule file under `shapeup/knowledge-base/rules/<reader>/`, and the report of step 4 is printed |
 
 `terminal` with `status: shipped` has closed the run and frozen the report. Do not resolve the ship gate
 again: a second row after the close is a second sign-off.
@@ -21,14 +21,15 @@ again: a second row after the close is a second sign-off.
    Report    : shapeup/<slug>/REPORT.md
    ```
 
-2. **Inside a run, the Retro Ownership gate is the gate agent's and it answers `skip`**: ask nothing, file nothing, go to
-   step 4. `/retro` itself is a conversation the PO starts, so a PO is present and the step goes on.
+2. **Inside a run the lesson is filed before the close, by the reflect activity** (`resources/retro/reflect.md`): the gate agent
+   answers Retro Ownership over candidates the kernel checks against the run's own ledgers. This file is the conversation
+   `/retro` starts *outside* a run, where a PO is present and their assignment is the authority.
 3. Ask once: "Anything to record before I close the run?" A bare "no" ends the retro; nothing is filed.
    Substantive feedback is distilled and filed by you, here (below), and the PO's categorization at the gate
    that follows is the answer COACH-1's `ask` opened.
 4. End with `✅ <slug> — <verdict>, <rounds> round(s)`.
 
-A run that ended `escalated` or `aborted` skips the retro: report where and why, and stop.
+A run that ended `escalated` or `aborted` is reflected on like any other (`resources/retro/reflect.md`), before its close.
 
 `/retro` runs this same retro outside a run. `/retro --scan` and `/retro --research <stack>` change only the
 *source* of the candidate rules — the project on disk (`resources/retro/scan.md`) or the platform's official
@@ -56,7 +57,7 @@ the gate may offer.
 
 | Category | File | Read at | Good for |
 |---|---|---|---|
-| `task-executor` | `shapeup/knowledge-base/task-executor.md` | the worker's own context load (`payload.kb_rules_path`) | implementation discipline, code style, surgical-change habits, platform idioms the model gets wrong, what to run before reporting done |
+| `task-executor` | `shapeup/knowledge-base/rules/task-executor/` | the worker's own context load (`payload.kb_rules_path`, compiled by the kernel when the order opens) | implementation discipline, code style, surgical-change habits, platform idioms the model gets wrong, what to run before reporting done |
 | `plan` | `shapeup/knowledge-base/plan.md` | every plan step (`guidance`, and `payload.kb_rules_paths` on its order) | scoping, task decomposition, DDD/spec habits, missed test-surface patterns, test APIs the platform lacks; slicing habits, config files that must have exactly one owner, fixtures that have proved vacuous; the seams this codebase wires through, entry points that are not where the template says |
 | `qa-edge-hunter` | `shapeup/knowledge-base/qa-edge-hunter.md` | the hunter's Charter Map (`payload.kb_rules_path`) | recurring edge classes, lenses that keep finding bugs, areas worth probing |
 | `orient` | `shapeup/knowledge-base/orient.md` | the Scout's first phase (`payload.kb_rules_path`) | where the code surface hides in this repo, areas that always deserve the spike, platform constraints to check before any spec exists |
@@ -89,10 +90,8 @@ add speculative fields"). Keep the originating *why* — a rule without its reas
 
 ## Step 2 — ⏸ GATE COACH-1: categorize (ASK, never assume)
 
-This is the load-bearing gate. The run's Retro Ownership answer (step 2 above, given before feedback is even
-asked for) is answered `skip` by the gate agent inside a run; in `/retro` the PO is present and the conversation below is the decision.
-**Inside a run (`skip`)**: record nothing and stop. **In `/retro`**: the categorization below IS the PO conversation
-this decision opens. **Do not infer which reader a rule belongs to** — a miscategorized rule lands in a file the
+This is the load-bearing gate. Inside a run the gate agent owns it (`resources/retro/reflect.md`); in `/retro` the PO is
+present and the categorization below IS the decision. **Do not infer which reader a rule belongs to** — a miscategorized rule lands in a file the
 wrong reader loads, or none. Present every candidate and ask the PO to assign each. Emit this block, then stop
 and wait:
 
@@ -129,24 +128,21 @@ At this gate:
   still decides. The telltale: the rule asks a reader to compensate for something the harness was supposed to
   enforce ("cross-check X because the bookkeeping step gets skipped").
 
-## Step 3 — merge each assigned rule into its file
+## Step 3 — file each assigned rule as a rule file
 
-For each reader that received at least one rule:
+A rule is one file under `shapeup/knowledge-base/rules/<reader>/`, named `<id>.<slug>.md`, whose id and revision the kernel
+derives from the text — two machines that file a rule at once cannot collide, and a teammate's `git pull` merges rules, not
+one shared file. For each rule a reader received:
 
-1. Ensure `shapeup/knowledge-base/<reader>.md` exists (create it from the template below; the directory is
-   committed, so the file ships on the next commit).
-2. Read it. Merge: **consolidate** overlapping rules into one stronger statement; **deduplicate** — sharpen an
-   existing rule rather than adding a near-duplicate, and note the merge in your summary; **generalize** an
-   incident into a reusable guideline.
-3. Give each new rule a stable id `KB-<INITIALS>-NNN` (`KB-TE-001`, `KB-QA-002`, `KB-OR-001`, `KB-PL-001` for plan,
-   `KB-BU-001` for building) and its provenance: `from \`<feature-slug>\` (<date>)` for feedback,
-   `from project-scan @ <short sha>` for a scanned rule, `from web-research (<url>, <version>, <date>)` for a
-   researched one. Three lineages; a rewrite of one never touches the other two.
-4. Rewrite the file, tight — readers load it every run. **15 rules per file is the ceiling**; reaching it means
-   consolidating, not appending. A rule whose premise the current contracts contradict is a `harness-defect` in
-   disguise: move it to the register and note the reclassification. In the `building` file, a rule that names a
-   concrete L0 value goes under **Suggested run config** (one line per value, with the evidence), everything
-   else under **Workflow guidance**.
+1. **Look first.** `K kb select --reader <reader>` shows what the reader loads today. Sharpen an existing rule rather than adding a
+   near-duplicate: say so in your summary, and retire the weaker one by editing the file's `status` to `retired`.
+2. **File it:** `K kb add --reader <reader> --body "<generalized rule, its reason kept, about 120 words at most>"`, with
+   `--when '{"operation":["fix"]}'` when it applies to one kind of order only (the keys are the ones `K kb lint` names).
+   Provenance goes in the body: `from <feature-slug> (<date>)` for feedback, `from project-scan @ <short sha>` for a scanned
+   rule, `from web-research (<url>, <version>, <date>)` for a researched one — three lineages; a rewrite of one never touches
+   the other two. `kb add` lints the table and refuses what would load wrong; it is also refused while a run is open.
+3. A `building` rule that names a concrete L0 value goes under **Suggested run config**: file it with `--kind ask` conditioned on the
+   gate it concerns, or leave it as a line in the report — the retro never writes `project-profile.md`.
 
 You write only under `shapeup/knowledge-base/`.
 
@@ -177,40 +173,26 @@ ids — remind the PO these await a Betting Table decision; nothing acts on them
 Remind the PO these are **guidelines**: no gate resolves differently, no substrate widens, the `spec-evaluator`
 verdict is unaffected. The files are committed, so a teammate inherits them on `git pull`.
 
-## Knowledge-base file templates
+## A rule file
+
+`K kb add` writes this; you never write it by hand. `id` is minted once from the body and never changes; the revision follows
+the text, so an edited rule is told apart from a different one. `when` is optional — empty means every order of the reader.
 
 ```markdown
-# Knowledge Base — <reader>
+---
+id: te-3f2a9c1d
+reader: task-executor
+kind: guide
+when: {"operation":["fix"]}
+status: active
+---
 
-> Team-shared guidelines distilled from PO/TL feedback at the Ship Gate (L4) or from a project scan, by the
-> retro. Read by `<reader>` at the top of its run. **Guidelines, not invariants** — they steer the reader; they
-> never override a spec, widen a substrate, resolve a gate or change the spec-evaluator verdict (single-judge
-> rule). Committed on purpose: a teammate inherits these on `git pull`.
-
-## Guidelines
-- **KB-<XX>-001** — <generalized rule>. _(why: <reason>)_  ·  from `<feature-slug>` (<date>)
-- **KB-<XX>-002** — <generalized rule>. _(why: <reason>)_  ·  from project-scan @ <sha>
-- **KB-<XX>-003** — <generalized rule>. _(why: <reason>)_  ·  from web-research (<url>, <tool> <version>, <date>)
+<generalized rule and its reason>
 ```
 
-The `building` file carries two sections, and the second is what makes a scan reach the kernel:
-
-```markdown
-# Knowledge Base — building
-
-> Workflow guidance for the loop, read at GATE L0 before the launch. **Guidance, never a gate answer**: a rule
-> here may add a question, a check or a warning to a gate block and may name a spike to insist on; it never
-> answers, skips, reorders or relaxes a gate, and the gate agent answers exactly
-> as it would without this file.
-
-## Workflow guidance
-- **KB-BU-001** — <rule about what to pin, ask or insist on, and at which gate>. _(why: <reason>)_  ·  from `<feature-slug>` (<date>)
-
-## Suggested run config
-Proposals for GATE L0. The loop confirms each with the PO and writes the profile itself.
-- `archetype: mobile` — <evidence: file:line or command>  ·  from project-scan @ <sha>
-- `launch_probe: python3 app/entry/src/ohosTest/device-smoke.py` — <evidence>  ·  from project-scan @ <sha>
-```
+`status` is `probation` for a rule the reflector filed (it earns `active` by what the following runs show), `active` for a
+person's, then `retired` or `expired`. `kind` is `guide` (steers craft), `ask` (adds a question to a gate block) or `check`
+(names a check the kernel already has). A rule never tells a gate what to answer; `K kb lint` refuses one that does.
 
 ## Hard rules
 
@@ -227,4 +209,4 @@ Proposals for GATE L0. The loop confirms each with the PO and writes the profile
 | The retro never writes `project-profile.md` | suggested run config is a proposal in the `building` file; the loop confirms at L0 and writes the profile |
 | A mechanism-at-fault rule goes to the defect register, never a reader's file | steering a worker around a broken gate hides it from the Betting Table |
 | Write only under `shapeup/knowledge-base/` (committed) | `.shapeup/` is gitignored; guidelines there never reach the team |
-| Keep each file tight — 15 rules, prune as you merge | readers load it every run; unbounded growth is token cost and noise |
+| Keep a rule to about 120 words and retire what a better rule replaces | the kernel loads rules within a token budget; an essay is dropped for the one that fits |

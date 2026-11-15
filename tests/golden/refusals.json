@@ -195,7 +195,7 @@
       "hookSpecificOutput": {
         "hookEventName": "PreToolUse",
         "permissionDecision": "deny",
-        "permissionDecisionReason": "WorkOrder gate — <DIR>/.shapeup/demo/orders/spike.json fails schema validation: $.operation: value \"spike\" not in enum [execute, fix, evaluate, orient, hunt, plan]. A malformed order never reaches a worker; fix the order (or harness compile) and re-dispatch."
+        "permissionDecisionReason": "WorkOrder gate — <DIR>/.shapeup/demo/orders/spike.json fails schema validation: $.operation: value \"spike\" not in enum [execute, fix, evaluate, orient, hunt, plan, learn]. A malformed order never reaches a worker; fix the order (or harness compile) and re-dispatch."
       }
     },
     "err": ""

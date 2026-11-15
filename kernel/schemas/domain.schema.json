@@ -342,7 +342,7 @@
       ]
     },
     "Operation": {
-      "description": "The full operation vocabulary. Replaces lifecycle flags (--tasks-only, --from-discovered, --map-scopes …): the caller knows the pipeline position; the worker never re-derives it. Ownership: execute/fix = task-executor · plan = the loop itself, a fence-only order no sub-agent answers (one per planning substep: requirements, spec, wire, scopes) · evaluate = spec-evaluator · orient = orient · hunt = qa-edge-hunter. The stop census, the retro and the intake's language gate are the loop's own acts and carry no order at all.",
+      "description": "The full operation vocabulary. Replaces lifecycle flags (--tasks-only, --from-discovered, --map-scopes …): the caller knows the pipeline position; the worker never re-derives it. Ownership: execute/fix = task-executor · plan = the loop itself, a fence-only order no sub-agent answers (one per planning substep: requirements, spec, wire, scopes) · learn = the loop itself, a fence-only order no sub-agent answers, opened when a run has a lesson to file: its substrate is the rule table and the defect register · evaluate = spec-evaluator · orient = orient · hunt = qa-edge-hunter. The stop census, the retro and the intake's language gate are the loop's own acts and carry no order at all.",
       "type": "string",
       "enum": [
         "execute",
@@ -350,7 +350,8 @@
         "evaluate",
         "orient",
         "hunt",
-        "plan"
+        "plan",
+        "learn"
       ]
     },
     "Substrate": {
@@ -408,6 +409,45 @@
         "max_questions": {
           "type": "integer",
           "description": "Question budget per checkpoint (worker convention: 2)."
+        }
+      }
+    },
+    "LearningCandidates": {
+      "description": "The reflector's proposals for one run, written by the loop to .shapeup/<slug>/learning/candidates.json and read by the Retro Ownership resolver, which keeps a candidate only when a citation matches a row of a ledger the kernel or a hook wrote (`kb evidence` lists them with their digests) and its class cleared the threshold. A candidate is a lesson, never a gate answer.",
+      "x-tier": "LOCAL",
+      "x-location": ".shapeup/<slug>/learning/candidates.json",
+      "x-writer": "the loop (the reflect activity)",
+      "x-readers": "the Retro Ownership resolver, `kb apply`",
+      "type": "object",
+      "required": ["schema_version", "candidates"],
+      "properties": {
+        "schema_version": { "type": "integer", "enum": [1] },
+        "run_id": { "type": "string" },
+        "candidates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "reader", "class", "citations"],
+            "properties": {
+              "id": { "type": "string", "description": "C1, C2 … — the handle the gate agent and the delta name it by." },
+              "reader": { "type": "string", "description": "A reader of the rule table (task-executor, orient, qa-edge-hunter, plan, building) or harness-defect. The gate agent may change it; when unsure it says harness-defect." },
+              "class": { "$ref": "#/$defs/KbSignal", "description": "The failure class the lesson targets." },
+              "body": { "type": "string", "description": "The lesson, in at most about 120 words, with its reason." },
+              "when": { "type": "object", "description": "Optional predicate for the new rule; default is the class as a signal." },
+              "citations": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["ledger", "row_digest"],
+                  "properties": {
+                    "ledger": { "type": "string", "enum": ["metrics", "trials", "gates", "receipts"] },
+                    "run_id": { "type": ["string", "null"] },
+                    "row_digest": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
         }
       }
     },

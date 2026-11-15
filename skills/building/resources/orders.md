@@ -46,6 +46,7 @@ re-opened with `--force` or the result lands.
 | `plan` (`spec`) | `shapeup/<slug>/spec/**`, `.shapeup/<slug>/tasks/**`, `.shapeup/<slug>/working/**` | the intake, project profile, orders, results, receipts, T0 verdicts | `results/plan-spec.json` |
 | `plan` (`wire`) | `shapeup/<slug>/wiring-map.md` | as `requirements`, plus `shapeup/<slug>/scopes/**` | `results/plan-wire.json` |
 | `plan` (`scopes`) | `shapeup/<slug>/scopes/*.md`, `shapeup/<slug>/scope-board.md` | as `requirements`, plus `.shapeup/<slug>/tasks/**` | `results/plan-scopes.json` |
+| `learn` | `shapeup/knowledge-base/rules/**`, `shapeup/knowledge-base/harness-defects.md` | `.shapeup/<slug>/**` | `results/learn.json` |
 
 **Answer an order before you write the next one.** An order with no result is live, and a live `plan` order freezes `orders/**` — so writing the next order while the last is unanswered is refused by the fence. Write the result first, then the next order.
 
@@ -64,6 +65,7 @@ Pass a path wherever a path will do; a worker reads files, and an embedded copy 
 | `evaluate` | `spec_folder`, `feature`, `dimensions`, `run_cmd`, `t0_artifacts`, `build_gate`, `round` | the spec path; the slug; the dimensions the PO named at L0, else the set the spec calls for (a Test Surface turns on test-surface-conformance, Invariants turn on completeness); the project profile's run command; the paths of each scope's latest `t0/verdicts/*.json` for the round; the note you wrote from your own build and launch this round (`.shapeup/<slug>/build/r<R>.md`: each step's command, exit code and output tail), omitted when you ran none |
 | `hunt` | `feature`, `spec_folder`, `eval_report`, `app_url`, `round`, `kb_rules_path` | the slug; the spec path; the PASS evaluation report; the running app, or `null` for a deliverable that is not served |
 | `plan` | `step`, `feature`, `spec_folder`, `kb_rules_paths` | the substep; the slug; the spec path; the knowledge-base files `resources/guidance.md` lists for planning |
+| `learn` | `feature` | the slug. `worker: "building"`, no `step`: the loop's own fence-only order for filing what the run taught — `K kb apply` is the writer, and it runs only while this order is open |
 
 A scope that did not go green in the round has its test-surface rows graded FAIL: name it in an `evaluate` order's `scopes_without_t0` rather than leaving the judge to find the gap.
 A criterion the last verdict graded FAIL reaches the next round whether or not the judge filed a bug for it — a FAIL verdict with nothing to fix is how a run stalls.

@@ -28,6 +28,7 @@ import { insideRunTrace, gates as gatesPath, readRunId, shapeupTrace } from "./s
 import { validate, SCHEMAS_DIR } from "./verify/envelope.mjs";
 import * as core from "./core/order.mjs";
 import { applyToOrder } from "./shapeup/kb.mjs";
+import { writeIndexRow } from "./shapeup/learn.mjs";
 
 /** The endings a run may record. */
 export const CLOSE_STATUSES = ["shipped", "escalated", "aborted"];
@@ -91,7 +92,12 @@ export function shipSignOff(cwd, slug) {
 }
 
 /** Retire both pointers and record the ending. */
-export const closeRun = (cwd, slug, status, cause, extra = {}) => core.closeRun(shapeupTrace, cwd, slug, status, cause, extra);
+export const closeRun = (cwd, slug, status, cause, extra = {}) => {
+  // The cross-run index row is the kernel's, written from the run's own ledgers at the ending, on every ending —
+  // the loop and the reflector never write the counts a lesson must clear.
+  writeIndexRow(cwd, slug, status);
+  return core.closeRun(shapeupTrace, cwd, slug, status, cause, extra);
+};
 
 /**
  * @param {string[]} rawArgv - `open` or `close`, then flags.

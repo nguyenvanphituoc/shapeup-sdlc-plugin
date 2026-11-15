@@ -80,7 +80,7 @@ A kernel refusal, a fence denial, a failed preflight and a host permission promp
 | 12 | QA answered `run` and no `results/hunt.json` (skipped under `noQa`) | **dispatch** `qa-edge-hunter`. Do not move on without it: GATE L4 refuses `ship` over a hunt the run owed and never ran, and the only recorded way out is the gate agent answering QA `skip` |
 | 13 | no census file | do the census (`resources/ship/census.md`) and write `<run>/reports/hammer-census.json`; then GATE H |
 | 14 | GATE H crossed, no `<spec>REPORT.md` | write the ship report (`resources/ship/report.md`); then GATE L4 |
-| 15 | GATE L4 crossed | `K order close --slug <slug> --status <shipped\|escalated\|aborted> --cause "<verdict, rounds>"`; `shipped` is refused (exit 1) unless this run's L4 row says `ship`, so a refusal here means the gate was not crossed — go back to phase 14; then put Retro Ownership (`COACH-1`) to the gate agent (it answers `skip`) |
+| 15 | GATE L4 crossed, or the run cannot go on (it ends `escalated` or `aborted`) | reflect on the run (`resources/retro/reflect.md`): candidates from the run's own ledgers, GATE COACH-1 to the gate agent, a `learn` order and `K kb apply` when it answers `file`. **Then** `K order close --slug <slug> --status <shipped\|escalated\|aborted> --cause "<verdict, rounds>"`; `shipped` is refused (exit 1) unless this run's L4 row says `ship`, so a refusal here means the gate was not crossed — go back to phase 14 |
 
 **A plan substep** is done here, in this session, with no sub-agent: write the substep's order (`resources/orders.md`, operation `plan`,
 `worker: "building"`), open it with `K order open`, write only what the substep produces (`resources/plan/substep.md` and its `resources/plan/*.md`
@@ -159,7 +159,8 @@ contract; a line with `—` is a file the others read.
 | `6` | planning: the scope contracts | `resources/plan/scopes.md` |
 | `13` | the census, the baseline comparison, the cut list (GATE H) | `resources/ship/census.md` |
 | `14` | the ship report | `resources/ship/report.md` |
-| `15` | after a ship: feedback and the retro gate | `resources/retro/retro.md` |
+| `15` | before the close, at every ending: reflect on the run, file what it taught | `resources/retro/reflect.md` |
+| `sub-command` | `retro`: feedback after a ship, filed by a person | `resources/retro/retro.md` |
 | `sub-command` | `retro --scan` | `resources/retro/scan.md` |
 | `sub-command` | `retro --research <stack>` | `resources/retro/research.md` |
 | — | planning: how a substep runs | `resources/plan/substep.md` |
