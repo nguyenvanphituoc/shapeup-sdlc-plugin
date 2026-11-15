@@ -36,6 +36,7 @@ const MODULES = [
   "17-codex-install.mjs",
   "18-kb-format.mjs",
   "19-kb-select.mjs",
+  "20-kb-signal.mjs",
 ];
 
 // The floor: a refactor that silently deletes checks must fail loudly rather than read green.

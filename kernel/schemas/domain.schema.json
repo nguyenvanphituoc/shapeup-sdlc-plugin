@@ -411,6 +411,40 @@
         }
       }
     },
+    "KbSignal": {
+      "description": "The failure-class vocabulary a rule's `when.signal` may name. Every value is one the kernel can actually emit — `x-emitted-by` names the place — and a value with no emitter does not belong here: a rule conditioned on it would sit in the table for ever and never load. The kernel builds the set for an order when it opens (kernel/shapeup/signals.mjs), from records it or a hook wrote; the set only chooses which rules LOAD, it is never evidence of anything.",
+      "x-tier": "EMBEDDED",
+      "type": "string",
+      "enum": [
+        "pathology.PA3",
+        "t0.regressed",
+        "t0.flat",
+        "eval.fail.spec-conformance",
+        "eval.fail.tdd-surface",
+        "eval.fail.integration",
+        "eval.fail.completeness",
+        "eval.fail.test-surface-conformance",
+        "eval.fail.security",
+        "eval.fail.performance",
+        "qa.lens.boundary",
+        "qa.lens.concurrency",
+        "qa.lens.interruption",
+        "qa.lens.cross-uc",
+        "qa.lens.no-go",
+        "qa.lens.residue",
+        "round.ge2",
+        "attempt.ge2"
+      ],
+      "x-emitted-by": {
+        "pathology.PA3": "hooks/sandbox-guard.mjs",
+        "t0.regressed": "kernel/shapeup/signals.mjs",
+        "t0.flat": "kernel/shapeup/signals.mjs",
+        "eval.fail.*": "kernel/shapeup/signals.mjs",
+        "qa.lens.*": "kernel/shapeup/signals.mjs",
+        "round.ge2": "kernel/shapeup/signals.mjs",
+        "attempt.ge2": "kernel/shapeup/signals.mjs"
+      }
+    },
     "TaskRef": {
       "description": "One task as carried inside a WorkOrder — parsed from the LOCAL board file (.shapeup/<slug>/tasks/TASK-*.md frontmatter + AC checkboxes) by the loop parseTaskFile(). NOTE: task ids are machine-local (boards regenerate and renumber); never join on id across machines — the scope is the stable key.",
       "x-tier": "EMBEDDED",
@@ -857,7 +891,7 @@
         },
         "lens": {
           "type": "string",
-          "description": "QA lens tag (①boundary ②concurrency ③interruption ④cross-UC ⑤no-go ⑥residue)."
+          "description": "QA lens tag, by name: boundary | concurrency | interruption | cross-uc | no-go | residue (the qa.lens.* values of KbSignal)."
         },
         "repro": {
           "type": "string",

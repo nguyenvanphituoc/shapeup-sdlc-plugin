@@ -71,6 +71,7 @@ import { realPathOf, judgeWrites } from "../kernel/core/fence.mjs";
 import { LOCAL, SHARED, activeOrder, ordersDir, resultsDir, metricsShard, dispatchReceipts } from "../kernel/lib/paths.mjs";
 import { runHook, readStdin, settle, projectRoot } from "./lib/decision.mjs";
 import { SCANNED, tierLeaks } from "./lib/tier.mjs";
+import { pathologyId } from "../kernel/shapeup/signal-names.mjs";
 import { hostFrom, hostMismatch, denyPayload, normalizePayload } from "../kernel/core/host.mjs";
 
 function readJSON(p) {
@@ -399,7 +400,7 @@ async function main() {
     schema_version: 1,
     at: new Date().toISOString(),
     kind: "pathology",
-    pathology: "PA3",
+    pathology: pathologyId("pathology.PA3") ?? "PA3",
     order: active.order_path,
     slug: active.slug,
     blocked_paths: violations,

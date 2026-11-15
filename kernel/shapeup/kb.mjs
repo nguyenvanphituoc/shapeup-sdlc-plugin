@@ -15,6 +15,7 @@ import { SCHEMAS_DIR } from "../verify/envelope.mjs";
 import { GATE_IDS } from "./gates.mjs";
 import { knowledgeBaseDir, knowledgeRulesDir, kbCompiledDir, projectProfile } from "./paths.mjs";
 import { checkNames } from "./checks.mjs";
+import { signalsFor } from "./signals.mjs";
 
 /** reader → its short code and the file names a consumer may still have it under. */
 export const READERS = {
@@ -248,7 +249,7 @@ export function applyToOrder(cwd, slug, order, opt = {}) {
     if (READERS[reader].legacy.some((n) => existsSync(join(knowledgeBaseDir(cwd), `${n}.md`)))) console.error(`kb: no rule table for ${reader} — its legacy file is read as before`);
     return { reader, applied: false, load_set: [], checks: [] };
   }
-  const choice = selectRules({ cwd, reader, facts: factsOf(cwd, slug, order, { signal: opt.signals }), budget: opt.budget ?? DEFAULT_BUDGET });
+  const choice = selectRules({ cwd, reader, facts: factsOf(cwd, slug, order, { signal: opt.signals ?? signalsFor(cwd, slug, order) }), budget: opt.budget ?? DEFAULT_BUDGET });
   order.payload = order.payload ?? {};
   const plural = reader === "plan";
   delete order.payload.kb_rules_path; delete order.payload.kb_rules_paths;
