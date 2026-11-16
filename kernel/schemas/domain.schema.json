@@ -249,6 +249,7 @@
       "trial_history",
       "verify",
       "kb_rules_path",
+      "kb_load_set",
       "constraints",
       "bugs"
     ],
@@ -271,7 +272,8 @@
       "stack",
       "spec_folder",
       "feature",
-      "kb_rules_path"
+      "kb_rules_path",
+      "kb_load_set"
     ],
     "qa-edge-hunter": [
       "feature",
@@ -281,14 +283,16 @@
       "launch_cmd",
       "build_gate",
       "ledger",
-      "kb_rules_path"
+      "kb_rules_path",
+      "kb_load_set"
     ],
     "building": [
       "feature",
       "spec_folder",
       "step",
       "mode",
-      "kb_rules_paths"
+      "kb_rules_paths",
+      "kb_load_set"
     ]
   },
   "x-result-by-worker": {
@@ -338,7 +342,7 @@
       ]
     },
     "Operation": {
-      "description": "The full operation vocabulary. Replaces lifecycle flags (--tasks-only, --from-discovered, --map-scopes …): the caller knows the pipeline position; the worker never re-derives it. Ownership: execute/fix = task-executor · plan = the loop itself, a fence-only order no sub-agent answers (one per planning substep: requirements, spec, wire, scopes) · evaluate = spec-evaluator · orient = orient · hunt = qa-edge-hunter. The stop census, the retro and the intake's language gate are the loop's own acts and carry no order at all.",
+      "description": "The full operation vocabulary. Replaces lifecycle flags (--tasks-only, --from-discovered, --map-scopes …): the caller knows the pipeline position; the worker never re-derives it. Ownership: execute/fix = task-executor · plan = the loop itself, a fence-only order no sub-agent answers (one per planning substep: requirements, spec, wire, scopes) · learn = the loop itself, a fence-only order no sub-agent answers, opened when a run has a lesson to file: its substrate is the rule table and the defect register · evaluate = spec-evaluator · orient = orient · hunt = qa-edge-hunter. The stop census, the retro and the intake's language gate are the loop's own acts and carry no order at all.",
       "type": "string",
       "enum": [
         "execute",
@@ -346,7 +350,8 @@
         "evaluate",
         "orient",
         "hunt",
-        "plan"
+        "plan",
+        "learn"
       ]
     },
     "Substrate": {
@@ -405,6 +410,79 @@
           "type": "integer",
           "description": "Question budget per checkpoint (worker convention: 2)."
         }
+      }
+    },
+    "LearningCandidates": {
+      "description": "The reflector's proposals for one run, written by the loop to .shapeup/<slug>/learning/candidates.json and read by the Retro Ownership resolver, which keeps a candidate only when a citation matches a row of a ledger the kernel or a hook wrote (`kb evidence` lists them with their digests) and its class cleared the threshold. A candidate is a lesson, never a gate answer.",
+      "x-tier": "LOCAL",
+      "x-location": ".shapeup/<slug>/learning/candidates.json",
+      "x-writer": "the loop (the reflect activity)",
+      "x-readers": "the Retro Ownership resolver, `kb apply`",
+      "type": "object",
+      "required": ["schema_version", "candidates"],
+      "properties": {
+        "schema_version": { "type": "integer", "enum": [1] },
+        "run_id": { "type": "string" },
+        "candidates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "reader", "class", "citations"],
+            "properties": {
+              "id": { "type": "string", "description": "C1, C2 … — the handle the gate agent and the delta name it by." },
+              "reader": { "type": "string", "description": "A reader of the rule table (task-executor, orient, qa-edge-hunter, plan, building) or harness-defect. The gate agent may change it; when unsure it says harness-defect." },
+              "class": { "$ref": "#/$defs/KbSignal", "description": "The failure class the lesson targets." },
+              "body": { "type": "string", "description": "The lesson, in at most about 120 words, with its reason." },
+              "when": { "type": "object", "description": "Optional predicate for the new rule; default is the class as a signal." },
+              "citations": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["ledger", "row_digest"],
+                  "properties": {
+                    "ledger": { "type": "string", "enum": ["metrics", "trials", "gates", "receipts"] },
+                    "run_id": { "type": ["string", "null"] },
+                    "row_digest": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "KbSignal": {
+      "description": "The failure-class vocabulary a rule's `when.signal` may name. Every value is one the kernel can actually emit — `x-emitted-by` names the place — and a value with no emitter does not belong here: a rule conditioned on it would sit in the table for ever and never load. The kernel builds the set for an order when it opens (kernel/shapeup/signals.mjs), from records it or a hook wrote; the set only chooses which rules LOAD, it is never evidence of anything.",
+      "x-tier": "EMBEDDED",
+      "type": "string",
+      "enum": [
+        "pathology.PA3",
+        "t0.regressed",
+        "t0.flat",
+        "eval.fail.spec-conformance",
+        "eval.fail.tdd-surface",
+        "eval.fail.integration",
+        "eval.fail.completeness",
+        "eval.fail.test-surface-conformance",
+        "eval.fail.security",
+        "eval.fail.performance",
+        "qa.lens.boundary",
+        "qa.lens.concurrency",
+        "qa.lens.interruption",
+        "qa.lens.cross-uc",
+        "qa.lens.no-go",
+        "qa.lens.residue",
+        "round.ge2",
+        "attempt.ge2"
+      ],
+      "x-emitted-by": {
+        "pathology.PA3": "hooks/sandbox-guard.mjs",
+        "t0.regressed": "kernel/shapeup/signals.mjs",
+        "t0.flat": "kernel/shapeup/signals.mjs",
+        "eval.fail.*": "kernel/shapeup/signals.mjs",
+        "qa.lens.*": "kernel/shapeup/signals.mjs",
+        "round.ge2": "kernel/shapeup/signals.mjs",
+        "attempt.ge2": "kernel/shapeup/signals.mjs"
       }
     },
     "TaskRef": {
@@ -853,7 +931,7 @@
         },
         "lens": {
           "type": "string",
-          "description": "QA lens tag (①boundary ②concurrency ③interruption ④cross-UC ⑤no-go ⑥residue)."
+          "description": "QA lens tag, by name: boundary | concurrency | interruption | cross-uc | no-go | residue (the qa.lens.* values of KbSignal)."
         },
         "repro": {
           "type": "string",
@@ -1163,6 +1241,19 @@
             "$ref": "#/$defs/AegisTriple"
           },
           "description": "Populated only on red; feeds the next order."
+        },
+        "rule_checks": {
+          "type": "array",
+          "description": "OPTIONAL — findings of the closed checks the project's `check` rules asked for, run over the fixtures the scope declared. Advisory: a finding goes to the worker as an instruction and never changes the verdict, the score or a gate.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "rule": { "type": "string" },
+              "check": { "type": "string" },
+              "fixture": { "type": "string" },
+              "message": { "type": "string" }
+            }
+          }
         },
         "env": {
           "type": "object",
@@ -1741,6 +1832,11 @@
           "maxItems": 8,
           "description": "task-executor: the paper's inspect() — this scope's recent trials, CROSSING the round boundary (this round and the one before it), each with its score, kept/reverted status and top-3 digest. Absent when no trials.jsonl exists, which is the non-regression path. Token-bounded at 8 rows (~600 tokens) against an attempt_budget of 5 — cheaper than one re-proposed failed change."
         },
+        "kb_load_set": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Coachable workers, the plan step: the revisions of the rules the kernel chose for this order, written by `order open` (never by the loop or a worker) beside the compiled file `kb_rules_path` names. The dispatch receipt copies it, so which rules a dispatch had is a row. An empty list means the table was consulted and nothing applied."
+        },
         "kb_rules_path": {
           "type": "string",
           "description": "Coachable workers (task-executor, qa-edge-hunter, orient): shapeup/knowledge-base/<skill>.md — steering, never spec and never a gate; conflict → the AC, the contract or the gate wins, noted in deviations. The judge and the census are not coachable."
@@ -1898,6 +1994,11 @@
         "startedAt"
       ],
       "properties": {
+        "kb": {
+          "type": "object",
+          "description": "OPTIONAL — the loop's own rules, compiled when the run opened: `path` is the compiled file the gate agent reads (a general section, then one per gate), `load_set` the revisions it holds. Absent when the project has no rule table for the loop. Written by `init run`, never by the loop.",
+          "properties": { "path": { "type": "string" }, "load_set": { "type": "array", "items": { "type": "string" } } }
+        },
         "slug": {
           "type": "string",
           "description": "The feature slug this run builds — the aggregate root every path is keyed off."

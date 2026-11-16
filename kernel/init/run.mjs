@@ -34,6 +34,7 @@ import { mkdirSync, writeFileSync, readFileSync, readdirSync, existsSync, rmSync
 import { join, resolve, relative, sep } from "node:path";
 import { createHash } from "node:crypto";
 import { appendGateLedger } from "../shapeup/gates.mjs";
+import { compileBuilding } from "../shapeup/kb.mjs";
 import { runArgs } from "../core/argv.mjs";
 import { writeRun } from "../core/run.mjs";
 import { launchProblems, floorProblems } from "../shapeup/floor.mjs";
@@ -350,6 +351,15 @@ export function cli(rawArgv) {
   if (unlaunchable.length) fail(2, `✋ init-run: the launch record is not launchable — ${unlaunchable.join("; ")}`);
 
   writeRun(shapeupTrace, cwd, slug, { receipt, launch, intake, startedAt, dirs: ["orders", "results", "discovery"] });
+  // The loop's own rules are compiled once, here: `building` is never dispatched, so no order can carry them.
+  // A selector that cannot run leaves the run opening without it — a rule steers craft, never the receipt.
+  try {
+    const b = compileBuilding(cwd);
+    if (b) {
+      const rp = runArgsPath(cwd, slug);
+      writeFileSync(rp, `${JSON.stringify({ ...JSON.parse(readFileSync(rp, "utf8")), kb: { path: b.path, load_set: b.load_set } }, null, 2)}\n`);
+    }
+  } catch (e) { console.error(`kb: the loop's rules were not compiled (${e.message}) — the run opens without them`); }
 
   // GATE L0 has a deterministic call site: the run's opening. The intake conversation is the L0
   // decision; opening the run records it, with the answer set the run was configured with. Best

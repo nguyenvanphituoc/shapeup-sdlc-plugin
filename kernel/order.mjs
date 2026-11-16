@@ -21,12 +21,15 @@
 // Exit 0 done · 1 refused (the order is unreadable, or a `shipped` close with no sign-off) · 2 malformed
 // input. `open` also stamps the order's `compiled_at` with the current time.
 
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { runArgs } from "./core/argv.mjs";
 import { insideRunTrace, gates as gatesPath, readRunId, shapeupTrace } from "./shapeup/paths.mjs";
 import { validate, SCHEMAS_DIR } from "./verify/envelope.mjs";
 import * as core from "./core/order.mjs";
+import { applyToOrder } from "./shapeup/kb.mjs";
+import { writeIndexRow } from "./shapeup/learn.mjs";
+import { recordEffect } from "./shapeup/probation.mjs";
 
 /** The endings a run may record. */
 export const CLOSE_STATUSES = ["shipped", "escalated", "aborted"];
@@ -43,7 +46,25 @@ export const ARGV_SPEC = {
 };
 
 /** Stamp the order with the real time, arm the fence's pointer, then read it back (see `core/order.mjs`). THE STAMP IS THE KERNEL'S, NOT THE LOOP'S: a time typed by hand and wrong keeps an order live after its worker returned and stalls every write the run makes. */
-export const openOrder = (cwd, slug, orderPath) => core.openOrder(shapeupTrace, cwd, slug, orderPath, {
+export const openOrder = (cwd, slug, orderPath) => {
+  chooseRules(cwd, slug, orderPath);
+  return armOrder(cwd, slug, orderPath);
+};
+
+/**
+ * Point the order at the rules the kernel chose for it, before it is validated and armed. A selector that
+ * cannot run FAILS OPEN here — the order opens as it was and one line says why — because a rule steers
+ * craft and the fence must never be what a broken rule file turns off.
+ */
+function chooseRules(cwd, slug, orderPath) {
+  try {
+    const order = JSON.parse(readFileSync(orderPath, "utf8"));
+    const r = applyToOrder(cwd, slug, order);
+    if (r.applied) writeFileSync(orderPath, `${JSON.stringify(order, null, 2)}\n`);
+  } catch (e) { console.error(`kb: the rule selector did not run (${e.message}) — the order opens without it`); }
+}
+
+const armOrder = (cwd, slug, orderPath) => core.openOrder(shapeupTrace, cwd, slug, orderPath, {
   validate: (order) => validate(order, JSON.parse(readFileSync(join(SCHEMAS_DIR, "work-order.schema.json"), "utf8"))),
 });
 
@@ -72,7 +93,13 @@ export function shipSignOff(cwd, slug) {
 }
 
 /** Retire both pointers and record the ending. */
-export const closeRun = (cwd, slug, status, cause, extra = {}) => core.closeRun(shapeupTrace, cwd, slug, status, cause, extra);
+export const closeRun = (cwd, slug, status, cause, extra = {}) => {
+  // The cross-run index row is the kernel's, written from the run's own ledgers at the ending, on every ending —
+  // the loop and the reflector never write the counts a lesson must clear.
+  recordEffect(cwd, slug);
+  writeIndexRow(cwd, slug, status);
+  return core.closeRun(shapeupTrace, cwd, slug, status, cause, extra);
+};
 
 /**
  * @param {string[]} rawArgv - `open` or `close`, then flags.

@@ -13,6 +13,17 @@ working. The consequence is stated here rather than left to be discovered: **an 
 to predate the current layout is not converted for you.** Run `install-harness.sh` against it
 instead and treat it as a fresh install.
 
+## Upgrading to 6.0
+
+6.0 changes the knowledge base's layout, what the `kb_rules_path` of an order means, and what the Retro Ownership gate may answer. It is a major release for those three reasons; a project with no knowledge base notices nothing.
+
+- **One rule per file.** The knowledge base is now `shapeup/knowledge-base/rules/<reader>/<id>.<slug>.md`, each file a rule with a condition, a status and a body, chosen by the kernel when an order opens instead of loaded whole. Run `npx shapeup-sdlc init` (or `/shapeup-sdlc-plugin:init`) once: it splits your old `<reader>.md` files into rule files, keeps your old files exactly as they are, and skips a rule it already split, so running it again adds nothing. Until a reader has a `rules/<reader>/` folder, its old whole file is read as before, and one line says so.
+- **`kb_rules_path` names a file the kernel compiled.** Do not write it, or `kb_rules_paths`, into an order by hand; the kernel sets both and adds `kb_load_set`, the revisions it chose, which the dispatch receipt copies.
+- **Retro Ownership answers `file` as well as `skip`.** A run reflects on itself before it closes, at every ending. The kernel narrows `file` to `skip` unless the lesson's citations match rows in the run's own records and its failure class recurred or cost an attempt. A rule a run files starts on probation.
+- **New: the `kb` verbs.** `kb lint` (refuses a malformed rule), `kb select` (shows what an order would load), `kb migrate`, `kb add` (for a person's rule), and, inside a run, `kb evidence`, `kb apply` and `kb review`.
+- **Check your own rules.** `kb lint` refuses a rule that tells a gate what to answer, names a run-trace path or a board id, or carries a URL or a shell command. Your migrated rules start with no condition, so they load for every order of their reader, as before.
+- **Unchanged:** every gate's id and answers except Retro Ownership, the fence, the receipts' existing fields, and every exit code.
+
 ## Upgrading to 5.0
 
 5.0 removes options, so it is a major release. 4.2 made every run unattended (a gate agent answers each of the ten gates in the PO's place, reads the run's decision log first, and writes a baseline and a decision for each; the ship report prints the log). 5.0 removes what that made redundant.

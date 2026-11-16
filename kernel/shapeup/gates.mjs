@@ -10,6 +10,7 @@ import { appendLedger } from "../core/ledger.mjs";
 import { narrow, resolveGate } from "../core/gate.mjs";
 import { gates as gatesPath, resultsDir, ordersDir, qaDir, tasksDir, hammerCensus, readRunId, harnessRun, runArgsPath, dispatchReceipts } from "./paths.mjs";
 import { belowFloor } from "./floor.mjs";
+import { verifyCandidates } from "./learning.mjs";
 
 export const GATE_IDS = ["L0", "L1a", "L1a.5", "L1b", "L2", "L3", "QA", "H", "L4", "COACH-1"];
 
@@ -25,7 +26,7 @@ export const VALID_BY_GATE = {
   "QA": ["run", "skip"],
   "H": ["accept-cut-list", "ship-all"],
   "L4": ["ship", "hold"],
-  "COACH-1": ["skip"],
+  "COACH-1": ["skip", "file"],
 };
 
 /** The three verdicts the stop census may carry (`HammerCensus.verdict` in the domain registry). */
@@ -287,7 +288,23 @@ export function modelRule(r, { cwd, slug }) {
   return { ...r, models };
 }
 
-export const RULES = [emptyBoard, censusRule, qaRule, modelRule];
+/**
+ * Retro Ownership will not file what the kernel cannot see happened. An answer of `file` stands only when the
+ * reflector's candidate file holds at least one candidate whose citations match rows of a ledger the kernel or
+ * a hook wrote and whose failure class cleared the threshold; the resolver reads the ledgers again itself. With
+ * none left the answer is narrowed to `skip` and says why — `skip` is always available and is never refused.
+ */
+export function retroRule(r, { cwd, slug }) {
+  if (r?.gate !== "COACH-1" || r?.status !== "ok" || r?.decision !== "file") return undefined;
+  const { kept, dropped } = slug ? verifyCandidates(cwd, slug) : { kept: [], dropped: [{ id: "*", reason: "no slug" }] };
+  if (!kept.length) {
+    return { ...r, decision: "skip", narrowed_from: "file",
+      note: `${r.note ?? ""} — narrowed to skip: no candidate survived the kernel's checks (${dropped.map((d) => `${d.id}: ${d.reason}`).join("; ") || "none proposed"})`.trim() };
+  }
+  return { ...r, candidates: kept.map((c) => c.id), dropped_candidates: dropped };
+}
+
+export const RULES = [emptyBoard, censusRule, qaRule, modelRule, retroRule];
 
 /** Narrow a resolved gate answer to what the run's own evidence supports. */
 export const narrowToEvidence = (r, cwd, slug) => narrow(r, RULES, { cwd, slug });

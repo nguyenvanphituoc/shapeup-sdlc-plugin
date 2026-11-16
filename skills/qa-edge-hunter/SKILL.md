@@ -128,6 +128,10 @@ crossing the UC tree with the **six fixed lenses**, then subtract covered territ
 The six lenses are **fixed** (simplicity as a hard constraint) — scoping happens by
 cutting charters at GATE Q1, not by configuring lenses.
 
+Tag every finding with its lens by name — `boundary`, `concurrency`, `interruption`, `cross-uc`, `no-go`,
+`residue`. Those six are the `qa.lens.*` values of the signal vocabulary in the plugin's
+`domain.schema.json`, which is how a rule written for one lens finds the findings it was written for.
+
 **Charter quality** — before generating, internalize the target altitude:
 - Good: "What happens to the order record if the user refreshes the page after clicking
   Confirm but before the server responds?" → one specific risk, concrete mission,

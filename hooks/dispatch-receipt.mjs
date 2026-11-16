@@ -190,6 +190,9 @@ export function receiptRow(order, skillInvoked, payload) {
     order_id: order.order_id ?? null,
     run_id: order.run_id ?? null,
     worker_declared: order.worker ?? null,
+    // The rules the kernel chose for this order (their revisions), or null when none was chosen — so "which
+    // rules did this dispatch have" is a row, not a recollection.
+    kb_load_set: Array.isArray(order.payload?.kb_load_set) ? order.payload.kb_load_set : null,
     skill_invoked: skillInvoked,
     // Where the claim comes from: the host's own report of which agent ran. A worker's self-report carries
     // `worker-reported` instead (`attest`).

@@ -6,6 +6,8 @@ import * as core from "../core/t0.mjs";
 import { SCOPE_CONTRACT } from "../shapeup/contracts.mjs";
 import { snapshot, restore, keptRef } from "../shapeup/ratchet.mjs";
 import { runIdFromRoot, localRoot, projectProfile } from "../shapeup/paths.mjs";
+import { selectRules, hasTable } from "../shapeup/kb.mjs";
+import { runChecks } from "../shapeup/checks.mjs";
 
 /**
  * The feature slug a scope contract belongs to, from its path.
@@ -37,6 +39,12 @@ const PROFILE = {
   unit: (c) => ({ id: c.scope_id, fixtures: c.e2e_verification_fixtures, dbProbe: c.db_probe, substrate: c.allowed_file_substrate }),
   runIdFromRoot,
   ratchet: { snapshot, restore, keptRef },
+  // The `check` rules the build worker's table loads, run over the fixtures the scope declared.
+  ruleChecks: ({ cwd, slug, fixtures }) => {
+    if (!hasTable(cwd, "task-executor")) return [];
+    const { checks } = selectRules({ cwd, reader: "task-executor", facts: { operation: ["execute", "fix"] } });
+    return runChecks(checks, { fixtures });
+  },
 };
 
 export const ARGV_SPEC = core.ARGV_SPEC;

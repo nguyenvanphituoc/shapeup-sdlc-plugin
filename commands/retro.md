@@ -1,10 +1,10 @@
 ---
-description: File ship-gate feedback into the team-shared, per-reader knowledge base
+description: File feedback as team-shared knowledge-base rules, one rule per file
 ---
 Use the **building** skill's `retro` sub-command on $ARGUMENTS.
 
-Turns raw PO/TL feedback (usually from the Ship Sign-off gate) into per-reader guideline files under
-committed `shapeup/knowledge-base/<reader>.md` — readers are `task-executor`, `orient`,
+Turns raw PO/TL feedback (usually from the Ship Sign-off gate) into rule files, one rule per file, under
+committed `shapeup/knowledge-base/rules/<reader>/` — readers are `task-executor`, `orient`,
 `qa-edge-hunter`, the `plan` activity and the loop itself (`building`, read at the Intake & Config gate, where it may
 also suggest Intake & Config values the loop confirms before pinning).
 
@@ -22,6 +22,8 @@ required and never guessed. Research is a source, not a verification: nothing it
 the loop still pins every suggested command at the Intake & Config gate before the kernel executes it. A
 later `--scan`, once the first feature has created a toolchain, retires the research rules it
 confirms with disk evidence.
+
+Inside a run you do not file rules by hand: a run reflects on itself before it closes, on evidence the kernel checks against the run's own ledgers, and the gate agent answers the Retro Ownership gate. `/retro` is for what a person decided.
 
 Two rules the retro enforces and this command must not soften: the Retro Ownership gate **asks** the PO
 which reader owns each rule — it never assumes; and feedback whose root cause is the mechanism

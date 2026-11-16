@@ -14,6 +14,7 @@ After GATE H and before GATE L4, write `shapeup/<slug>/REPORT.md` — frozen at 
 a shipped FAIL opens with `Shipped over a FAIL verdict, with the cut list below`, never with the title alone. Then:
 
 - **Decision log** — directly under the title and status line: the run's decision log (`<run>/decision-log.md`) carried across as text, entries marked `Review first: yes` on top, the rest in order. It is the PO's one file to read after an unattended run. The report is committed, so strip run-trace paths and board ids from the entries and cite use cases and scope ids instead.
+- **Learning** — directly under the decision log: what the knowledge base did for this run and what it will do at the close. Run `K kb review --slug <slug>` and say, in words, for each rule on probation whether the runs so far promote it, expire it or retire it, and why ("the class had happened in three earlier runs and stayed away in the three that loaded this rule"); then which rules this run loaded, from the orders' `kb_load_set`. Say "no rules on probation" when there are none. No ledger path and no board id: the report is committed.
 - **Outcome** — the verdict, rounds used and judged, tasks done of planned, whether QA ran, did not run, or ran and drove nothing, and the
   models: per role, what the launch record asked for and what the dispatch receipts (`<run>/receipts/dispatch.jsonl`, `usage.model`) name as
   having run. Where the two differ, say so here: a cost or a verdict read against the wrong model is a figure about a different run.

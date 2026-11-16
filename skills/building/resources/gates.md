@@ -28,4 +28,4 @@ What each gate decides, and the answers it may give, are in the gate agent's ski
 - **A kernel refusal** (`K gate --resolve` exits 4 with `refused`: `ship` over a census that did not clear, `proceed` over an empty board) closes the run `escalated`; write the ship report first if the census exists.
 - **`hold`** closes `escalated`; **`abort`** closes `aborted`. The agent's reason is in the decision log either way.
 - **Scopes are released in dependency order**: a scope opens the moment the scopes it declares in `depends_on` have settled, up to `maxParallelScopes`; contracts declaring none are one wave.
-- **A kept guidance rule** (knowledge base) may add a question or a check to what you send; it never answers, skips or widens a gate.
+- **A kept guidance rule** (knowledge base) may add a question or a check to what you send; it never answers, skips or widens a gate. The launch record's `kb.path` names the compiled rules of the loop: send the gate agent that path and the gate it is answering, and it reads that gate's section.

@@ -81,6 +81,20 @@ export const report = (cwd, slug) => join(sharedRoot(cwd, slug), "REPORT.md");
 export const knowledgeBaseDir = (cwd) => join(sharedDir(cwd), "knowledge-base");
 /** One reader's coaching file (a coachable worker, or the `plan` / `building` activity). */
 export const knowledgeBase = (cwd, skill) => join(knowledgeBaseDir(cwd), `${skill}.md`);
+/** The rule table: one file per rule, under one folder per reader. */
+export const knowledgeRulesDir = (cwd) => join(knowledgeBaseDir(cwd), "rules");
+/** The compiled rule files the selector writes — one per distinct set of rules, named by the set. LOCAL: regenerable. */
+export const kbCompiledDir = (cwd) => join(localDir(cwd), "_kb", "compiled");
+/** The per-rule effect counters (one row per run per loaded rule). LOCAL: a counter is per machine. */
+export const kbEffect = (cwd) => join(localDir(cwd), "_kb", "effect.jsonl");
+/** The cross-run learning index, one row per closed run. LOCAL, and outlives a run's trace being deleted. */
+export const learningIndex = (cwd) => join(localDir(cwd), "_learning", "index.jsonl");
+/** The reflector's candidate file for one run. */
+export const learnCandidates = (cwd, slug) => join(localRoot(cwd, slug), "learning", "candidates.json");
+/** The knowledge base's defect queue, as a repo-relative path. */
+export const relHarnessDefects = () => [SHARED, "knowledge-base", "harness-defects.md"].join("/");
+/** The rule table, as a repo-relative glob for an order's write substrate. */
+export const relRulesGlob = () => [SHARED, "knowledge-base", "rules", "**"].join("/");
 
 // LOCAL — Shape Up's run artifacts
 
