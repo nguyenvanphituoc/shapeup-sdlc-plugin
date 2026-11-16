@@ -9,7 +9,7 @@
 | **Nguyên tắc** | Bảng rule đi **trước** việc học tự động: từ lúc việc học tự ghi, mỗi máy là một người ghi, và file phẳng bắt đầu xung đột git (RT §3). Mọi con số ngân sách và ngưỡng ở đây là đề xuất cho tới khi L0 đo |
 | **Quy tắc stage** | Một stage một commit, subject `type(scope): lowercase declarative`. Mỗi stage có **cổng go/no-go** là lệnh chạy được. Stage đỏ thì dừng; không sửa kiểm tra cho xanh. Số check của `npm test` không bao giờ giảm |
 | **Phát hành** | 6.0.0 (major): đổi bố cục knowledge base, ý nghĩa `kb_rules_path`, và câu trả lời của một gate |
-| **Trạng thái** | Đã làm L0–L8 trong code và tài liệu (xem [execution-2026-11-16-learning-rule-table.md](execution-2026-11-16-learning-rule-table.md)); **các cổng cần phiên lồng thật với model (L2, L5, L6, L8) chưa chạy** vì `claude -p` bị 403 |
+| **Trạng thái** | Đã làm L0–L8 trong code và tài liệu (xem [execution-2026-11-16-learning-rule-table.md](execution-2026-11-16-learning-rule-table.md)); **năm run thật đã chạy trong dự án kiểm (L2 đạt; L5 và L6 đạt một phần: chưa có run `escalated` thật, chưa có lesson nào do model sinh, Q6 chưa đo; xem execution)** |
 
 Từ dùng ở đây. **Rule**: một file dưới `shapeup/knowledge-base/rules/`. **Tập nạp** (`load_set`): các rule kernel chọn cho một order. **File biên dịch**: một file gộp tập nạp, mà `payload.kb_rules_path` trỏ vào. **Reflector**: bước đọc ledger của run và viết candidate. **Chốt**: một trong năm cơ chế thay người duyệt (SL §3.2). Tên gate theo `AGENTS.md`.
 

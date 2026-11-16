@@ -39,9 +39,31 @@ Script nằm trong scratchpad của phiên, không commit. Mỗi dòng ghi lện
 | L7 registry | `…closed-check registry…` | check không đổi gate/verdict | KB-TE-002 thành `check`, guide cũ `retired` |
 | L8 tài liệu, 6.0.0 | `…document the rule table and release 6.0.0` | `npm test` 514 checks 0 failure; `claude plugin validate --strict` cả hai manifest; demo chạy lại không lệch | audit: không path nội bộ trong tập ship, không mã gate ngoài bảng, version khớp |
 
+## Run thật với model (2026-11-16, phiên Claude Desktop của PO, dự án kiểm)
+
+Năm run `/ship` thật, đọc lại từ bản ghi của kernel trong `proj-shapeup-sdlc-plugin-testing`, không từ lời của loop:
+
+| Run | Rule trong dự án | Kết thúc | Ghi nhận |
+|---|---|---|---|
+| `hello` | không có | `shipped`, PASS vòng 1 | khối Learning "không nạp rule nào"; Retro Ownership `skip`; 4 receipt `attestation: host`, model hỏi = model chạy |
+| `wordcount` | 4 rule `active` (orient, qa-edge-hunter, 2 task-executor) | `shipped`, PASS vòng 1 | `kb_load_set` khác rỗng trên receipt orient, task-executor, qa-edge-hunter; spec-evaluator `null` (không có rule cho judge); 3 file biên dịch dưới `.shapeup/_kb/compiled/`; khối Learning liệt kê rule đã nạp |
+| `contradiction` | 4 rule | `aborted` ở Intake & Config | reflect chạy trước `order close`, `candidates.json` rỗng, Retro Ownership `skip`, có hàng index; chưa order nào mở nên không nạp rule |
+| `upper` | 4 rule | `shipped`, PASS vòng 1 | như `wordcount`, cùng `kb_load_set` (cùng rule, cùng set) |
+| `noop` | 4 rule | `shipped`, PASS vòng 1 | ép `escalated` **không thành**: gate agent vẫn cho qua một board có việc kiểm tra; không có hunt (`skip`) |
+
+Đã chứng minh bằng model thật: bộ chọn chạy trong `order open` và receipt ghi set đã chọn (L2); reflect chạy trước khi đóng ở hai kiểu kết thúc (`shipped`, `aborted`) và hàng index được ghi cho cả năm run (L5, một phần); khối Learning có mặt trong cả bốn ship report (L6, một phần, xem dưới).
+
+Chưa đạt, nói thẳng:
+
+- **Chưa có run `escalated` thật.** Hai lần ép (pitch tự mâu thuẫn, pitch không có gì để build) cho `aborted` và `shipped`. Kết thúc `escalated` mới chỉ được chạy bởi `verify:learning`, không bởi model.
+- **"Ba run thật liên tiếp" chưa khớp chữ.** Bốn ship report có Learning, nhưng chỉ ba run (`wordcount`, `upper`, `noop`) nạp rule, và giữa `wordcount` với `upper` có một run `aborted` không có report.
+- **Không run nào sinh lesson:** `classes` rỗng ở cả năm hàng index, `candidates.json` rỗng ở cả năm run. Lỗi EPIPE mà hunt báo ở hai run là phát hiện của hunt, không phải lớp lỗi do kernel ghi, nên không đủ làm bằng chứng. Vì vậy **chưa có rule nào do vòng học sinh ra từ một run thật**, chưa có rule probation nào, và `.shapeup/_kb/effect.jsonl` chưa tồn tại. Phần ghi rule, probation và retire chỉ được chứng minh bằng `verify:learning`.
+- **Q6 chưa đo:** `usage.tokens_total` là `null` trên mọi receipt của năm run, nên không tính được token của gate agent từ các bản ghi này.
+- `rule_checks` không xuất hiện trong T0 ở `wordcount`/`upper`/`noop`: check chỉ báo khi có fixture phủ định thiếu bản đối chứng, và các fixture ở đó không có.
+
 ## Cái chưa làm được, nói thẳng
 
-- **Không có phiên lồng thật với model.** `claude -p` từ trong phiên này trả `403 oauth_not_allowed_for_organization` (cả với câu lệnh `say ok`), nên các điều kiện "một phiên lồng thật" của L2, "hai run thật" của L5 và "ba run thật" của L6 **chưa được kiểm bằng model**. Thay bằng `npm run verify:learning` (`tools/verify-learning-loop.mjs`): tự đóng vai loop, chạy các verb kernel và hook thật trong một thư mục dự án thật (đã chạy trên `proj-shapeup-sdlc-plugin-testing`), hai kết thúc `shipped` và `escalated`. Nó chứng minh các bản ghi kernel và hook ghi là các bản ghi mà việc ghi rule đọc, và rule sinh ra ở run 1 được nạp ở run 2 rồi bị retire khi lớp lỗi quay lại. Nó **không** chứng minh một model làm theo `reflect.md`. Việc đó cần chạy `/ship` thật khi quyền gọi model có lại.
+- **Lúc viết đợt đầu, không có phiên lồng thật với model (phần "Run thật" ở trên đã bù một phần).** `claude -p` từ trong phiên này trả `403 oauth_not_allowed_for_organization` (cả với câu lệnh `say ok`), nên các điều kiện "một phiên lồng thật" của L2, "hai run thật" của L5 và "ba run thật" của L6 **chưa được kiểm bằng model**. Thay bằng `npm run verify:learning` (`tools/verify-learning-loop.mjs`): tự đóng vai loop, chạy các verb kernel và hook thật trong một thư mục dự án thật (đã chạy trên `proj-shapeup-sdlc-plugin-testing`), hai kết thúc `shipped` và `escalated`. Nó chứng minh các bản ghi kernel và hook ghi là các bản ghi mà việc ghi rule đọc, và rule sinh ra ở run 1 được nạp ở run 2 rồi bị retire khi lớp lỗi quay lại. Nó **không** chứng minh một model làm theo `reflect.md`. Việc đó cần chạy `/ship` thật khi quyền gọi model có lại.
 - Q6 (token gate agent) chưa đo, cùng lý do.
 - Ba quyết định PO (§6) dùng giá trị đề xuất: ngân sách 2.000 (theo Q2, không phải 1.500), N = 3, M = 10, ngưỡng chốt 2 như plan, `_shared/` **chưa làm** (lint chấp nhận thư mục `_shared` cho rule nhiều reader, bộ chọn chỉ nạp được rule có đúng một reader dưới `<reader>/` và rule `_shared` có reader trong danh sách), fallback 5.x giữ hết dòng 6.x. Mục 6 của plan (HD cho PA3 ngay) chưa làm: PA3 giờ tự thành candidate khi lớp lỗi lặp lại.
 - Xung đột `status` giữa máy (§5): chưa có `kb migrate --resolve-status`; thứ tự ưu tiên `retired` > `expired` > `active` > `probation` chưa mã hoá.
