@@ -4,14 +4,14 @@
     A raw idea flows through Shaping into a Pitch, decided at the Betting Table: Bet
     continues to build, Reject loops back to raw idea. The building loop then
     runs Kick-off and Orient behind the Intake &amp; Config and Orient Review gates,
-    Wire behind the Wiring Review gate, Map Scopes behind the Board Review gate, and
+    Wire (the plan activity: requirements, spec and board, wiring map) behind the Wiring Review gate, Map Scopes (the plan activity's scope contracts) behind the Board Review gate, and
     Build Vertically, whose scopes build concurrently and are T0-verified. Evaluate
     follows, advised by the advisory Round Close gate, then judged at the Verdict gate:
     FAIL loops back to Build Vertically for round r+1, PASS continues to QA Edge Hunt.
     A circuit breaker can route directly from the build/evaluate loop to Ship and Triage
     at the Cut-List Review gate when the round budget runs out, bypassing QA and shipping
-    what is green. Ship and Triage passes through the Cut-List Review gate and then the
-    Ship Sign-off gate into Retro, which records feedback in the team knowledge base. The
+    what is green. Ship and Triage (/ship stop) passes through the Cut-List Review gate and then the
+    Ship Sign-off gate into Reflect + Retro: before any run closes, at every ending, the loop proposes lessons, the Retro Ownership gate files or skips each one, and a filed lesson becomes a rule on probation in the team knowledge base. The
     gate list below the legend spells out every gate pill's plain name.
   </desc>
 
@@ -114,7 +114,7 @@
   </style>
 
   <!-- orchestration scope backdrop, drawn first so nodes sit on top -->
-  <rect class="region" x="60" y="180" width="1040" height="430" rx="16"/>
+  <rect class="region" x="60" y="180" width="1040" height="460" rx="16"/>
   <text class="region-label" font-size="12" x="150" y="195" dominant-baseline="central">/ship drives: Kick-off &#8594; Ship</text>
 
   <!-- ROW 1: Raw idea -> Shaping -> Pitch -> Betting Table -->
@@ -175,9 +175,10 @@
   <line class="edge flow e6" x1="810" y1="350" x2="805" y2="350" marker-end="url(#arrow)"/>
 
   <g>
-    <rect class="plan-box" x="625" y="322" width="180" height="56" rx="8"/>
-    <text class="t-plan" font-size="14" font-weight="500" x="715" y="340" text-anchor="middle" dominant-baseline="central">Wire</text>
-    <text class="ts-plan" font-size="12" x="715" y="362" text-anchor="middle" dominant-baseline="central">/solution-architect</text>
+    <rect class="plan-box" x="625" y="315" width="180" height="70" rx="8"/>
+    <text class="t-plan" font-size="14" font-weight="500" x="715" y="333" text-anchor="middle" dominant-baseline="central">Wire</text>
+    <text class="ts-plan" font-size="12" x="715" y="352" text-anchor="middle" dominant-baseline="central">plan: requirements,</text>
+    <text class="ts-plan" font-size="12" x="715" y="369" text-anchor="middle" dominant-baseline="central">spec + board, wiring map</text>
   </g>
   <line class="edge flow e7" x1="625" y1="350" x2="615" y2="350"/>
   <g>
@@ -189,8 +190,8 @@
   <g>
     <rect class="plan-box" x="355" y="315" width="180" height="70" rx="8"/>
     <text class="t-plan" font-size="14" font-weight="500" x="445" y="333" text-anchor="middle" dominant-baseline="central">Map Scopes</text>
-    <text class="ts-plan" font-size="12" x="445" y="352" text-anchor="middle" dominant-baseline="central">/ba-pitch-analyzer</text>
-    <text class="ts-plan" font-size="12" x="445" y="369" text-anchor="middle" dominant-baseline="central">+ /scope-architect</text>
+    <text class="ts-plan" font-size="12" x="445" y="352" text-anchor="middle" dominant-baseline="central">plan: scope contracts</text>
+    <text class="ts-plan" font-size="12" x="445" y="369" text-anchor="middle" dominant-baseline="central">read back before the gate</text>
   </g>
   <line class="edge flow e8" x1="355" y1="350" x2="265" y2="350" marker-end="url(#arrow)"/>
 
@@ -206,7 +207,7 @@
   <rect class="note-box" x="222" y="388" width="264" height="30" rx="6"/>
   <text class="note-text" font-size="11" x="234" y="399">
     <tspan x="234">attempt_budget exhausted &#8594;</tspan>
-    <tspan x="234" dy="1.2em">queues a GATE H proposal</tspan>
+    <tspan x="234" dy="1.2em">queues a Cut-List Review proposal</tspan>
   </text>
 
   <!-- Build -> advisory L2 -> Evaluate -->
@@ -224,7 +225,7 @@
 
   <!-- circuit breaker: build/eval loop straight to Ship &amp; Triage, bypassing QA -->
   <path class="edge breaker e-breaker" d="M60,480 L715,480 L715,522" marker-end="url(#arrow)"/>
-  <text class="label-sm" font-size="11" x="387" y="452" text-anchor="middle" dominant-baseline="central">round_budget or wall-clock exhausted</text>
+  <text class="label-sm" font-size="11" x="387" y="452" text-anchor="middle" dominant-baseline="central">round_budget exhausted</text>
   <text class="label-sm" font-size="11" x="387" y="466" text-anchor="middle" dominant-baseline="central">&#8594; ship what's green (Cut-List Review)</text>
 
   <!-- ROW 3: Evaluate -> QA Edge Hunt -> Ship &amp; Triage -> Ship Sign-off -->
@@ -255,7 +256,7 @@
   <g>
     <rect class="n-box" x="625" y="522" width="180" height="56" rx="8"/>
     <text class="t-n" font-size="14" font-weight="500" x="715" y="540" text-anchor="middle" dominant-baseline="central">Ship &amp; Triage</text>
-    <text class="ts-n" font-size="12" x="715" y="562" text-anchor="middle" dominant-baseline="central">/hammer</text>
+    <text class="ts-n" font-size="12" x="715" y="562" text-anchor="middle" dominant-baseline="central">/ship stop</text>
   </g>
   <line class="edge flow e12" x1="805" y1="550" x2="815" y2="550"/>
   <g>
@@ -270,11 +271,16 @@
   </g>
 
   <!-- ROW 4: Retro -->
-  <line class="edge flow e13" x1="985" y1="572" x2="985" y2="650" marker-end="url(#arrow)"/>
+  <line class="edge flow e13" x1="985" y1="572" x2="985" y2="598"/>
+  <g>
+    <rect class="gate-pill" x="925" y="598" width="120" height="22" rx="11"/>
+    <text class="gate-text" font-size="11" font-weight="500" x="985" y="609" text-anchor="middle" dominant-baseline="central">Retro Ownership</text>
+  </g>
+  <line class="edge flow e13" x1="985" y1="620" x2="985" y2="650" marker-end="url(#arrow)"/>
   <g>
     <rect class="n-box" x="895" y="650" width="180" height="56" rx="8"/>
-    <text class="t-n" font-size="14" font-weight="500" x="985" y="668" text-anchor="middle" dominant-baseline="central">Retro</text>
-    <text class="ts-n" font-size="12" x="985" y="690" text-anchor="middle" dominant-baseline="central">/retro</text>
+    <text class="t-n" font-size="14" font-weight="500" x="985" y="668" text-anchor="middle" dominant-baseline="central">Reflect + Retro</text>
+    <text class="ts-n" font-size="12" x="985" y="690" text-anchor="middle" dominant-baseline="central">rules on probation</text>
   </g>
 
   <!-- legend -->
@@ -301,5 +307,5 @@
 
   <!-- gate key: every pill's plain name, spelled out once, so the pills can stay compact -->
   <text class="label-sm" font-size="11" x="60" y="782" dominant-baseline="central">Gates — Intake &amp; Config · Orient Review · Wiring Review · Board Review</text>
-  <text class="label-sm" font-size="11" x="60" y="800" dominant-baseline="central">Round Close (advisory) · Verdict · Cut-List Review · Ship Sign-off</text>
+  <text class="label-sm" font-size="11" x="60" y="800" dominant-baseline="central">Round Close (advisory) · Verdict · Cut-List Review · Ship Sign-off · Retro Ownership</text>
 </svg>

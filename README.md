@@ -26,7 +26,7 @@ draw a picture. <a href="docs/assets/demo-gate.txt">Plain-text transcript.</a>
 ## What it does to your agent
 
 Every framework in this category answers *"the agent ignored the spec"* with better prose.
-This one answers it with a runtime. Three things are true of a run here that are not true of a
+This one answers it with a runtime. Four things are true of a run here that are not true of a
 prompt-based harness:
 
 **1. A worker cannot act on an order nobody compiled.** Every dispatch carries a schema-validated
@@ -57,6 +57,16 @@ told from a regression. That block measures and judges nothing.
 **3. Parallel work can't corrupt shared state.** Each scope gets a write-whitelist of files
 enforced by a hook, and the loop alone applies every board and ledger change.
 → *Prevents: two parallel executors both rewriting the board, and one's completions vanishing.*
+
+**4. A run learns from itself, and the kernel decides what it learned.** Before a run closes — at every ending —
+the loop proposes lessons from the kernel's own records (the guard's metrics, the T0 trial ledger, the gate ledger,
+the dispatch receipts). The gate agent answers `file` or `skip`, and the kernel narrows `file` to `skip` unless the
+lesson's citations match rows it wrote and its failure class recurred or cost an attempt. A filed lesson is one rule
+file on **probation**: promoted only after later runs show its failure class staying away, expired if the class never
+had a base rate, retired (and filed as a defect) if the class returns while the rule was loaded. When an order opens,
+the kernel chooses which rules it loads, within a token budget, and records the set on the dispatch receipt. A rule
+steers craft; it never decides a gate.
+→ *Prevents: a lesson that is the loop's own say-so, and a rule nobody can show ever helped.*
 
 Under the hood this rests on a typed worker envelope and a single-writer state layer. Those
 are load-bearing plumbing, and you should not have to think about them to use the harness —
@@ -138,6 +148,7 @@ rest of this README after this table and nothing will be a surprise.
 | **hill / hill phase** | How much of a scope is still *unknown* versus merely *unfinished*. The Scout reports a signal at orient; nothing later derives it. |
 | **gate** | A checkpoint in a run, called by its plain name: Intake & Config, Orient Review, Wiring Review, Board Review, Round Close, Verdict, QA Edge Hunt, Cut-List Review, Ship Sign-off and Retro Ownership. [`AGENTS.md`'s Gate names](AGENTS.md#gate-names) says what each one checks. A gate agent answers each one for you and logs why; the Round Close gate is advisory: it can be crossed over unfinished work, recorded as a flagged `warn`. |
 | **covers-closure** | Every requirement clause is graded by at least one acceptance criterion or claimed by a scope, or the PO marks it `CUT`. The loop reads the plan back for this before the board review; nothing silently drops. |
+| **rule / probation** | One file of guidance in the knowledge base, with a reader, a condition and a status. A rule a run files from its own lessons starts on probation and is promoted, expired or retired by what later runs show. It never decides a gate. |
 | **discovery ledger** | The one file everything found mid-run gets written to, so nothing is lost between rounds. |
 
 A longer version, including the internals, is in [docs/glossary.md](docs/glossary.md).
@@ -151,7 +162,7 @@ document as a whole starts at [`docs/design/`](docs/design/README.md). This diag
 full phase and gate mechanism — simpler than that per-attempt detail, but the whole pipeline:
 
 <p align="center">
-  <img src="docs/assets/workflow-mechanism.svg" alt="The shapeup-sdlc harness pipeline from raw idea to Retro: Shaping produces a Pitch, the Betting Table bets into the loop-driven run or rejects back to raw idea, Kick-off through Ship Sign-off cross gates Intake & Config, Orient Review, Wiring Review, Board Review, the advisory Round Close, Verdict, Cut-List Review and Ship Sign-off, the Build/Evaluate round loops on FAIL, and a circuit breaker routes straight to Cut-List Review — bypassing QA — when the round budget runs out." width="900">
+  <img src="docs/assets/workflow-mechanism.svg" alt="The shapeup-sdlc harness pipeline from raw idea to Retro: Shaping produces a Pitch, the Betting Table bets into the loop-driven run or rejects back to raw idea, Kick-off through Ship Sign-off cross gates Intake & Config, Orient Review, Wiring Review, Board Review, the advisory Round Close, Verdict, Cut-List Review and Ship Sign-off, the Build/Evaluate round loops on FAIL, a circuit breaker routes straight to Cut-List Review — bypassing QA — when the round budget runs out, and every run reflects on itself before it closes, through the Retro Ownership gate." width="900">
 </p>
 
 <p align="center"><sub>
@@ -304,6 +315,13 @@ Stated plainly, because you will hit them:
 - **The gates are verified; the craft is not.** A hook that denies is proven by a test that
   watches it deny. A skill that writes a good spec tree is, at present, taken on trust.
 
+- **The learning loop is checked against fixtures and a scripted run, not a model-driven one.** The rule
+  conditions (`step`, `archetype`, `topology_type`, `gate`, `signal`), the failure-class vocabulary, the `plan` and
+  `building` readers, and the writing, probation and retirement of a lesson have not yet been exercised by a real run
+  that produced a lesson (`npm run verify:learning` drives the real kernel and hooks with the loop's moves scripted).
+  A rule has one reader; file it once per reader.
+- **Codex CLI is experimental.** Its hook payloads are read from documentation, not measured against a live session.
+
 Contributions to any of these are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Develop
@@ -311,6 +329,9 @@ Contributions to any of these are welcome — see [CONTRIBUTING.md](CONTRIBUTING
 ```bash
 npm test                             # structural tests
 npm run demo                         # re-record the demo asset from the real hook
+npm run verify:cross-dir             # fire a changed hook from a git-archive copy at another path (release check)
+npm run verify:learning              # drive the learning loop through the real kernel and hooks, loop moves scripted
+npm run test:grant                   # check the permission grant the installer writes actually executes
 claude plugin validate . --strict    # the same check CI runs
 claude --plugin-dir .                # load this working copy without installing
 ```
@@ -322,14 +343,17 @@ claude --plugin-dir .                # load this working copy without installing
   plugin.json         # plugin manifest
   marketplace.json    # marketplace listing (points at this repo)
 skills/<name>/SKILL.md # the 7 harness skills (+ references/ and resources/)
-agents/<worker>.md    # the 4 workers as plugin subagents: each preloads its skill; a dispatch names the agent
+agents/<name>.md      # the 4 workers (task-executor, spec-evaluator, orient, qa-edge-hunter) and the gate agent as plugin subagents:
+                      #   each preloads its skill; a dispatch names the agent
 kernel/harness.mjs    # ONE entry point for every deterministic step; the whole permission grant
 kernel/{verify,init}/ #   its subcommands (the T0 witness, the envelope check, the roster check, init run), each binding the core to Shape Up
 kernel/{gate,order}.mjs #   the gate resolver, and the verb that arms and retires the fence
+kernel/kb/            #   the rule table: lint, select (what an order loads), add, apply, evidence, review, migrate
 kernel/core/          # the mechanism, free of any workflow: run trace + run key, hook runtime, ledger, gate resolver,
                       #   T0 + ratchet, contract parser, envelope check, roster, argv (the typed CLI boundary), model floor,
                       #   host seam (which harness's payload a hook is reading, and the deny it answers with)
-kernel/shapeup/       # the data this plugin hands the core: root names, gate table + evidence rules, contract layouts, ratchet names, floor
+kernel/shapeup/       # the data this plugin hands the core: root names, gate table + evidence rules, contract layouts, ratchet names, floor,
+                      #   and the learning loop's vocabulary (signals, failure classes, probation, closed checks)
 kernel/lib/paths.mjs  # the path resolver every hook and `bin/init.mjs` import (a facade over kernel/shapeup/paths.mjs)
 kernel/schemas/       # the envelope port: WorkOrder, WorkResult, domain registry
 commands/*.md         # the 3 slash commands (/ship, /retro and /init); every other step is a skill, typed by its name
@@ -344,9 +368,10 @@ bin/init-plugin.mjs   # what `/init` runs from the installed plugin: the same st
 bin/lib/run-init.mjs  #   the installer both entry points share
 scripts/install-harness.sh, migrate.sh   # stable public entrypoints (fresh install / update)
 scripts/shapeup-sdlc/lib/                # shell libs both entrypoints source
-tools/                # repo-only: demo/
-                      #   demo/record-demo.mjs (regenerates docs/assets/demo-gate.svg)
-tests/structural.mjs, tests/structural/*.mjs   # Tier 0 — thirteen modules, zero LLM calls
+tools/                # repo-only: demo/record-demo.mjs (regenerates docs/assets/demo-gate.svg),
+                      #   verify-cross-dir.mjs and verify-learning-loop.mjs (release-candidate checks)
+tests/structural.mjs, tests/structural/*.mjs   # Tier 0 — twenty-three modules, zero LLM calls
+tests/grant/          # the permission grant, executed rather than read
 docs/install.md, upgrading.md, glossary.md
 docs/design/          # the design document (pipeline, gates, circuit breaker, ERD)
 docs/visualize/       # the before-and-after view of the v4 loop
