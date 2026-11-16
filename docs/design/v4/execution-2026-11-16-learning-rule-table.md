@@ -41,7 +41,7 @@ Script nằm trong scratchpad của phiên, không commit. Mỗi dòng ghi lện
 
 ## Run thật với model (2026-11-16, phiên Claude Desktop của PO, dự án kiểm)
 
-Năm run `/ship` thật, đọc lại từ bản ghi của kernel trong `proj-shapeup-sdlc-plugin-testing`, không từ lời của loop:
+Sáu run `/ship` thật, đọc lại từ bản ghi của kernel trong `proj-shapeup-sdlc-plugin-testing`, không từ lời của loop:
 
 | Run | Rule trong dự án | Kết thúc | Ghi nhận |
 |---|---|---|---|
@@ -50,15 +50,16 @@ Năm run `/ship` thật, đọc lại từ bản ghi của kernel trong `proj-sh
 | `contradiction` | 4 rule | `aborted` ở Intake & Config | reflect chạy trước `order close`, `candidates.json` rỗng, Retro Ownership `skip`, có hàng index; chưa order nào mở nên không nạp rule |
 | `upper` | 4 rule | `shipped`, PASS vòng 1 | như `wordcount`, cùng `kb_load_set` (cùng rule, cùng set) |
 | `noop` | 4 rule | `shipped`, PASS vòng 1 | ép `escalated` **không thành**: gate agent vẫn cho qua một board có việc kiểm tra; không có hunt (`skip`) |
+| `orphan` | 4 rule | `shipped`, PASS vòng 1 trên kiểm tra tĩnh | ép `escalated` lần hai **không thành**: pitch cấm mọi call site; gate agent ghi "no call site by design" ở Orient, Wiring và Board Review (mỗi lần `Review first: yes`) và cho qua thay vì trả findings hay `abort`; QA `skip` |
 
-Đã chứng minh bằng model thật: bộ chọn chạy trong `order open` và receipt ghi set đã chọn (L2); reflect chạy trước khi đóng ở hai kiểu kết thúc (`shipped`, `aborted`) và hàng index được ghi cho cả năm run (L5, một phần); khối Learning có mặt trong cả bốn ship report (L6, một phần, xem dưới).
+Đã chứng minh bằng model thật: bộ chọn chạy trong `order open` và receipt ghi set đã chọn (L2); reflect chạy trước khi đóng ở hai kiểu kết thúc (`shipped`, `aborted`) và hàng index được ghi cho cả sáu run (L5, một phần); khối Learning có mặt trong cả năm ship report (L6, một phần, xem dưới).
 
 Chưa đạt, nói thẳng:
 
-- **Chưa có run `escalated` thật.** Hai lần ép (pitch tự mâu thuẫn, pitch không có gì để build) cho `aborted` và `shipped`. Kết thúc `escalated` mới chỉ được chạy bởi `verify:learning`, không bởi model.
-- **"Ba run thật liên tiếp" chưa khớp chữ.** Bốn ship report có Learning, nhưng chỉ ba run (`wordcount`, `upper`, `noop`) nạp rule, và giữa `wordcount` với `upper` có một run `aborted` không có report.
-- **Không run nào sinh lesson:** `classes` rỗng ở cả năm hàng index, `candidates.json` rỗng ở cả năm run. Lỗi EPIPE mà hunt báo ở hai run là phát hiện của hunt, không phải lớp lỗi do kernel ghi, nên không đủ làm bằng chứng. Vì vậy **chưa có rule nào do vòng học sinh ra từ một run thật**, chưa có rule probation nào, và `.shapeup/_kb/effect.jsonl` chưa tồn tại. Phần ghi rule, probation và retire chỉ được chứng minh bằng `verify:learning`.
-- **Q6 chưa đo:** `usage.tokens_total` là `null` trên mọi receipt của năm run, nên không tính được token của gate agent từ các bản ghi này.
+- **Chưa có run `escalated` thật.** Ba lần ép (pitch tự mâu thuẫn, pitch không có gì để build, pitch cấm mọi call site) cho `aborted`, `shipped`, `shipped`: gate agent chọn nhận một bet hẹp hơn thay vì dừng. Quyết định dừng cần bằng chứng kernel (board 0 task, findings lặp lại, từ chối ở Ship Sign-off), mà model luôn tìm được cách làm cho bằng chứng đó không xảy ra. Kết thúc `escalated` mới chỉ được chạy bởi `verify:learning`, không bởi model.
+- **"Ba run thật liên tiếp" chưa khớp chữ.** Năm ship report có Learning, nhưng chỉ bốn run (`wordcount`, `upper`, `noop`, `orphan`) nạp rule, và giữa `wordcount` với `upper` có một run `aborted` không có report.
+- **Không run nào sinh lesson:** `classes` rỗng ở cả sáu hàng index, `candidates.json` rỗng ở cả sáu run. Lỗi EPIPE mà hunt báo ở hai run là phát hiện của hunt, không phải lớp lỗi do kernel ghi, nên không đủ làm bằng chứng. Vì vậy **chưa có rule nào do vòng học sinh ra từ một run thật**, chưa có rule probation nào, và `.shapeup/_kb/effect.jsonl` chưa tồn tại. Phần ghi rule, probation và retire chỉ được chứng minh bằng `verify:learning`.
+- **Q6 chưa đo:** `usage.tokens_total` là `null` trên mọi receipt của sáu run, nên không tính được token của gate agent từ các bản ghi này.
 - `rule_checks` không xuất hiện trong T0 ở `wordcount`/`upper`/`noop`: check chỉ báo khi có fixture phủ định thiếu bản đối chứng, và các fixture ở đó không có.
 
 ## Cái chưa làm được, nói thẳng
