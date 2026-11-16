@@ -135,7 +135,12 @@ export async function runHook(name, fn, trace) {
     // clean allow. This is the state that used to be completely unobservable.
     else d = { verdict: "error", reason: String(e?.message ?? e) };
   }
-  record({
+  // A folder that is no project (no run pointer, no committed tier, no repository) gets no ledger:
+  // the plugin's hooks fire in every folder the user opens, and a receipt there would plant a local
+  // trace folder in a place that never ran the loop. A redirected ledger is a test's own and always written.
+  let filed = true;
+  try { filed = trace.hasRedirect() || trace.isProject(d.cwd || process.cwd()); } catch { /* fail open: keep the receipt */ }
+  if (filed) record({
     at: new Date().toISOString(),
     hook: name,
     pid: process.pid,

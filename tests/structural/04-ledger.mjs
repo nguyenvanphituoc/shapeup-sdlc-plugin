@@ -35,6 +35,26 @@ export async function run(ctx) {
         `${name}: an out-of-scope payload is a REASONED allow, so "permitted" differs from "never ran"`);
     }
 
+    section("ledger — a folder that is no project gets no ledger");
+    const bare = scratch("bare");
+    try {
+      const payload = { tool_name: "Bash", tool_input: { command: "ls" }, cwd: bare.dir };
+      let r = fire(ROOT, "hooks/safety-spine.mjs", payload, { cwd: bare.dir, env: { SHAPEUP_DECISIONS_PATH: "" } });
+      check(r.status === 0 && !existsSync(join(bare.dir, ".shapeup")), "an allow in a folder with no repository, tier or run leaves no local trace folder behind");
+      r = fire(ROOT, "hooks/safety-spine.mjs", { ...payload, tool_input: { command: "rm -rf /" } }, { cwd: bare.dir, env: { SHAPEUP_DECISIONS_PATH: "" } });
+      check(denied(r), "a refusal in such a folder is still answered");
+    } finally { bare.done(); }
+    const repo = scratch("repo-only", { git: true });
+    try {
+      const payload = { tool_name: "Bash", tool_input: { command: "ls" }, cwd: repo.dir };
+      const quiet = { cwd: repo.dir, env: { SHAPEUP_DECISIONS_PATH: "" } };
+      fire(ROOT, "hooks/safety-spine.mjs", payload, quiet);
+      check(!existsSync(join(repo.dir, ".shapeup")), "an allow in a repository that has not adopted the loop leaves no local trace folder");
+      put(repo.dir, "shapeup/demo/shaping.md", "# pitch\n");
+      fire(ROOT, "hooks/safety-spine.mjs", payload, quiet);
+      check(existsSync(join(repo.dir, ".shapeup", "decisions.jsonl")), "the same allow is filed once the repository carries a committed tier");
+    } finally { repo.done(); }
+
     section("ledger — safety-spine denies the unrecoverable and allows the ordinary");
     for (const [command, expected] of [
       ["rm -rf /", "deny"], ["git push --force origin main", "deny"], ["git reset --hard HEAD~3", "deny"],

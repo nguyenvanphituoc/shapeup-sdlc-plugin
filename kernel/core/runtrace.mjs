@@ -222,9 +222,9 @@ export function runTrace({ shared, local, decisionsEnv }) {
    * repository is somebody's separate project), and a pointer in a folder that is no project by the same
    * markers. No marker anywhere returns `cwd` unchanged. Never throws.
    */
-  const projectRoot = (cwd) => {
+  const locate = (cwd) => {
     let start;
-    try { start = resolve(cwd || process.cwd()); } catch { return cwd; }
+    try { start = resolve(cwd || process.cwd()); } catch { return { root: cwd, marked: false }; }
     const probe = (test) => (dir) => { try { return test(dir); } catch { return false; } };   // an unreadable ancestor has no marker
     const pointer = probe((dir) => existsSync(activeScope(dir)));
     const tier = probe((dir) => statSync(sharedDir(dir)).isDirectory());
@@ -239,26 +239,36 @@ export function runTrace({ shared, local, decisionsEnv }) {
     }
 
     const at = chain.findIndex((dir) => pointer(dir) || tier(dir) || git(dir));
-    if (at < 0) return cwd;
+    if (at < 0) return { root: cwd, marked: false };
     const nearest = chain[at];
-    if (pointer(nearest) || git(nearest)) return nearest;
+    if (pointer(nearest) || git(nearest)) return { root: nearest, marked: true };
 
     // The nearest marker is a committed tier and nothing else: look above it for the run.
     for (let i = at + 1; i < chain.length; i++) {
       const dir = chain[i];
-      if (pointer(dir)) return tier(dir) || chain.slice(i).some(git) ? dir : nearest;
+      if (pointer(dir)) return { root: tier(dir) || chain.slice(i).some(git) ? dir : nearest, marked: true };
       if (git(dir)) break;
     }
-    return nearest;
+    return { root: nearest, marked: true };
   };
-
-  /** Where the decision receipts land: the redirect variable when set, else the local root's ledger under the found project root. */
+  const projectRoot = (cwd) => locate(cwd).root;
+  /**
+   * True when the project `cwd` sits in has adopted the loop: its root carries a run pointer or a committed
+   * tier. A repository alone is a boundary for finding the root, not adoption, and a local trace folder
+   * alone is not either (a stray one is exactly what this gate exists to stop feeding). Never throws.
+   */
+  const isProject = (cwd) => {
+    const { root, marked } = locate(cwd);
+    if (!marked) return false;
+    try { return existsSync(activeScope(root)) || statSync(sharedDir(root)).isDirectory(); } catch { return false; }
+  };
+  const hasRedirect = () => Boolean(decisionsEnv && process.env[decisionsEnv]);
   const decisionsPath = (cwd) => (decisionsEnv && process.env[decisionsEnv]) || decisions(projectRoot(cwd || process.cwd()));
 
   return {
     sharedDir, localDir, sharedRoot, localRoot, insideRunTrace, receipt, runArgsPath, ordersDir, resultsDir,
     dispatchReceipts, t0Dir, verdictsDir, trials, gates, activeScope, activeOrder, lastRun, decisions, metricsDir,
-    metricsShard, relLocal, relShared, globLocal, globShared, readRunId, resolveRun, resolveRunId, projectRoot, decisionsPath,
+    metricsShard, relLocal, relShared, globLocal, globShared, readRunId, resolveRun, resolveRunId, projectRoot, isProject, hasRedirect, decisionsPath,
     RECEIPT_FILE, RUN_ARGS_FILE, RUN_ID_PATTERN, compactStamp, mintRunId, runIdFromReceipt, readReceipt, runIdFromRoot,
   };
 }
