@@ -81,7 +81,7 @@ export const report = (cwd, slug) => join(sharedRoot(cwd, slug), "REPORT.md");
 export const knowledgeBaseDir = (cwd) => join(sharedDir(cwd), "knowledge-base");
 /** One reader's coaching file (a coachable worker, or the `plan` / `building` activity). */
 export const knowledgeBase = (cwd, skill) => join(knowledgeBaseDir(cwd), `${skill}.md`);
-/** The rule table: one file per rule, under one folder per reader (and `_shared` for a rule several readers take). */
+/** The rule table: one file per rule, under one folder per reader. */
 export const knowledgeRulesDir = (cwd) => join(knowledgeBaseDir(cwd), "rules");
 /** The compiled rule files the selector writes — one per distinct set of rules, named by the set. LOCAL: regenerable. */
 export const kbCompiledDir = (cwd) => join(localDir(cwd), "_kb", "compiled");

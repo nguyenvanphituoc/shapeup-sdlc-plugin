@@ -25,7 +25,6 @@ export const READERS = {
   "plan": { code: "pl", legacy: ["plan", "ba-pitch-analyzer", "scope-architect", "solution-architect"] },
   "building": { code: "bu", legacy: ["building", "tech-lead"] },
 };
-export const SHARED_DIR = "_shared";
 export const KINDS = ["guide", "check", "ask"];
 export const STATUSES = ["active", "probation", "retired", "expired"];
 /** The default token budget for one order's compiled file. */
@@ -84,8 +83,8 @@ export function loadRules(cwd) {
   });
 }
 
-/** Whether a reader has been migrated to the rule table (its folder exists, or `_shared` carries a rule for it). */
-export const hasTable = (cwd, reader) => existsSync(join(knowledgeRulesDir(cwd), reader)) || loadRules(cwd).some((r) => r.dir === SHARED_DIR && r.readers.includes(reader));
+/** Whether a reader has been migrated to the rule table (its folder exists). */
+export const hasTable = (cwd, reader) => existsSync(join(knowledgeRulesDir(cwd), reader));
 
 const IMPERATIVE_GATE = /\b(?:always|must|never|should)?\s*(?:answer|resolve|decide|say|reply|choose|pick)\s+["'`]?(proceed|ship|skip|abort|loop|stop|run|hold|accept-cut-list|ship-all)\b/i;
 const SHELL_LINE = /^\s*(?:\$\s|(?:npm|npx|node|git|curl|rm|cd)\s)/m;
@@ -107,8 +106,8 @@ export function lintRules(cwd) {
     if (!m.id) add(r, "id", "missing id"); else { if (byId.has(m.id)) add(r, "id-duplicate", `id ${m.id} is also in ${byId.get(m.id)}`); byId.set(m.id, r.rel); }
     if (!r.readers.length) add(r, "reader", "missing reader");
     for (const rd of r.readers) if (!READERS[rd]) add(r, "reader", `reader "${rd}" is not one that reads rules (${Object.keys(READERS).join(", ")}) — the judge and the census are not coachable`);
-    const okDir = r.readers.length === 1 ? r.dir === r.readers[0] : r.dir === SHARED_DIR;
-    if (r.readers.length && !okDir) add(r, "location", r.readers.length === 1 ? `a rule for ${r.readers[0]} lives under ${r.readers[0]}/` : `a rule for several readers lives under ${SHARED_DIR}/`);
+    if (r.readers.length > 1) add(r, "reader", "a rule has one reader; file it once per reader");
+    else if (r.readers.length && r.dir !== r.readers[0]) add(r, "location", `a rule for ${r.readers[0]} lives under ${r.readers[0]}/`);
     if (!KINDS.includes(m.kind ?? "guide")) add(r, "kind", `kind "${m.kind}" is not one of ${KINDS.join(", ")}`);
     if (!STATUSES.includes(m.status)) add(r, "status", `status "${m.status}" is not one of ${STATUSES.join(", ")}`);
     const when = m.when ?? {};

@@ -68,6 +68,7 @@ export async function run(ctx) {
       } finally { fresh.done(); }
     };
     lint("a broken frontmatter", "---\nid: te-11111111\nwhen: {oops\n---\nbody", "frontmatter");
+    lint("a reader written as a list", rule({ reader: '["task-executor","orient"]' }), "reader");
     lint("a `when` key outside the enum", rule({ when: { colour: ["red"] } }), "when-key");
     lint("a `when` value outside the enum", rule({ when: { operation: ["teleport"] } }), "when-value");
     lint("a signal nothing emits", rule({ when: { signal: ["pathology.PA99"] } }), "when-value");
