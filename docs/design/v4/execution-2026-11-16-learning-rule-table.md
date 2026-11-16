@@ -7,6 +7,22 @@
 | **Baseline trước khi sửa** | `npm test` 364 checks, 0 failure · `npm run demo` verified · `claude plugin validate . --strict` và `./.claude-plugin/marketplace.json --strict` đều pass (chạy 2026-11-16 trước commit đầu tiên) |
 | **Dự án kiểm** | `../proj-shapeup-sdlc-plugin-testing`, plugin nạp bằng `--plugin-dir` trỏ vào working copy; không cài plugin |
 
+## Chốt (2026-11-16)
+
+PO chốt ở mức hiện tại. Plan **hoàn thành về code, test và tài liệu; chưa hoàn thành ở các cổng cần model thật**:
+
+| Cổng | Tình trạng |
+|---|---|
+| L0 đo (Q1–Q5) | Xong, số đo ở phần L0. Q1 dưới ngưỡng 80% (54,5%), vẫn làm bộ chọn đầy đủ; Q2 ngân sách 2.000 token |
+| L1, L3, L4, L7 | Xong, kiểm bằng `npm test` (515 check, 0 failure) |
+| L2 phiên lồng thật | **Đạt**: bộ chọn chạy trong `order open`, receipt mang `kb_load_set` ở ba run có rule |
+| L5 hai run thật | **Đạt một phần**: `shipped` và `aborted` thật, reflect chạy trước khi đóng. Chưa có `escalated` thật (ba lần ép không thành); ending này chỉ được `verify:learning` chạy |
+| L6 ba run thật liên tiếp | **Chưa đạt**: bốn run nạp rule và có khối Learning, nhưng không run nào sinh lesson (`classes` rỗng), nên chưa có rule probation hay `effect.jsonl` từ run thật; chuỗi liên tiếp bị một run `aborted` chen giữa |
+| L8 | Đạt phần tài liệu và phát hành 6.0.0; phần phiên lồng thật như L2 |
+| Q6 token của gate agent | **Chưa đo**: `usage.tokens_total` là `null` trên mọi receipt |
+
+Phần ghi rule, probation và retire mới được chứng minh bằng `verify:learning` (không tính vào các cổng model thật). Để đóng các cổng còn lại cần: một run có lớp lỗi lặp lại do kernel ghi, một ending `escalated` thật, và nguồn token cho Q6.
+
 ## L0 — Đo
 
 Script nằm trong scratchpad của phiên, không commit. Mỗi dòng ghi lệnh/nguồn và kết quả.
@@ -71,8 +87,12 @@ Chưa đạt, nói thẳng:
 - Hai giới hạn đã biết của chốt 1: (a) một citation chỉ được kiểm là *tồn tại* trong ledger của kernel, không kiểm là *liên quan* tới lớp lỗi của candidate — lớp lỗi được xác nhận riêng bằng `runClasses`; (b) kết quả đánh giá (`evaluate-r*.json`, "verdict FAIL" của chốt 1) chưa là ledger được trích, nên lesson `eval.fail.*` và `qa.lens.*` hiện chỉ trích được một dòng metrics/trial/gate khác. Receipt không do host chứng thực (Codex) bị từ chối làm nguồn.
 - Dự án kiểm: đã `git init` và một commit `seed` trong `proj-shapeup-sdlc-plugin-testing` (trước đó không phải repo); trạng thái tổng hợp của `verify:learning` đã được dọn.
 
-## Chạy lại khi quyền gọi model có lại
+## Chạy lại các cổng còn thiếu
+
+Từ dự án kiểm, với rule đã gieo (`kb add`) và một pitch nhỏ:
 
 ```bash
-cd ../proj-shapeup-sdlc-plugin-testing && claude -p "/shapeup-sdlc-plugin:ship shapeup/hello/pitch.md --max-rounds 2" --plugin-dir ../proj-shapeup-sdlc-plugin --permission-mode acceptEdits --model sonnet --max-budget-usd 25
+cd ../proj-shapeup-sdlc-plugin-testing && claude -p "/shapeup-sdlc-plugin:ship shapeup/<pitch>/pitch.md --max-rounds 2" --plugin-dir ../proj-shapeup-sdlc-plugin --permission-mode acceptEdits --model sonnet --max-budget-usd 25
 ```
+
+Sau mỗi run đọc `close.json`, `gates.jsonl`, `receipts/dispatch.jsonl`, `learning/candidates.json` và `.shapeup/_learning/index.jsonl`, không đọc lời của loop.
