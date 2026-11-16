@@ -3,6 +3,10 @@
 All notable changes to this plugin are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [6.0.1] — 2026-11-16 · The hooks leave no trace in a folder that has not adopted the loop
+
+- **Fixed.** The plugin's hooks fire in every folder the user opens, and each tool call filed a row in a local `.shapeup/decisions.jsonl` there, planting a trace folder in projects that never ran the loop. A row is now filed only when the project root carries a run pointer or a committed `shapeup/` tier; a repository alone, or a stray trace folder, does not count. A refusal is still answered everywhere. Inside a project that has adopted the loop nothing changes.
+
 ## [6.0.0] — 2026-11-16 · The knowledge base is a table of rules the kernel chooses from, and a run learns from itself
 
 **Breaking.** The knowledge base's layout, what an order's `kb_rules_path` means, and the answers Retro Ownership takes.
